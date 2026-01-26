@@ -360,24 +360,56 @@ class EventScraper:
         return fight
     
     def _determine_winner(self, result_col) -> Optional[str]:
-        """Determine fight winner from result column"""
-        # Look for win indicators in the HTML structure
-        text = result_col.text.strip().lower()
-        
-        if 'win' in text:
-            # The structure usually has the winner indicated
-            # This needs to be refined based on actual HTML structure
-            if result_col.select_one('i.b-flag__text'):
-                return 'fighter_1'  # Top fighter won
+        """
+        Determine fight winner from the W/L column on the event page.
+
+        UFCStats event rows vary:
+        - Sometimes the W/L column contains a single flag ("win") and the winner is listed first.
+        - Sometimes it contains per-fighter markers (2 lines).
+
+        Returns one of: 'fighter_1', 'fighter_2', 'draw', 'no_contest', or None.
+        """
+        # Prefer structured parsing of per-line markers
+        p_tags = result_col.select("p.b-fight-details__table-text")
+        markers = []
+        for p in p_tags:
+            flag = p.select_one("i.b-flag__text")
+            if flag:
+                markers.append(flag.get_text(strip=True).lower())
             else:
-                return 'fighter_2'  # Bottom fighter won
-        
-        # Check for draw or no contest
-        if 'draw' in text:
-            return 'draw'
-        if 'nc' in text or 'no contest' in text:
-            return 'no_contest'
-        
+                markers.append(p.get_text(strip=True).lower())
+
+        # Fallback to full text if needed
+        text = result_col.get_text(" ", strip=True).lower()
+        if not markers:
+            markers = [text] if text else []
+
+        # Handle draw/NC quickly
+        if any("draw" in m for m in markers):
+            return "draw"
+        if any(m in ("nc", "no contest") or "no contest" in m for m in markers) or any("nc" == m for m in markers):
+            return "no_contest"
+
+        # If we have 2+ markers, try to find which line indicates win
+        if len(markers) >= 2:
+            top = markers[0]
+            bottom = markers[1]
+
+            if "win" in top and "win" not in bottom:
+                return "fighter_1"
+            if "win" in bottom and "win" not in top:
+                return "fighter_2"
+
+            # Sometimes it's W/L shorthand
+            if top in ("w", "win") and bottom in ("l", "loss"):
+                return "fighter_1"
+            if top in ("l", "loss") and bottom in ("w", "win"):
+                return "fighter_2"
+
+        # If we only have one marker and it's a win, UFCStats typically lists the winner first
+        if any("win" in m or m == "w" for m in markers):
+            return "fighter_1"
+
         return None
     
     def _parse_int(self, value_str: str) -> Optional[int]:
