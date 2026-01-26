@@ -1,0 +1,25 @@
+{
+  "iteration": 4,
+  "summary": "Added interaction feature 'striking_differential_x_opponent_quality_diff' that multiplies striking_differential by opponent_quality_score_diff",
+  "files_changed": [
+    "features/matchup_features.py",
+    "schema/feature_schema.json",
+    "schema/monotone_constraints.json"
+  ],
+  "rationale": "The plan identified that Gaethje's striking differential (5.2) was achieved against much higher quality opponents, but the model wasn't weighting this appropriately. Previous iterations showed that direct amplification approaches (squared features, quality-adjusted weighting) improved Top 25% accuracy but harmed underdog performance. This interaction feature is more selective - it only activates when BOTH striking advantage AND quality advantage exist simultaneously. This should help identify true favorites (fighters with elite-level striking performance against top competition) without over-penalizing underdogs who may have striking advantages against weaker competition. The feature distinguishes between fighters who dominate lower-tier opponents vs those who excel against top competition, which should improve Top 25% confidence calibration while preserving underdog signal.",
+  "expected_effect": "Should improve Top 25% accuracy by better identifying elite-level striking performance achieved against top competition. The selective activation (requiring both conditions) should minimize negative impact on underdog performance compared to direct amplification approaches. This feature will be positive when both advantages align (both favor f1 or both favor f2) and negative when they conflict, allowing the model to learn nuanced interactions between striking ability and opponent quality.",
+  "constraints_changed": [
+    {
+      "feature": "striking_differential_x_opponent_quality_diff",
+      "constraint": 0,
+      "rationale": "Set to 0 (no constraint) to let the model learn the interaction freely, as the feature can be positive or negative depending on whether advantages align or conflict"
+    }
+  ],
+  "features_added": [
+    "striking_differential_x_opponent_quality_diff"
+  ],
+  "features_removed": [],
+  "features_modified": [],
+  "change_type": "feature_addition",
+  "implementation_details": "Added calculation in `_calculate_differentials` method in `features/matchup_features.py` that multiplies `striking_differential` by `opponent_quality_score_diff`. Updated `schema/feature_schema.json` to include the new feature (incrementing count from 247 to 248) and added it to `schema/monotone_constraints.json` (incrementing count from 303 to 304) with constraint value 0."
+}

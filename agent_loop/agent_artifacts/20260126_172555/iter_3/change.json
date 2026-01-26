@@ -1,0 +1,17 @@
+{
+  "iteration": 3,
+  "summary": "Fixed common_opponent_performance_diff feature calculation to properly aggregate results across all fights against common opponents",
+  "files_changed": [
+    "features/matchup_features.py"
+  ],
+  "rationale": "The common_opponent_performance_diff feature was showing 0.0 despite 2 common opponents existing in the test case (Gaethje vs Pimblett). Investigation revealed a bug where the code only examined the first fight against each common opponent using `.iloc[0]`, which could miss important information when fighters had multiple fights against the same opponent. Additionally, the calculation didn't properly aggregate wins across all fights. The fix now: (1) Aggregates wins/losses across ALL fights against each common opponent, (2) Calculates win rates for each fighter against common opponents, and (3) Returns the win rate difference as a normalized performance metric between -1 and 1. This provides direct matchup context that should improve Top 25% confidence accuracy without biasing toward favorites or underdogs, as it's based on neutral comparative evidence.",
+  "expected_effect": "Should improve Top 25% accuracy by providing meaningful signal when fighters have common opponents, allowing the model to better calibrate confidence based on direct head-to-head comparative evidence. This feature is neutral - it doesn't inherently favor favorites or underdogs, so it should improve confidence calibration for both groups. The fix ensures the feature actually populates with meaningful values when common opponents exist, rather than returning 0.0.",
+  "constraints_changed": [],
+  "features_added": [],
+  "features_removed": [],
+  "features_modified": [
+    "common_opponent_performance_diff"
+  ],
+  "change_type": "bug_fix",
+  "implementation_details": "Modified `_calculate_common_opponents` method in `features/matchup_features.py` to: (1) Aggregate wins across all fights against each common opponent (not just first fight), (2) Calculate win rates for each fighter against common opponents, (3) Return win rate difference as normalized metric. This fixes the bug where `.iloc[0]` only examined the first fight result, potentially missing important information when fighters had multiple fights against the same opponent."
+}

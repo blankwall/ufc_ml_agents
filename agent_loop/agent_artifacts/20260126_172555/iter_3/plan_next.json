@@ -1,0 +1,96 @@
+{
+  "fight_details_url": "http://ufcstats.com/fight-details/fa4b3f5ce8055921",
+  "fighters": [
+    {
+      "name": "Justin Gaethje",
+      "ufcstats_id": "9e8f6c728eb01124",
+      "status": "W"
+    },
+    {
+      "name": "Paddy Pimblett",
+      "ufcstats_id": "7826923b47f8d72a",
+      "status": "L"
+    }
+  ],
+  "model_prediction": {
+    "f1_win_probability": 0.527,
+    "f2_win_probability": 0.473,
+    "predicted_winner": "Justin Gaethje",
+    "confidence_level": "low",
+    "correct": true
+  },
+  "key_missed_areas": [
+    "Opponent quality differential significantly under-weighted: Gaethje's opponent_quality_score (0.36) vs Pimblett's (0.078) represents a 4.6x advantage, yet model only assigned 52.7% win probability",
+    "Age penalty may have over-compensated for experience advantage: 7-year age difference (37 vs 30) penalized Gaethje without properly accounting for his superior competition level and proven track record against elite opponents",
+    "Striking differential advantage (5.2) not sufficiently weighted: Gaethje's significant striking differential advantage was not reflected in the confidence level",
+    "Recent form context missing: Both fighters show similar recent win rates (0.667), but Gaethje's recent form came against significantly higher quality opponents (avg opponent win rate 0.715 vs 0.515), which should be a distinguishing factor",
+    "Opponent quality-adjusted recent performance not captured: The model has time_decayed_win_rate_adj_opp_quality features but may not be properly weighting the quality-adjusted metrics in recent form comparisons"
+  ],
+  "hypotheses": [
+    "The opponent_quality_score_diff feature (0.282) is not being weighted heavily enough relative to other features, causing the model to underestimate favorites with significant quality advantages",
+    "Age interaction features may be creating a double penalty: age_difference combined with age_x_* features may be over-penalizing older fighters even when they have compensating advantages in experience and opponent quality",
+    "The model may need a feature that captures 'recent form quality-adjusted' - comparing recent performance while accounting for the quality of opponents faced during that period",
+    "Striking differential features may need interaction with opponent quality to properly weight striking advantages against elite competition vs lower-tier competition",
+    "The model may benefit from a composite 'elite experience score' that combines opponent quality, title fight experience, and performance against top-tier opponents"
+  ],
+  "iteration_results": [
+    {
+      "iteration": 1,
+      "status": "reverted",
+      "change": "Added opponent_quality_score_diff_squared feature",
+      "outcome": "Improved Top 25% accuracy from 0.7785 to 0.8333 (+5.48 pp) but severely degraded underdog top 25% performance (accuracy: 0.591 to 0.476, ROI: 0.52 to 0.25). The squared feature was too aggressive in favoring favorites, making it harder to identify valuable underdog opportunities.",
+      "lesson": "Non-linear transformations that uniformly amplify differences can improve favorite identification but harm underdog detection. Need more nuanced approaches that preserve underdog signal while improving Top 25% accuracy."
+    },
+    {
+      "iteration": 2,
+      "status": "reverted",
+      "change": "Added recent_form_quality_adjusted_diff feature",
+      "outcome": "Improved Top 25% accuracy from 0.7785 to 0.7919 (+1.34 pp) but significantly degraded underdog top 25% performance (accuracy: 0.591 to 0.524, ROI: 0.52 to 0.38). Overall accuracy also decreased from 0.67 to 0.6498. The quality-adjusted recent form feature over-weighted favorites, similar to iteration 1's pattern.",
+      "lesson": "Features that directly amplify quality differences (whether through squaring or quality-adjusted weighting) consistently improve Top 25% accuracy but harm underdog identification. Need approaches that improve confidence calibration for both favorites and underdogs simultaneously, or fix broken features that should be neutral."
+    },
+    {
+      "iteration": 3,
+      "status": "kept",
+      "change": "Fixed common_opponent_performance_diff feature calculation to properly aggregate results across all fights against common opponents",
+      "outcome": "Improved Top 25% accuracy from 0.7785 to 0.8054 (+2.69 pp) but slightly degraded underdog top 25% performance (accuracy: 0.591 to 0.571, ROI: 0.52 to 0.49). Overall accuracy decreased from 0.67 to 0.6599. The bug fix now provides meaningful signal when common opponents exist, but in practice the feature appears to slightly favor favorites despite being theoretically neutral.",
+      "lesson": "Even theoretically neutral features (based on direct comparative evidence) can have subtle biases in practice. Bug fixes that restore functionality are valuable, but may still require monitoring and adjustment. The improvement in Top 25% accuracy was meaningful enough to keep the change, but future iterations should focus on features that better preserve underdog signal."
+    }
+  ],
+  "proposed_iterations": [
+    {
+      "iteration": 4,
+      "target": "Top 25% + Underdog Balance",
+      "priority": "high",
+      "description": "Create an interaction feature 'striking_differential_x_opponent_quality_diff' that multiplies striking_differential by opponent_quality_score_diff. This ensures that striking advantages are weighted more heavily when achieved against elite competition, distinguishing between fighters who dominate lower-tier opponents vs those who excel against top competition.",
+      "rationale": "Gaethje's striking differential (5.2) was achieved against much higher quality opponents. The model should weight this more heavily than similar differentials against weaker competition. This interaction feature is more subtle than direct quality amplification - it only boosts confidence when BOTH striking advantage AND quality advantage exist, which should help identify true favorites without over-penalizing underdogs who may have striking advantages against weaker competition. Given that iteration 3's bug fix improved Top 25% but slightly hurt underdogs, we need features that are more selective in their activation.",
+      "feature_focus": "striking_differential_x_opponent_quality_diff (new interaction feature)",
+      "expected_impact": "Should improve Top 25% accuracy by better identifying elite-level striking performance, with minimal impact on underdog performance since it requires both conditions to be met. More selective than direct amplification approaches."
+    },
+    {
+      "iteration": 5,
+      "target": "Top 25% + Underdog Balance",
+      "priority": "medium",
+      "description": "Create a threshold-based feature 'opponent_quality_score_diff_extreme' that only activates for extreme quality differences (e.g., absolute difference > 0.2). This preserves the signal for large quality gaps (like Gaethje's 0.282 advantage) without over-penalizing moderate differences that might favor underdogs. The feature would be 0 for differences <= 0.2 and equal to the difference for values > 0.2.",
+      "rationale": "Both squared and quality-adjusted approaches improved Top 25% but hurt underdogs. A threshold-based approach will capture extreme quality advantages (which should drive high confidence for favorites) while preserving the model's ability to identify valuable underdog opportunities in closer matchups. This balances both Top 25% accuracy and underdog performance goals by only activating for truly extreme differences. The selective activation should help preserve underdog signal better than the common_opponent fix did.",
+      "feature_focus": "opponent_quality_score_diff_extreme (new threshold feature)",
+      "expected_impact": "Should improve Top 25% accuracy for extreme favorites while preserving underdog signal in closer matchups. Threshold-based activation should be more selective than the common_opponent feature."
+    },
+    {
+      "iteration": 6,
+      "target": "Top 25% + Underdog Balance",
+      "priority": "low",
+      "description": "Review and potentially adjust age interaction features. Age penalty may be over-compensating for experience advantage - 7-year age difference (37 vs 30) penalized Gaethje without properly accounting for his superior competition level. Consider creating an interaction feature that reduces age penalty when opponent_quality_score_diff is large, or adjust existing age_x_* features to be less aggressive.",
+      "rationale": "Age features may be creating a double penalty when combined with other features. For fighters with significant quality advantages, age should be less of a concern. This adjustment could help improve Top 25% confidence for experienced favorites while maintaining underdog performance. However, this is lower priority given that we've already improved Top 25% accuracy to 0.8054.",
+      "feature_focus": "age_x_opponent_quality interaction or age feature adjustment",
+      "expected_impact": "Should improve Top 25% accuracy for experienced favorites with quality advantages, with neutral impact on underdogs."
+    }
+  ],
+  "key_lessons": [
+    "Features that directly amplify quality differences (squared, quality-adjusted weighting) consistently improve Top 25% accuracy but harm underdog identification",
+    "Even theoretically neutral features (like common_opponent_performance_diff) can have subtle biases in practice that favor favorites",
+    "Bug fixes that restore functionality are valuable and can meaningfully improve Top 25% accuracy, but may still require monitoring for underdog impact",
+    "Interaction features that require multiple conditions may be more balanced than direct amplification",
+    "Threshold-based features that only activate for extremes may preserve underdog signal in closer matchups better than always-on features",
+    "Current Top 25% accuracy is 0.8054 (up from baseline 0.7785), but underdog top 25% performance needs attention (0.571 accuracy, 0.49 ROI vs baseline 0.591 accuracy, 0.52 ROI)"
+  ]
+}

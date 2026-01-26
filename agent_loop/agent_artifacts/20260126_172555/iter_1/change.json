@@ -1,0 +1,18 @@
+{
+  "iteration": 1,
+  "summary": "Added opponent_quality_score_diff_squared feature to emphasize large opponent quality differences",
+  "files_changed": [
+    "features/matchup_features.py",
+    "schema/feature_schema.json",
+    "schema/monotone_constraints.json"
+  ],
+  "rationale": "The plan identified that opponent_quality_score_diff (0.282 in the Gaethje vs Pimblett case) was not being weighted heavily enough, causing the model to underestimate favorites with significant quality advantages. By adding a squared version of this feature, we create a non-linear transformation that amplifies large differences. For example, a difference of 0.282 becomes 0.08 when squared, but more importantly, the squared feature creates a stronger signal for extreme quality gaps that should drive higher confidence predictions. This directly addresses the Top 25% confidence accuracy goal by ensuring significant opponent quality advantages are properly recognized.",
+  "expected_effect": "The squared feature will help XGBoost recognize and weight extreme opponent quality differences more heavily. When one fighter has faced significantly better competition (like Gaethje's 0.36 vs Pimblett's 0.078), the squared feature will provide additional signal beyond the linear difference. This should improve Top 25% confidence accuracy by increasing model confidence for favorites with substantial quality advantages. The feature is monotone increasing (constraint = 1), ensuring that larger quality differences always favor the fighter with the higher opponent quality score.",
+  "constraints_changed": {
+    "opponent_quality_score_diff_squared": 1
+  },
+  "features_added": [
+    "opponent_quality_score_diff_squared"
+  ],
+  "features_removed": []
+}

@@ -1,0 +1,20 @@
+{
+  "fight_details_url": "http://ufcstats.com/fight-details/fa4b3f5ce8055921",
+  "event_url": "http://ufcstats.com/event-details/00e11b5c8b7bfeeb",
+  "fighters": [
+    {
+      "name": "Justin Gaethje",
+      "ufcstats_id": "9e8f6c728eb01124",
+      "url": "http://ufcstats.com/fighter-details/9e8f6c728eb01124",
+      "status": "W"
+    },
+    {
+      "name": "Paddy Pimblett",
+      "ufcstats_id": "7826923b47f8d72a",
+      "url": "http://ufcstats.com/fighter-details/7826923b47f8d72a",
+      "status": "L"
+    }
+  ],
+  "xgboost_predict_model_name": "baseline_jan_26_new",
+  "xgboost_predict_output_path": "/Users/tylerbohan/code/ufc_analysis_v3/agent_loop/agent_artifacts/20260126_172555/xgboost_predict.txt"
+}

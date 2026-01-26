@@ -1,0 +1,23 @@
+{
+  "iteration": 2,
+  "summary": "Added recent_form_quality_adjusted_diff feature to distinguish between fighters with similar recent records but vastly different competition levels",
+  "files_changed": [
+    "features/time_based.py",
+    "features/registry.py",
+    "features/matchup_features.py",
+    "schema/feature_schema.json",
+    "schema/monotone_constraints.json"
+  ],
+  "rationale": "The plan identified that both fighters showed 0.667 recent win rate, but Gaethje's wins came against opponents with avg win rate 0.715 vs Pimblett's 0.515. This quality-adjusted recent form should be a key differentiator for Top 25% confidence predictions. The feature compares recent win rates (last 3-5 fights) while weighting each win/loss by the opponent's quality score. This helps identify true favorites who have proven themselves against elite competition without directly penalizing underdogs, as it focuses on quality-adjusted performance rather than raw win rates.",
+  "expected_effect": "The feature will help XGBoost distinguish between fighters with similar recent records but different competition levels. For example, a 0.667 win rate against elite opponents (avg win rate 0.715) will score higher than the same win rate against weaker opponents (avg win rate 0.515). This should improve Top 25% confidence accuracy by increasing model confidence for favorites with substantial quality-adjusted recent form advantages, while preserving the model's ability to identify valuable underdog opportunities in closer matchups. The feature is monotone increasing (constraint = 1), ensuring that better quality-adjusted recent form always favors the fighter with the higher score.",
+  "constraints_changed": {
+    "f1_recent_form_quality_adjusted": 1,
+    "f2_recent_form_quality_adjusted": 1,
+    "recent_form_quality_adjusted_diff": 1
+  },
+  "features_added": [
+    "recent_form_quality_adjusted",
+    "recent_form_quality_adjusted_diff"
+  ],
+  "features_removed": []
+}

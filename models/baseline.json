@@ -1,39 +1,78 @@
 {
-  "model_name": "baseline_jan_11_2026_age_feature_add_striking_landed",
+  "model_name": "baseline_jan_26_new",
   "holdout_from_year": 2025,
-  "timestamp": "20260111",
+  "timestamp": "20260126",
   "overall": {
-    "accuracy": 0.6796,
-    "n_correct": 386,
-    "n_total": 568,
-    "brier": 0.2125,
-    "auc": 0.7295,
-    "log_loss": 0.6145
+    "accuracy": 0.67,
+    "n_correct": 398,
+    "n_total": 594,
+    "brier": 0.2165,
+    "auc": 0.7129,
+    "log_loss": 0.6231
   },
   "by_bucket": {
     "favorites": {
-      "accuracy": 0.6757,
-      "n": 296
+      "accuracy": 0.6677,
+      "n": 310
     },
     "underdogs": {
-      "accuracy": 0.6838,
-      "n": 272
+      "accuracy": 0.6725,
+      "n": 284
     }
   },
   "by_confidence": {
     "top_10_pct": {
-      "min_p": 0.5153,
-      "accuracy": 0.8276,
-      "n": 58
+      "min_p": 0.5115,
+      "accuracy": 0.8667,
+      "n": 60
     },
     "top_25_pct": {
-      "min_p": 0.3329,
-      "accuracy": 0.8099,
-      "n": 142
+      "min_p": 0.338,
+      "accuracy": 0.7785,
+      "n": 149
     }
   },
-  "n_eval_rows": 568,
+  "n_eval_rows": 594,
   "n_odds_rows": 3938,
-  "n_bets_edge_gt_0": 259,
-  "roi_flat_edge_gt_0": 0.0098
+  "n_bets_edge_gt_0": 13,
+  "roi_flat_edge_gt_0": 0.041,
+  "underdog_odds_bands": {
+    "+100_to_+150": {
+      "n_bets": 40,
+      "accuracy": 0.525,
+      "roi": 0.17
+    },
+    "+150_to_+250": {
+      "n_bets": 28,
+      "accuracy": 0.464,
+      "roi": 0.36
+    },
+    "+250_plus": {
+      "n_bets": 13,
+      "accuracy": 0.462,
+      "roi": 0.82
+    }
+  },
+  "underdog_confidence_breakdown": {
+    "top_10_pct": {
+      "confidence_min": 0.35,
+      "n_bets": 9,
+      "accuracy": 0.556,
+      "profit_units": 3.4,
+      "roi": 0.38
+    },
+    "top_25_pct": {
+      "confidence_min": 0.29,
+      "n_bets": 22,
+      "accuracy": 0.591,
+      "profit_units": 11.3,
+      "roi": 0.52
+    },
+    "bottom_75_pct": {
+      "n_bets": 64,
+      "accuracy": 0.484,
+      "profit_units": 18.9,
+      "roi": 0.3
+    }
+  }
 }

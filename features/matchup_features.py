@@ -162,6 +162,19 @@ class MatchupFeatureExtractor:
         differentials['opponent_quality_score_diff'] = (
             f1_features.get('opponent_quality_score', 0) - f2_features.get('opponent_quality_score', 0)
         )
+        # Squared version to emphasize large opponent quality differences
+        # This non-linear transformation helps the model recognize extreme quality gaps
+        # (e.g., 0.282^2 = 0.08, making large differences more prominent)
+        opponent_quality_diff = differentials['opponent_quality_score_diff']
+        differentials['opponent_quality_score_diff_squared'] = opponent_quality_diff * opponent_quality_diff
+        
+        # Interaction feature: striking differential × opponent quality difference
+        # This ensures striking advantages are weighted more heavily when achieved against elite competition
+        # Only activates when BOTH striking advantage AND quality advantage exist, making it more selective
+        # than direct amplification approaches. Helps distinguish fighters who dominate lower-tier opponents
+        # vs those who excel against top competition.
+        striking_diff = differentials.get('striking_differential', 0)
+        differentials['striking_differential_x_opponent_quality_diff'] = striking_diff * opponent_quality_diff
 
         # Longer-horizon decline / slump differentials
         differentials['fights_since_last_win_diff'] = (
@@ -284,6 +297,14 @@ class MatchupFeatureExtractor:
         )
         differentials['time_decayed_ko_rate_diff'] = (
             f1_features.get('time_decayed_ko_rate', 0.0) - f2_features.get('time_decayed_ko_rate', 0.0)
+        )
+        
+        # Recent form quality-adjusted differential
+        # Compares recent win rates (last 3-5 fights) weighted by opponent quality
+        # This distinguishes between fighters with similar records but different competition levels
+        differentials['recent_form_quality_adjusted_diff'] = (
+            f1_features.get('recent_form_quality_adjusted', 0.0) - 
+            f2_features.get('recent_form_quality_adjusted', 0.0)
         )
 
         # Age × decline interaction differentials (makes decline worse for older fighters)
@@ -472,7 +493,12 @@ class MatchupFeatureExtractor:
     
     def _calculate_common_opponents(self, fighter_1_id: int, fighter_2_id: int,
                                      as_of_date: Optional[Union[datetime, str]] = None) -> Dict:
-        """Analyze performance against common opponents"""
+        """Analyze performance against common opponents
+        
+        This method compares how both fighters performed against shared opponents.
+        For each common opponent, it aggregates wins/losses across ALL fights (not just the first one),
+        then calculates the overall performance difference.
+        """
         # Get fight histories
         f1_history = self.fighter_extractor._get_fight_history(fighter_1_id, as_of_date)
         f2_history = self.fighter_extractor._get_fight_history(fighter_2_id, as_of_date)
@@ -495,21 +521,48 @@ class MatchupFeatureExtractor:
             }
         
         # Compare performance against common opponents
-        f1_wins = 0
-        f2_wins = 0
+        # Aggregate wins across ALL fights against each common opponent (not just first fight)
+        f1_total_wins = 0
+        f1_total_fights = 0
+        f2_total_wins = 0
+        f2_total_fights = 0
         
         for opponent_id in common_opponents:
-            f1_result = f1_history[f1_history['opponent_id'] == opponent_id]['result'].iloc[0]
-            f2_result = f2_history[f2_history['opponent_id'] == opponent_id]['result'].iloc[0]
+            # Get all fights against this opponent for each fighter
+            f1_opponent_fights = f1_history[f1_history['opponent_id'] == opponent_id]
+            f2_opponent_fights = f2_history[f2_history['opponent_id'] == opponent_id]
             
-            if f1_result == 'win':
-                f1_wins += 1
-            if f2_result == 'win':
-                f2_wins += 1
+            # Count wins for fighter 1 against this opponent (across all fights)
+            f1_wins_against_opp = (f1_opponent_fights['result'] == 'win').sum()
+            f1_total_wins += f1_wins_against_opp
+            f1_total_fights += len(f1_opponent_fights)
+            
+            # Count wins for fighter 2 against this opponent (across all fights)
+            f2_wins_against_opp = (f2_opponent_fights['result'] == 'win').sum()
+            f2_total_wins += f2_wins_against_opp
+            f2_total_fights += len(f2_opponent_fights)
+        
+        # Calculate performance difference as win rate difference
+        # This gives a value between -1 and 1, where:
+        # - Positive values mean f1 performed better
+        # - Negative values mean f2 performed better
+        if f1_total_fights > 0 and f2_total_fights > 0:
+            f1_win_rate = f1_total_wins / f1_total_fights
+            f2_win_rate = f2_total_wins / f2_total_fights
+            performance_diff = f1_win_rate - f2_win_rate
+        elif f1_total_fights > 0:
+            # Only f1 has fights against common opponents
+            performance_diff = f1_total_wins / f1_total_fights
+        elif f2_total_fights > 0:
+            # Only f2 has fights against common opponents
+            performance_diff = -f2_total_wins / f2_total_fights
+        else:
+            # No fights found (shouldn't happen, but handle edge case)
+            performance_diff = 0
         
         return {
             'num_common_opponents': len(common_opponents),
-            'common_opponent_performance_diff': (f1_wins - f2_wins) / len(common_opponents),
+            'common_opponent_performance_diff': performance_diff,
         }
 
 
