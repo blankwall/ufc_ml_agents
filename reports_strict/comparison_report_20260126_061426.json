@@ -1,0 +1,34 @@
+{
+  "accuracy": {
+    "verdict": "FAIL",
+    "reason": "Accuracy decreased by 0.35 pp",
+    "delta": -0.34999999999999476,
+    "baseline": 0.6796,
+    "current": 0.6761
+  },
+  "auc": {
+    "verdict": "PASS",
+    "reason": "AUC changed by 0.0048 (within tolerance)",
+    "delta": 0.0047999999999999154,
+    "baseline": 0.7295,
+    "current": 0.7343
+  },
+  "brier": {
+    "verdict": "PASS",
+    "reason": "Brier changed by -0.0014 (within tolerance)",
+    "delta": -0.0013999999999999846,
+    "baseline": 0.2125,
+    "current": 0.2111
+  },
+  "buckets": {
+    "verdict": "PASS",
+    "warnings": []
+  },
+  "confidence": {
+    "verdict": "PASS",
+    "warnings": []
+  },
+  "data_consistency": [],
+  "final_verdict": "REJECT",
+  "final_reason": "Hard FAIL detected in core metrics"
+}

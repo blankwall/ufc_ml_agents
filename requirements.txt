@@ -1,0 +1,22 @@
+# Core dependencies for Streamlit deployment
+# Minimal set for running predictions
+
+# Web Framework
+streamlit>=1.28.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+openpyxl>=3.1.5
+
+# Database
+sqlalchemy>=2.0.0
+
+# Machine Learning
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+
+# Utilities
+loguru>=0.7.0
+pyyaml>=6.0.0
+tqdm>=4.65.0

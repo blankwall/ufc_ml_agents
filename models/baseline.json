@@ -1,0 +1,39 @@
+{
+  "model_name": "baseline_jan_11_2026_age_feature_add_striking_landed",
+  "holdout_from_year": 2025,
+  "timestamp": "20260111",
+  "overall": {
+    "accuracy": 0.6796,
+    "n_correct": 386,
+    "n_total": 568,
+    "brier": 0.2125,
+    "auc": 0.7295,
+    "log_loss": 0.6145
+  },
+  "by_bucket": {
+    "favorites": {
+      "accuracy": 0.6757,
+      "n": 296
+    },
+    "underdogs": {
+      "accuracy": 0.6838,
+      "n": 272
+    }
+  },
+  "by_confidence": {
+    "top_10_pct": {
+      "min_p": 0.5153,
+      "accuracy": 0.8276,
+      "n": 58
+    },
+    "top_25_pct": {
+      "min_p": 0.3329,
+      "accuracy": 0.8099,
+      "n": 142
+    }
+  },
+  "n_eval_rows": 568,
+  "n_odds_rows": 3938,
+  "n_bets_edge_gt_0": 259,
+  "roi_flat_edge_gt_0": 0.0098
+}

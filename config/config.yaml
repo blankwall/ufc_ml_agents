@@ -1,0 +1,152 @@
+# UFC Betting Engine Configuration
+
+# Data Sources
+data_sources:
+  ufcstats:
+    base_url: "http://ufcstats.com"
+    fighters_url: "http://ufcstats.com/statistics/fighters"
+    events_url: "http://ufcstats.com/statistics/events/completed"
+    rate_limit: 1.0  # seconds between requests
+  
+  bestfightodds:
+    base_url: "https://www.bestfightodds.com"
+    enabled: false  # Enable in Phase 6
+
+# Database
+database:
+  type: "sqlite"  # or "postgresql" for production
+  sqlite_path: "data/ufc_database.db"
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "ufc_betting"
+    user: "ufc_user"
+    password: "${DB_PASSWORD}"  # from environment variable
+
+# Scraping Settings
+scraping:
+  user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:145.0) Gecko/20100101 Firefox/145.0"
+  timeout: 30
+  max_retries: 3
+  cache_enabled: true
+  cache_dir: "data/raw"
+  
+# Feature Engineering
+features:
+  rolling_windows: [3, 5, 10]  # Calculate stats over last N fights
+  min_fights_required: 3  # Minimum fights to include fighter
+  opponent_adjustment: true
+  
+  # Features to calculate
+  fighter_stats:
+    - wins
+    - losses
+    - draws
+    - win_rate
+    - finish_rate
+    - ko_rate
+    - submission_rate
+    - decision_rate
+    - striking_accuracy
+    - striking_defense
+    - takedown_accuracy
+    - takedown_defense
+    - significant_strikes_per_minute
+    - significant_strikes_absorbed_per_minute
+    
+  matchup_stats:
+    - reach_advantage
+    - height_advantage
+    - age_difference
+    - experience_difference
+    - win_streak_difference
+    - recent_form_difference
+    - style_matchup_score
+
+# Model Settings
+models:
+  xgboost:
+    n_estimators: 1000
+    max_depth: 6
+    learning_rate: 0.01
+    subsample: 0.8
+    colsample_bytree: 0.8
+    
+  random_forest:
+    n_estimators: 500
+    max_depth: 10
+    min_samples_split: 20
+    
+  neural_net:
+    hidden_layers: [256, 128, 64]
+    dropout: 0.3
+    learning_rate: 0.001
+    batch_size: 32
+    epochs: 100
+    
+  ensemble:
+    weights:
+      xgboost: 0.35
+      neural_net: 0.35
+      llm: 0.30
+
+# LLM Settings
+llm:
+  provider: "openai"  # or "anthropic"
+  model: "gpt-4-turbo-preview"
+  temperature: 0.3
+  max_tokens: 2000
+  
+  # Prompt template for fight analysis
+  analysis_prompt: |
+    You are an expert UFC analyst. Analyze the following fight matchup and provide:
+    1. Win probability for each fighter (0-100%)
+    2. Key factors influencing the outcome
+    3. Most likely finish method
+    4. Confidence level (1-10)
+    
+    Fighter A: {fighter_a_stats}
+    Fighter B: {fighter_b_stats}
+    Recent Form: {recent_form}
+    Style Matchup: {style_analysis}
+
+# Betting Strategy
+betting:
+  min_edge: 0.05  # 5% minimum edge required
+  kelly_fraction: 0.25  # Use 25% Kelly criterion
+  max_bet_size: 0.05  # Max 5% of bankroll per bet
+  min_confidence: 0.60  # Minimum 60% confidence
+  
+# Backtesting
+backtesting:
+  start_date: "2020-01-01"
+  end_date: "2024-12-31"
+  initial_bankroll: 10000
+  track_metrics:
+    - accuracy
+    - log_loss
+    - roi
+    - sharpe_ratio
+    - max_drawdown
+
+# Dashboard
+dashboard:
+  port: 8501
+  theme: "dark"
+  refresh_interval: 300  # seconds
+  
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "logs/ufc_engine.log"
+  rotation: "500 MB"
+  retention: "30 days"
+
+# Paths
+paths:
+  data_raw: "data/raw"
+  data_processed: "data/processed"
+  models: "models/saved"
+  predictions: "data/predictions"
+  logs: "logs"
+
