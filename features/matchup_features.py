@@ -176,6 +176,66 @@ class MatchupFeatureExtractor:
         striking_diff = differentials.get('striking_differential', 0)
         differentials['striking_differential_x_opponent_quality_diff'] = striking_diff * opponent_quality_diff
 
+        # ELITE EXPERIENCE INTERACTION FEATURES (Iteration 1)
+        # These features capture "elite veteran" advantage by adjusting striking metrics by opponent quality
+        # Helps recognize fighters who perform well against elite competition vs those who pad stats against weaker opponents
+
+        # Striking volume control × opponent quality interaction
+        # High volume control against elite opponents > high volume control against lower-level competition
+        f1_vol_control = f1_features.get('striking_volume_control', 0)
+        f2_vol_control = f2_features.get('striking_volume_control', 0)
+        f1_opp_quality = f1_features.get('opponent_quality_score', 0)
+        f2_opp_quality = f2_features.get('opponent_quality_score', 0)
+        differentials['striking_volume_control_x_opponent_quality_diff'] = (
+            (f1_vol_control * f1_opp_quality) - (f2_vol_control * f2_opp_quality)
+        )
+
+        # Striking accuracy × opponent quality interaction
+        # High accuracy against elite opponents is more valuable than against lower-level competition
+        f1_accuracy = f1_features.get('striking_accuracy', 0)
+        f2_accuracy = f2_features.get('striking_accuracy', 0)
+        differentials['striking_accuracy_x_opponent_quality_diff'] = (
+            (f1_accuracy * f1_opp_quality) - (f2_accuracy * f2_opp_quality)
+        )
+
+        # Time-decayed win rate × opponent quality interaction
+        # Recent winning against elite opponents should be weighted more heavily
+        f1_td_win_rate = f1_features.get('time_decayed_win_rate', 0)
+        f2_td_win_rate = f2_features.get('time_decayed_win_rate', 0)
+        differentials['time_decayed_win_rate_x_opponent_quality_diff'] = (
+            (f1_td_win_rate * f1_opp_quality) - (f2_td_win_rate * f2_opp_quality)
+        )
+
+        # AGE × ELITE EXPERIENCE INTERACTION FEATURE (Iteration 2)
+        # For high-quality veterans (opponent_quality_score > 0.25), inverts the age penalty
+        # Logic: Age is typically an advantage (younger is better), but for elite veterans,
+        # additional age indicates championship-level experience that should be valued, not penalized.
+        # This feature creates a "veteran advantage" signal that activates when:
+        # 1) Fighter has high opponent quality (elite experience)
+        # 2) Fighter is older than opponent
+        # In this case, the age difference becomes a positive indicator (experience > youth)
+        # Threshold of 0.25 for opponent_quality_score indicates top-tier competition (e.g., Gaethje at 0.361)
+        # The feature is computed as: age_difference × (opponent_quality_f1 - opponent_quality_f2)
+        # When f1 is older AND has higher quality, this creates a positive signal (veteran advantage)
+        # When f1 is younger OR has lower quality, the signal is neutral or negative
+        age_diff = differentials.get('age_difference', 0)
+        # For elite veterans, flip the sign of age_diff when opponent_quality is high
+        # This makes age an asset for proven veterans against elite competition
+        f1_opp_quality_score = f1_features.get('opponent_quality_score', 0)
+        f2_opp_quality_score = f2_features.get('opponent_quality_score', 0)
+        # Create elite experience flags (1 if quality > 0.25, else 0)
+        f1_elite = 1 if f1_opp_quality_score > 0.25 else 0
+        f2_elite = 1 if f2_opp_quality_score > 0.25 else 0
+        # Age advantage for elite veterans: if f1 is elite and older, this is positive
+        # Original age_diff: f1_age - f2_age (positive = f1 is older)
+        # For elite veterans, we want: older = better, so we keep the sign
+        # But we only activate this signal when BOTH quality and age align
+        # Feature = age_diff × elite_experience_difference
+        # If f1 is elite (f1_elite=1) and f2 is not (f2_elite=0): elite_diff = 1
+        # If f1 is older (age_diff > 0): result is positive (veteran advantage)
+        elite_experience_diff = f1_elite - f2_elite
+        differentials['age_x_elite_experience_diff'] = age_diff * elite_experience_diff
+
         # Longer-horizon decline / slump differentials
         differentials['fights_since_last_win_diff'] = (
             f1_features.get('fights_since_last_win', 0) - f2_features.get('fights_since_last_win', 0)
@@ -217,7 +277,14 @@ class MatchupFeatureExtractor:
         differentials['recent_knockdown_diff_last_3_diff'] = (
             f1_features.get('recent_knockdown_diff_last_3', 0.0) - f2_features.get('recent_knockdown_diff_last_3', 0.0)
         )
-        
+
+        # Interaction feature: age difference × recent striking differential difference
+        # This amplifies the impact of striking decline in older fighters, helping identify
+        # matchups where an older fighter's recent striking performance may indicate decline
+        age_diff = differentials.get('age_difference', 0)
+        recent_strike_diff = differentials.get('recent_sig_strike_diff_last_3_diff', 0.0)
+        differentials['age_x_recent_sig_strike_diff_last_3_diff'] = age_diff * recent_strike_diff
+
         # Age-weighted recent damage: recent damage matters more for older fighters
         differentials['age_weighted_recent_damage_diff'] = (
             f1_features.get('age_weighted_recent_damage', 0.0) - f2_features.get('age_weighted_recent_damage', 0.0)

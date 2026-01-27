@@ -29,8 +29,8 @@ EXCLUDED_BASE_FEATURES: List[str] = [
     # Example:
     # "early_finish_advantage",
     "years_since_last_win",
-    "age_x_years_since_last_win"
-
+    "age_x_years_since_last_win",
+    "age_x_recent_sig_strike_diff_last_3"
 
 # Striking stats
     # "sig_strikes_landed_per_min",

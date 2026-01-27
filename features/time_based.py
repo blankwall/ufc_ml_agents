@@ -938,3 +938,12 @@ def extract_recent_form_quality_adjusted(
         "recent_form_quality_adjusted": float(normalized_score),
     }
 
+    # Add holdout filtering to prevent leakage
+    if holdout_from_year is not None:
+        holdout_cutoff = datetime(holdout_from_year, 1, 1)
+        # Only use fights BEFORE holdout year
+        df_filtered = df[df["event_date_parsed"] < holdout_cutoff]
+    else:
+        df_filtered = df  # Use all data (legacy behavior)
+    
+    now = datetime.now() if as_of_date is None else as_of_date

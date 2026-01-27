@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
@@ -459,6 +461,140 @@ class AgentLoop:
         self.dbg(f"[iter {iteration}] Generated diff: {diff_path}")
         return diff_path
 
+    def generate_cumulative_diff(self, kept_dir: Path,
+                                 kept_iterations: List[Dict]) -> None:
+        """
+        Generate cumulative diff of all kept changes.
+
+        Args:
+            kept_dir: Path to kept_changes directory
+            kept_iterations: List of kept iteration metadata
+        """
+        cumulative_path = kept_dir / "cumulative_changes.patch"
+
+        # Sort by iteration number
+        kept_iterations = sorted(kept_iterations, key=lambda x: x["iteration"])
+
+        with open(cumulative_path, 'w') as out:
+            out.write("# Cumulative Changes - All Kept Iterations\n")
+            out.write(f"# Generated: {datetime.now().isoformat()}\n")
+            out.write(f"# Total iterations: {len(kept_iterations)}\n\n")
+
+            for iter_info in kept_iterations:
+                iter_path = kept_dir / iter_info['diff_file']
+                if iter_path.exists():
+                    with open(iter_path, 'r') as f:
+                        out.write(f"\n{'='*60}\n")
+                        out.write(f"# Iteration {iter_info['iteration']}: {iter_info['summary']}\n")
+                        out.write(f"# Timestamp: {iter_info['timestamp']}\n")
+                        out.write(f"{'='*60}\n\n")
+                        out.write(f.read())
+
+        self.dbg(f"Generated cumulative diff: {cumulative_path}")
+
+    def update_kept_changes(self, iteration: int, decision: str,
+                           change_summary: str, diff_path: Path) -> None:
+        """
+        Update kept_changes directory with successful iterations.
+
+        Args:
+            iteration: Current iteration number
+            decision: "keep" or "revert"
+            change_summary: Summary of what changed
+            diff_path: Path to diff file
+        """
+        if decision != "keep":
+            return
+
+        kept_dir = self.run_dir / "kept_changes"
+        kept_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy diff with descriptive name
+        safe_summary = change_summary[:30].replace(" ", "_").replace("/", "_").replace("\\", "_")
+        safe_summary = ''.join(c if c.isalnum() or c in '_-' else '_' for c in safe_summary)
+        diff_filename = f"iter_{iteration}_{safe_summary}.patch"
+        shutil.copy(str(diff_path), str(kept_dir / diff_filename))
+
+        # Update index
+        index_path = kept_dir / "index.json"
+        if index_path.exists():
+            index = read_json(index_path)
+        else:
+            index = {"kept_iterations": [], "cumulative_diff_path": "cumulative_changes.patch"}
+
+        index["kept_iterations"].append({
+            "iteration": iteration,
+            "diff_file": diff_filename,
+            "summary": change_summary,
+            "timestamp": datetime.now().isoformat()
+        })
+
+        write_json(index_path, index)
+        self.dbg(f"[iter {iteration}] Added to kept_changes: {diff_filename}")
+
+        # Regenerate cumulative diff
+        self.generate_cumulative_diff(kept_dir, index["kept_iterations"])
+
+    def validation(self, iteration: int, iter_dir: Path) -> bool:
+        """
+        Run validation agent to check code quality before building.
+
+        Catches syntax errors, JSON issues, schema inconsistencies, etc.
+        Saves ~10 minutes per failed iteration by catching errors early.
+
+        Args:
+            iteration: Current iteration number
+            iter_dir: Path to iteration directory
+
+        Returns:
+            True if validation passed, False otherwise (auto-reverts on failure)
+        """
+        validation_path = iter_dir / "validation.json"
+
+        self.dbg(f"[iter {iteration}] Running validation...")
+
+        # Prepare validation prompt
+        prompt = self._render_prompt(
+            self.cfg.repo_root / "agent_loop" / "prompts" / "validator.md",
+            repo_root=self.cfg.repo_root,
+            iteration=iteration,
+            iteration_dir=iter_dir,
+            validation_path=validation_path,
+        )
+
+        # Run validation agent
+        self.run_agent(prompt, wait_for_file=validation_path)
+
+        # Read validation result
+        if not validation_path.exists():
+            self.dbg(f"[iter {iteration}] ❌ Validation agent did not create validation.json")
+            return False
+
+        validation_result = read_json(validation_path)
+        status = validation_result.get("status", "fail")
+        can_proceed = validation_result.get("can_proceed", False)
+        summary = validation_result.get("summary", "")
+
+        self.dbg(f"[iter {iteration}] Validation result: status={status}, can_proceed={can_proceed}")
+
+        if not can_proceed:
+            errors = validation_result.get("errors", [])
+            self.dbg(f"[iter {iteration}] ❌ Validation failed:")
+            for error in errors:
+                if error.get("severity") == "critical":
+                    self.dbg(f"[iter {iteration}]   - {error.get('check')}: {error.get('message')}")
+
+            # Auto-revert changes
+            code_backup = self.run_dir / "backups" / f"iter_{iteration}_code_before"
+            self.dbg(f"[iter {iteration}] Auto-reverting changes due to validation failure...")
+            restore_paths(code_backup, self.cfg.repo_root)
+            self.dbg(f"[iter {iteration}] Revert complete.")
+
+            return False
+
+        self.dbg(f"[iter {iteration}] ✅ Validation passed: {summary}")
+        return True
+
     def loop(self) -> None:
         cfg = self.cfg
         self.dbg(f"Starting loop: N={cfg.n_iters}, model={cfg.model}, holdout_from_year={cfg.holdout_from_year}")
@@ -534,7 +670,33 @@ class AgentLoop:
             self.dbg(f"[iter {i}] Generating code diff...")
             diff_path = self.generate_diff(i, code_backup)
 
-            # Build/train/eval
+            # Validation: check code quality before expensive build
+            if not self.validation(i, iter_dir):
+                # Validation failed, changes already reverted by validation()
+                # Record failure in history and skip to next iteration
+                hist = read_json(history_path)
+                hist["iterations"].append(
+                    {
+                        "iteration": i,
+                        "change_path": str(change_path),
+                        "decision_path": str(iter_dir / "validation.json"),
+                        "decision": "revert",
+                        "reason": "validation_failed",
+                        "diff_path": str(diff_path),
+                    }
+                )
+                write_json(history_path, hist)
+
+                # Create next plan to continue loop
+                next_plan_path = iter_dir / "plan_next.json"
+                self.dbg(f"[iter {i}] Creating next plan after validation failure...")
+                # Reuse current plan for next iteration
+                shutil.copy(str(plan_path), str(next_plan_path))
+                plan_path = next_plan_path
+                self.dbg(f"[iter {i}] Skipping to next iteration due to validation failure")
+                continue
+
+            # Build/train/eval (only if validation passed)
             eval_path = self.feature_builder(i)
 
             # Tester decision
@@ -578,6 +740,10 @@ class AgentLoop:
                 self.dbg(f"[iter {i}] Revert complete.")
             else:
                 self.dbg(f"[iter {i}] Keeping change.")
+                # Update kept_changes summary
+                change_data = read_json(change_path)
+                change_summary = change_data.get("summary", "No summary provided")
+                self.update_kept_changes(i, "keep", change_summary, diff_path)
 
             # Advance plan
             plan_path = next_plan_path
