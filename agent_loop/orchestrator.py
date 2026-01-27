@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -82,11 +83,15 @@ class AgentLoop:
         prompt_file.write_text(prompt, encoding="utf-8")
         
         # Claude Code CLI: cwd handles workspace, prompt passed via stdin
+        # --permission-mode acceptEdits: Allow agents to write files (plan.json, change.json, etc.)
+        #   without interactive prompting. This is required for autonomous operation.
         cmd = [
             self.cfg.agent_cmd,
             "--print",
             "--output-format",
             "json",
+            "--permission-mode",
+            "acceptEdits",  # Allow agents to write files without prompting
             "--model",
             self.cfg.model,
         ]
@@ -351,6 +356,109 @@ class AgentLoop:
         self.dbg(f"[iter {iter_idx}] Wrote eval JSON snapshot: {dest}")
         return dest
 
+    def generate_diff(self, iteration: int, backup_dir: Path) -> Path:
+        """
+        Generate git diff between backup and current state.
+
+        Captures actual code changes made by the feature_creator agent.
+        This enables repeatability and easy review of what changed.
+
+        Args:
+            iteration: Current iteration number
+            backup_dir: Path to iteration backup directory
+
+        Returns:
+            Path to generated diff file
+        """
+        diff_path = self.run_dir / f"iter_{iteration}" / "code_diff.patch"
+        diff_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(diff_path, 'w') as f:
+            f.write(f"# Code Diff for Iteration {iteration}\n")
+            f.write(f"# Generated: {datetime.now().isoformat()}\n")
+            f.write(f"# Backup: {backup_dir}\n\n")
+
+            # Helper function to find backup file (handles absolute path structure)
+            def get_backup_path(relative_path: Path) -> Path:
+                """Get backup file path, accounting for backup_paths() full path preservation"""
+                # backup_paths() preserves full path: backup_dir/Users/username/repo/...
+                # So we need to construct the full path
+                full_path = self.cfg.repo_root / relative_path
+                # Convert to relative path (strip leading /) for backup lookup
+                rel_key = full_path.as_posix().lstrip("/")
+                return backup_dir / rel_key
+
+            # Diff feature_schema.json
+            current_schema = self.cfg.repo_root / "schema" / "feature_schema.json"
+            backup_schema = get_backup_path(Path("schema/feature_schema.json"))
+            if backup_schema.exists() and current_schema.exists():
+                result = subprocess.run(
+                    ['git', 'diff', '--no-color', str(backup_schema), str(current_schema)],
+                    capture_output=True, text=True, cwd=str(self.cfg.repo_root)
+                )
+                if result.stdout.strip():
+                    f.write(f"=== schema/feature_schema.json ===\n")
+                    f.write(result.stdout)
+                    f.write("\n")
+                elif current_schema.exists() and not backup_schema.exists():
+                    f.write(f"=== schema/feature_schema.json (NEW FILE) ===\n")
+                    f.write(current_schema.read_text(encoding='utf-8'))
+                    f.write("\n")
+
+            # Diff monotone_constraints.json
+            current_constraints = self.cfg.repo_root / "schema" / "monotone_constraints.json"
+            backup_constraints = get_backup_path(Path("schema/monotone_constraints.json"))
+            if backup_constraints.exists() and current_constraints.exists():
+                result = subprocess.run(
+                    ['git', 'diff', '--no-color', str(backup_constraints), str(current_constraints)],
+                    capture_output=True, text=True, cwd=str(self.cfg.repo_root)
+                )
+                if result.stdout.strip():
+                    f.write(f"=== schema/monotone_constraints.json ===\n")
+                    f.write(result.stdout)
+                    f.write("\n")
+                elif current_constraints.exists() and not backup_constraints.exists():
+                    f.write(f"=== schema/monotone_constraints.json (NEW FILE) ===\n")
+                    f.write(current_constraints.read_text(encoding='utf-8'))
+                    f.write("\n")
+
+            # Diff features/ directory
+            backup_features_base = get_backup_path(Path("features"))
+            current_features = self.cfg.repo_root / "features"
+
+            if backup_features_base.exists() and current_features.exists():
+                # Get list of Python files in current features/
+                for py_file in sorted(current_features.rglob("*.py")):
+                    rel_path = py_file.relative_to(current_features)
+                    backup_py = backup_features_base / rel_path
+
+                    if backup_py.exists():
+                        result = subprocess.run(
+                            ['git', 'diff', '--no-color', str(backup_py), str(py_file)],
+                            capture_output=True, text=True, cwd=str(self.cfg.repo_root)
+                        )
+                        if result.stdout.strip():
+                            f.write(f"=== features/{rel_path} ===\n")
+                            f.write(result.stdout)
+                            f.write("\n")
+                    else:
+                        # New file
+                        f.write(f"=== features/{rel_path} (NEW FILE) ===\n")
+                        f.write(py_file.read_text(encoding='utf-8'))
+                        f.write("\n")
+
+                # Check for deleted files
+                for backup_py in sorted(backup_features_base.rglob("*.py")):
+                    rel_path = backup_py.relative_to(backup_features_base)
+                    current_py = current_features / rel_path
+                    if not current_py.exists():
+                        f.write(f"=== features/{rel_path} (DELETED) ===\n")
+                        f.write(f"# File was removed\n")
+                        f.write(f"# Previously at: {backup_py}\n\n")
+
+        self.dbg(f"[iter {iteration}] Generated diff: {diff_path}")
+        return diff_path
+
     def loop(self) -> None:
         cfg = self.cfg
         self.dbg(f"Starting loop: N={cfg.n_iters}, model={cfg.model}, holdout_from_year={cfg.holdout_from_year}")
@@ -422,6 +530,10 @@ class AgentLoop:
                 raise RuntimeError(f"feature_creator did not write change file: {change_path}")
             self.dbg(f"[iter {i}] feature_creator wrote change.json")
 
+            # Generate diff of changes made by feature_creator
+            self.dbg(f"[iter {i}] Generating code diff...")
+            diff_path = self.generate_diff(i, code_backup)
+
             # Build/train/eval
             eval_path = self.feature_builder(i)
 
@@ -454,6 +566,7 @@ class AgentLoop:
                     "eval_path": str(eval_path),
                     "decision_path": str(decision_path),
                     "decision": decision.get("decision"),
+                    "diff_path": str(diff_path),
                 }
             )
             write_json(history_path, hist)
