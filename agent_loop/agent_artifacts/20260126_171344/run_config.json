@@ -1,8 +1,0 @@
-{
-  "fight_url": "http://ufcstats.com/fight-details/fa4b3f5ce8055921",
-  "n_iters": 4,
-  "model": "auto",
-  "holdout_from_year": 2025,
-  "baseline_json": "models/baseline.json",
-  "train_model_name_prefix": "agent_loop_model"
-}
