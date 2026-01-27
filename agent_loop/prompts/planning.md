@@ -8,11 +8,13 @@ You MUST:
 Constraints:
 - Do **not** modify code or schemas in this step.
 - Output must be valid JSON (no trailing commas).
-- Focus on what the model likely missed for this specific fight, backed by the provided statistics.
+- If `context.mode == "fight"`: focus on what the model likely missed for this specific fight, backed by the provided statistics.
+- If `context.mode == "goal"`: focus on the provided goal text and constraints; propose a plan of iterations to execute.
 
 Plan JSON requirements:
-- Include: `fight_details_url`, `fighters`, `model_prediction`, `key_missed_areas`, `hypotheses`,
-  and a `proposed_iterations` array (at least {n_iters} items).
+- Include `proposed_iterations` array (at least {n_iters} items).
+- If `context.mode == "fight"`: also include `fight_details_url`, `fighters`, `model_prediction`, `key_missed_areas`, `hypotheses`.
+- If `context.mode == "goal"`: include `goal_text`, `priorities`, `avoid_constraints`, and `hypotheses`.
 - Each `proposed_iterations[i]` must be a single logical change suggestion (one change per iteration).
 - Each iteration should explicitly mention whether it targets **Top 25%** confidence or **underdog** performance.
 

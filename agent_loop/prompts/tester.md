@@ -10,7 +10,7 @@ Inputs:
 Goal:
 Decide whether to **KEEP** the change or **REVERT** it, prioritizing:
 1) **Top 25%** accuracy
-2) **Underdog** performance
+2) **Underdog** performance (TOP PRIORITY)
 
 You MUST:
 - Read the evaluation results and compare against baseline.

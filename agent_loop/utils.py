@@ -29,7 +29,34 @@ def write_json(path: Path, data: object) -> None:
 
 
 def read_json(path: Path) -> object:
-    return json.loads(path.read_text(encoding="utf-8"))
+    """
+    Read and parse JSON file, with better error messages and basic cleanup for common agent mistakes.
+    """
+    text = path.read_text(encoding="utf-8")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        # Try to fix common issues: + signs in numbers (e.g., +0.123 -> 0.123)
+        import re
+        # Match patterns like ": +0.123" or ", +0.123" and remove the +
+        # This handles the common case where agents write +0.0322 in JSON
+        fixed = re.sub(r'([:,]\s*)\+(\d+\.?\d*)', r'\1\2', text)
+        if fixed != text:
+            try:
+                return json.loads(fixed)
+            except json.JSONDecodeError:
+                pass
+        
+        # Show helpful error context
+        lines = text.split('\n')
+        error_line = lines[e.lineno - 1] if e.lineno <= len(lines) else ""
+        raise RuntimeError(
+            f"Invalid JSON in {path} at line {e.lineno}, column {e.colno}:\n"
+            f"  {error_line}\n"
+            f"  {' ' * (e.colno - 1)}^\n"
+            f"  Error: {e.msg}\n"
+            f"  Hint: Check for trailing commas, unquoted strings, or invalid number formats (e.g., +0.123 should be 0.123)"
+        ) from e
 
 
 def run_cmd(

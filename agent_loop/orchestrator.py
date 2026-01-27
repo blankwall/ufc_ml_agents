@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -17,7 +18,6 @@ from agent_loop.utils import (
     newest_matching,
 )
 from agent_loop.tools import (
-    ingest_event_for_fight,
     scrape_fight_details_json,
     run_xgboost_predict,
 )
@@ -26,11 +26,13 @@ from agent_loop.tools import (
 @dataclass(frozen=True)
 class LoopConfig:
     repo_root: Path
-    fight_url: str
+    fight_url: Optional[str]
     n_iters: int
-    model: str = "gpt-5"
-    agent_cmd: str = "agent"
+    goal_text: Optional[str] = None
+    model: str = "claude-sonnet-4-5-20250929"
+    agent_cmd: str = "claude"
     verbose: bool = False
+    manual: bool = False  # If True, pause for manual agent execution instead of running agent binary
 
     # Model/pipeline settings
     holdout_from_year: int = 2025
@@ -45,11 +47,16 @@ class LoopConfig:
 
 
 class AgentLoop:
-    def __init__(self, cfg: LoopConfig):
+    def __init__(self, cfg: LoopConfig, *, run_dir: Optional[Path] = None):
         self.cfg = cfg
-        self.run_ts = utc_timestamp()
-        self.run_dir = cfg.repo_root / "agent_loop" / "agent_artifacts" / self.run_ts
-        self.run_dir.mkdir(parents=True, exist_ok=True)
+        if run_dir is not None:
+            self.run_dir = run_dir
+            self.run_dir.mkdir(parents=True, exist_ok=True)
+            self.run_ts = self.run_dir.name
+        else:
+            self.run_ts = utc_timestamp()
+            self.run_dir = cfg.repo_root / "agent_loop" / "agent_artifacts" / self.run_ts
+            self.run_dir.mkdir(parents=True, exist_ok=True)
 
     def dbg(self, msg: str) -> None:
         """Simple, switchable debug logger."""
@@ -59,12 +66,22 @@ class AgentLoop:
     # -----------------------
     # Agent runner
     # -----------------------
-    def run_agent(self, prompt: str) -> None:
+    def run_agent(self, prompt: str, wait_for_file: Optional[Path] = None) -> None:
         """
-        Run Cursor CLI agent in non-interactive mode.
-        Uses: --print --output-format json to make it script-friendly.
+        Run Claude Code CLI in non-interactive mode.
+        Uses: -p (print) --output-format json to make it script-friendly.
         We still rely on the agent to write artifact files to disk.
+
+        Args:
+            prompt: The prompt to send to the agent
+            wait_for_file: Optional path to a file that should exist after completion
         """
+        # Write prompt to a temp file for reference
+        prompt_file = self.run_dir / "logs" / f"prompt_{utc_timestamp()}.txt"
+        prompt_file.parent.mkdir(parents=True, exist_ok=True)
+        prompt_file.write_text(prompt, encoding="utf-8")
+        
+        # Claude Code CLI: cwd handles workspace, prompt passed via stdin
         cmd = [
             self.cfg.agent_cmd,
             "--print",
@@ -72,15 +89,56 @@ class AgentLoop:
             "json",
             "--model",
             self.cfg.model,
-            "--workspace",
-            str(self.cfg.repo_root),
-            prompt,
         ]
+        # Don't pass prompt as argument - pass via stdin instead
+        # This is more robust for long prompts and avoids shell escaping issues
+        
         # Store raw agent output for debugging
         out_path = self.run_dir / "logs" / f"agent_{utc_timestamp()}.json"
+        stderr_path = out_path.with_suffix(".stderr.txt")
         self.dbg(f"Running agent: model={self.cfg.model}, output={out_path}")
-        run_cmd(cmd, cwd=self.cfg.repo_root, stdout_path=out_path, stderr_path=out_path.with_suffix(".stderr.txt"))
-        self.dbg(f"Agent completed: {out_path}")
+        self.dbg(f"Prompt file (for reference): {prompt_file}")
+        
+        try:
+            # Pass prompt via stdin, with timeout (10 minutes)
+            proc = subprocess.run(
+                cmd,
+                cwd=str(self.cfg.repo_root),
+                text=True,
+                input=prompt,
+                stdout=open(out_path, "w", encoding="utf-8"),
+                stderr=open(stderr_path, "w", encoding="utf-8"),
+                check=True,
+                timeout=600,  # 10 minutes
+            )
+            self.dbg(f"Agent completed: {out_path}")
+        except subprocess.TimeoutExpired as e:
+            stderr_content = ""
+            if stderr_path.exists():
+                stderr_content = stderr_path.read_text(encoding="utf-8")[:3000]
+            raise RuntimeError(
+                f"Agent command timed out after 10 minutes. Stderr:\n{stderr_content}\n\n"
+                f"Prompt file: {prompt_file}\n\n"
+                f"Hint: The agent may be waiting for input or trying to connect to a service."
+            ) from e
+        except subprocess.CalledProcessError as e:
+            # Show stderr if available for debugging
+            stderr_content = ""
+            if stderr_path.exists():
+                stderr_content = stderr_path.read_text(encoding="utf-8")[:3000]  # First 3KB
+            raise RuntimeError(
+                f"Agent command failed with code {e.returncode}. Stderr:\n{stderr_content}\n\n"
+                f"Prompt file: {prompt_file}"
+            ) from e
+        except Exception as e:
+            if stderr_path.exists():
+                stderr_content = stderr_path.read_text(encoding="utf-8")[:3000]
+                raise RuntimeError(
+                    f"Agent command failed unexpectedly. Stderr:\n{stderr_content}\n\n"
+                    f"Original error: {e}\n"
+                    f"Prompt file: {prompt_file}"
+                ) from e
+            raise
 
     def _render_prompt(self, template_path: Path, **kwargs) -> str:
         tpl = read_text(template_path)
@@ -91,24 +149,45 @@ class AgentLoop:
     # -----------------------
     def build_context(self) -> Path:
         """
-        Ingest fight into DB, run xgboost_predict, and write a context.json for agents.
+        Build context for agents:
+        - Goal mode: use goal text directly
+        - Fight mode: scrape fight details and run xgboost_predict (without adding fight to DB)
         """
         context_path = self.run_dir / "context.json"
         self.dbg(f"Run dir: {self.run_dir}")
-        self.dbg(f"Building context for fight: {self.cfg.fight_url}")
+        if self.cfg.fight_url:
+            self.dbg(f"Building context for fight: {self.cfg.fight_url}")
+        else:
+            self.dbg("Building context for generic goal (non-fight mode)")
 
-        # 1) Ingest event containing this fight (ensures DB has it)
-        self.dbg("Ingesting event into DB (includes fight stats + validation)…")
-        event_url = ingest_event_for_fight(
-            self.cfg.repo_root,
-            self.cfg.fight_url,
-            include_fight_stats=True,
-            validate=True,
-            validate_details=True,
-        )
-        self.dbg(f"Ingest complete. event_url={event_url}")
+        # Goal-only mode: no scraping/prediction ingestion, just seed context with goals/constraints.
+        if not self.cfg.fight_url:
+            if not self.cfg.goal_text:
+                raise RuntimeError("goal_text is required when fight_url is not provided")
 
-        # 2) Scrape fight details minimal metadata
+            context = {
+                "mode": "goal",
+                "goal_text": self.cfg.goal_text,
+                "constraints": {
+                    "prioritize": ["top_25_pct", "underdog"],
+                    "avoid": [
+                        "Do NOT add new features involving quality differences (thresholds/interactions/quality-adjusted weighting).",
+                    ],
+                },
+                "schema_paths": {
+                    "feature_schema": "schema/feature_schema.json",
+                    "monotone_constraints": "schema/monotone_constraints.json",
+                    "feature_exclusions": "features/feature_exclusions.py",
+                },
+            }
+            write_json(context_path, context)
+            self.dbg(f"Wrote context.json: {context_path}")
+            return context_path
+
+        # Fight mode: scrape fight details WITHOUT adding to database (prevents data leakage)
+        # The fight remains out-of-sample for analysis and model improvement
+
+        # 1) Scrape fight details for metadata (fighters, result, stats)
         fight_meta = scrape_fight_details_json(self.cfg.fight_url)
         self.dbg(f"Fight meta: {fight_meta}")
         fighters = fight_meta.get("fighters") or []
@@ -120,9 +199,12 @@ class AgentLoop:
             f"F2={fighters[1].get('name')} ({fighters[1].get('ufcstats_id')})"
         )
 
-        # 3) Run xgboost_predict for this matchup (store raw output)
+        # 2) Run xgboost_predict for this matchup (store raw output)
+        # Note: Fighters should already exist in DB from their prior fights
+        # The fight itself is NOT added to DB, remaining out-of-sample
         pred_out = self.run_dir / "xgboost_predict.txt"
         self.dbg(f"Running xgboost_predict → {pred_out}")
+        self.dbg("Fight remains out-of-sample (not added to training data)")
         run_xgboost_predict(
             self.cfg.repo_root,
             fighter_1_ufcstats_id=fighters[0]["ufcstats_id"],
@@ -133,8 +215,8 @@ class AgentLoop:
         self.dbg("xgboost_predict complete.")
 
         context = {
+            "mode": "fight",
             "fight_details_url": self.cfg.fight_url,
-            "event_url": event_url,
             "fighters": fighters,
             "xgboost_predict_model_name": self.cfg.xgboost_predict_model_name,
             "xgboost_predict_output_path": str(pred_out),
@@ -272,21 +354,40 @@ class AgentLoop:
     def loop(self) -> None:
         cfg = self.cfg
         self.dbg(f"Starting loop: N={cfg.n_iters}, model={cfg.model}, holdout_from_year={cfg.holdout_from_year}")
-        write_json(self.run_dir / "run_config.json", json.loads(json.dumps({
-            "fight_url": cfg.fight_url,
-            "n_iters": cfg.n_iters,
-            "model": cfg.model,
-            "holdout_from_year": cfg.holdout_from_year,
-            "baseline_json": str(cfg.baseline_json),
-            "train_model_name_prefix": cfg.train_model_name_prefix,
-        })))
-
-        context_path = self.build_context()
-        plan_path = self.planning(context_path)
+        run_config_path = self.run_dir / "run_config.json"
+        if not run_config_path.exists():
+            write_json(run_config_path, json.loads(json.dumps({
+                "fight_url": cfg.fight_url,
+                "n_iters": cfg.n_iters,
+                "model": cfg.model,
+                "holdout_from_year": cfg.holdout_from_year,
+                "baseline_json": str(cfg.baseline_json),
+                "train_model_name_prefix": cfg.train_model_name_prefix,
+            })))
+            self.dbg(f"Wrote run_config.json: {run_config_path}")
 
         history_path = self.run_dir / "history.json"
-        write_json(history_path, {"iterations": []})
-        self.dbg(f"Initialized history.json: {history_path}")
+        if history_path.exists():
+            hist = read_json(history_path)
+            completed = len(hist.get("iterations", [])) if isinstance(hist, dict) else 0
+            self.dbg(f"Resuming run_dir={self.run_dir} with {completed} completed iterations")
+        else:
+            write_json(history_path, {"iterations": []})
+            self.dbg(f"Initialized history.json: {history_path}")
+
+        # Context
+        context_path = self.run_dir / "context.json"
+        if context_path.exists():
+            self.dbg(f"Reusing existing context.json: {context_path}")
+        else:
+            context_path = self.build_context()
+
+        # Plan
+        plan_path = self._resolve_latest_plan_path()
+        if plan_path is None:
+            plan_path = self.planning(context_path)
+        else:
+            self.dbg(f"Reusing latest plan: {plan_path}")
 
         # Paths to backup each iteration’s code changes (for revert)
         key_code_paths = [
@@ -295,7 +396,9 @@ class AgentLoop:
             cfg.repo_root / "features",
         ]
 
-        for i in range(1, cfg.n_iters + 1):
+        start_iter = self._next_iteration_index(history_path)
+        end_iter = start_iter + cfg.n_iters - 1
+        for i in range(start_iter, end_iter + 1):
             iter_dir = self.run_dir / f"iter_{i}"
             iter_dir.mkdir(parents=True, exist_ok=True)
             self.dbg(f"=== Iteration {i}/{cfg.n_iters} ===")
@@ -314,7 +417,7 @@ class AgentLoop:
                 history_path=history_path,
                 change_path=change_path,
             )
-            self.run_agent(creator_prompt)
+            self.run_agent(creator_prompt, wait_for_file=change_path)
             if not change_path.exists():
                 raise RuntimeError(f"feature_creator did not write change file: {change_path}")
             self.dbg(f"[iter {i}] feature_creator wrote change.json")
@@ -336,7 +439,7 @@ class AgentLoop:
                 next_plan_path=next_plan_path,
                 decision_path=decision_path,
             )
-            self.run_agent(tester_prompt)
+            self.run_agent(tester_prompt, wait_for_file=decision_path)
             if not decision_path.exists() or not next_plan_path.exists():
                 raise RuntimeError("tester agent did not write decision and next plan JSON")
 
@@ -376,9 +479,40 @@ class AgentLoop:
             baseline_path=cfg.repo_root / cfg.baseline_json,
             report_path=report_path,
         )
-        self.run_agent(summarizer_prompt)
+        self.run_agent(summarizer_prompt, wait_for_file=report_path)
         if not report_path.exists():
             raise RuntimeError("summarizer did not write report.html")
         self.dbg("Loop complete.")
+
+    def _next_iteration_index(self, history_path: Path) -> int:
+        if not history_path.exists():
+            return 1
+        hist = read_json(history_path)
+        if not isinstance(hist, dict):
+            return 1
+        iters = hist.get("iterations") or []
+        if not isinstance(iters, list) or not iters:
+            return 1
+        # Next iteration = max recorded iteration + 1
+        try:
+            return int(max(i.get("iteration", 0) for i in iters)) + 1
+        except Exception:
+            return len(iters) + 1
+
+    def _resolve_latest_plan_path(self) -> Optional[Path]:
+        """
+        If resuming, prefer the most recent iter_*/plan_next.json.
+        Fallback to run_dir/plan.json if present.
+        """
+        # Prefer latest plan_next.json
+        iter_dirs = sorted([p for p in self.run_dir.glob("iter_*") if p.is_dir()])
+        if iter_dirs:
+            # iterate from newest to oldest
+            for d in reversed(iter_dirs):
+                p = d / "plan_next.json"
+                if p.exists():
+                    return p
+        p0 = self.run_dir / "plan.json"
+        return p0 if p0.exists() else None
 
 

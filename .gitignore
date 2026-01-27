@@ -83,3 +83,5 @@ htmlcov/
 # Planning documents
 planning/
 
+# Agent artifacts
+agent_loop/agent_artifacts/
