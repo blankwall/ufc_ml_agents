@@ -44,27 +44,29 @@ For each modified .py file:
 
 Write your validation results to `{validation_path}`:
 
-```json
-{
+The output should be a JSON file with this structure (literal example - follow this format):
+
+```
+{{
   "status": "pass" | "fail",
   "errors": [
-    {
+    {{
       "check": "json_syntax" | "python_syntax" | "schema_consistency" | "feature_naming" | "constraints_consistency",
       "file": "path/to/file",
       "message": "Specific error message",
       "severity": "critical" | "warning"
-    }
+    }}
   ],
-  "checks_performed": {
+  "checks_performed": {{
     "json_syntax": "pass" | "fail",
     "python_syntax": "pass" | "fail",
     "schema_consistency": "pass" | "fail",
     "feature_naming": "pass" | "fail",
     "constraints_consistency": "pass" | "fail"
-  },
+  }},
   "can_proceed": true | false,
   "summary": "Brief summary of validation results"
-}
+}}
 ```
 
 ## IMPORTANT:
@@ -83,31 +85,31 @@ Write your validation results to `{validation_path}`:
 
 ## Examples of Critical Errors:
 
-```json
-{
+```
+{{
   "check": "json_syntax",
   "file": "schema/feature_schema.json",
   "message": "Line 45: Missing comma after feature definition",
   "severity": "critical"
-}
+}}
 ```
 
-```json
-{
+```
+{{
   "check": "python_syntax",
   "file": "features/opponent_quality.py",
   "message": "Line 23: SyntaxError: invalid syntax (missing closing parenthesis)",
   "severity": "critical"
-}
+}}
 ```
 
-```json
-{
+```
+{{
   "check": "schema_consistency",
   "file": "schema/feature_schema.json",
   "message": "Feature 'fighter_x_opponent_quality' is in schema but has no implementation in features/",
   "severity": "critical"
-}
+}}
 ```
 
 ## How to Check:

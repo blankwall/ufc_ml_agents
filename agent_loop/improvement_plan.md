@@ -452,8 +452,9 @@ self.feature_builder(iteration)
 
 ---
 
-### ⬜ Item 6: Add Diagnostics Agent
+### ✅ Item 6: Add Diagnostics Agent
 **Effort**: 6 hours | **Impact**: Medium-High
+**Status**: ✅ COMPLETED (2025-01-27)
 
 **Problem**: Planning agent makes assumptions without data
 
@@ -584,10 +585,41 @@ You will also receive {diagnostics_path} with model analysis.
 
 **Output**: `diagnostics.json` in run directory
 
+**Implementation Notes**:
+- Created `agent_loop/prompts/diagnostics.md` with comprehensive analysis instructions
+- Added `run_diagnostics()` method to `AgentLoop` class in `orchestrator.py`
+- Integrated into loop before planning phase
+- Automatically finds baseline evaluation and feature importance files
+- Falls back gracefully if data not available (creates placeholder)
+- Updated `planning()` method to accept optional `diagnostics_path` parameter
+- Updated `agent_loop/prompts/planning.md` to use diagnostics for data-driven planning
+- Diagnostics analyze:
+  - Feature importance (top/bottom, near-zero candidates for removal)
+  - Model performance by segment (underdog, top 25%, favorites)
+  - Redundancy detection (similar features, duplicate signals)
+  - Data quality issues (if visible in eval data)
+  - Calibration problems by confidence range
+- Planning agent now:
+  - Prioritizes high-severity weaknesses
+  - Removes low-importance features first
+  - Addresses redundant features
+  - Exploits identified opportunities
+  - Aligns with calibration issues
+- Output: `diagnostics.json` with weaknesses, redundant features, low importance features, opportunities, calibration issues, and summary
+
+**Integration Point**: Runs in `loop()` after context building, before planning
+**Benefits**:
+- Data-driven planning instead of guesswork
+- Focuses iterations on actual weaknesses
+- Identifies and removes noise features
+- Catches redundant/duplicate features
+- Provides specific areas to target
+
 ---
 
-### ⬜ Item 7: Split Tester → Evaluator + Decision Agents
+### ✅ Item 7: Split Tester → Evaluator + Decision Agents
 **Effort**: 4 hours | **Impact**: Medium
+**Status**: ✅ COMPLETED (2025-01-27)
 
 **Problem**: Tester agent has too many responsibilities
 
@@ -747,6 +779,41 @@ def evaluation_phase(self, iteration: int):
 **Output**:
 - `iter_<i>/analysis.json` (from evaluator)
 - `iter_<i>/decision.json` (from decision agent)
+
+**Implementation Notes**:
+- Created `agent_loop/prompts/evaluator.md` for pure metrics analysis
+  - Reads evaluation data and baseline
+  - Compares overall, top 25%, underdog, favorites metrics
+  - Outputs objective `analysis.json` with deltas
+  - NO recommendations or decisions
+- Created `agent_loop/prompts/decision.md` for strategic decisions
+  - Reads evaluator's analysis
+  - Makes keep/revert decisions based on priorities (underdog > top 25% > overall)
+  - Updates plan for next iteration
+  - Outputs `decision.json` with reasoning
+- Added `evaluation_phase()` method to `AgentLoop` class in `orchestrator.py`
+  - Runs evaluator agent first (objective analysis)
+  - Runs decision agent second (strategy)
+  - Handles keep/revert behavior
+  - Updates kept_changes when keeping
+  - Returns next plan path
+- Updated `loop()` method to call `evaluation_phase()` instead of old tester
+- Old `tester.md` prompt kept for backward compatibility
+- Clear separation of concerns:
+  - Evaluator: "What changed?" (objective data)
+  - Decision: "What do we do?" (strategic choice)
+- Benefits:
+  - Easier to debug decisions (can review analysis independently)
+  - Decision agent focuses on strategy, not data analysis
+  - Can audit evaluator's analysis for accuracy
+  - Cleaner architecture
+
+**Integration Point**: Replaced tester call in `loop()` with `evaluation_phase()`
+**Benefits**:
+- Clearer separation of concerns
+- Easier to debug decision-making
+- Can audit evaluator's analysis independently
+- Decision agent focuses on strategy
 
 ---
 
@@ -974,13 +1041,13 @@ If any improvement introduces issues:
 - ✅ Item 3: Generate Cumulative Diff (2025-01-27) - included in Item 2
 - ✅ Item 4: Enhanced Report with Diff Links (2025-01-27)
 - ✅ Item 5: Add Validation Agent (2025-01-27)
+- ✅ Item 6: Add Diagnostics Agent (2025-01-27)
+- ✅ Item 7: Split Tester → Evaluator + Decision Agents (2025-01-27)
 
 ### In Progress
 - 🚧 None currently
 
 ### Next Up
-- ⬜ Item 6: Add Diagnostics Agent (6 hours - Medium-High Impact)
-- ⬜ Item 7: Split Tester → Evaluator + Decision Agents (4 hours - Medium Impact)
 - ⬜ Item 8: Add Refactor Agent (8 hours - Medium long-term)
 - ⬜ Item 9: Add Reapply Utility (2 hours - Low convenience)
 - ⬜ Item 10: Agent Performance Tracking (3 hours - Low monitoring)

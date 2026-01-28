@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 from pathlib import Path
 
@@ -13,6 +14,9 @@ def main() -> int:
     input_group.add_argument("--fight-url", type=str, help="UFCStats fight-details URL")
     input_group.add_argument("--goal", type=str, help="Generic optimization goal text (non-fight mode)")
     input_group.add_argument("--goal-file", type=str, help="Path to a text/markdown file containing the goal (non-fight mode)")
+    input_group.add_argument("--introspect", type=str, nargs="?", const="", metavar="MODEL_NAME",
+                           help="Introspection mode: analyze repository and model state. Optionally specify model name (default: baseline)")
+
     p.add_argument("--n", type=int, default=3, help="Number of iterations")
     p.add_argument("--model", type=str, default="claude-sonnet-4-5-20250929", help="Claude model (e.g., claude-sonnet-4-5-20250929)")
     p.add_argument("--agent-cmd", type=str, default="claude", help="Agent command (default: claude)")
@@ -35,6 +39,7 @@ def main() -> int:
         default=None,
         help="Fork an existing run (timestamp or path) into a new run dir and continue from its latest plan",
     )
+    p.add_argument("--introspect-output", type=str, help="Custom output path for introspection report (default: agent_loop/agent_artifacts/<timestamp>/introspection.md)")
 
     p.add_argument("--holdout-from-year", type=int, default=2025)
     p.add_argument("--baseline-json", type=str, default="models/baseline.json")
@@ -52,6 +57,50 @@ def main() -> int:
     args = p.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent
+
+    # Handle introspection mode (separate from normal loop)
+    if args.introspect is not None:
+        from agent_loop.utils import utc_timestamp
+
+        # Create minimal config for introspection
+        model_name = args.introspect if args.introspect else None
+        output_path = Path(args.introspect_output) if args.introspect_output else None
+
+        # Create a temporary run dir for introspection output
+        if output_path is None:
+            introspection_run_dir = repo_root / "agent_loop" / "agent_artifacts" / utc_timestamp()
+            introspection_run_dir.mkdir(parents=True, exist_ok=True)
+            output_path = introspection_run_dir / "introspection.md"
+        else:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Create a minimal LoopConfig (not used for loop, just for AgentLoop instantiation)
+        cfg = LoopConfig(
+            repo_root=repo_root,
+            fight_url=None,
+            goal_text="Introspection mode",
+            n_iters=0,
+            model=args.model,
+            agent_cmd=args.agent_cmd,
+            verbose=True,  # Always verbose for introspection
+            manual=False,
+            holdout_from_year=int(args.holdout_from_year),
+            baseline_json=Path(args.baseline_json),
+        )
+
+        # Run introspection
+        loop = AgentLoop(cfg)
+        result_path = loop.introspection(model_name=model_name, output_path=output_path)
+
+        print(f"\n✅ Introspection complete!")
+        print(f"📄 Report: {result_path}")
+        print(f"\nTo view the report:")
+        print(f"  cat {result_path}")
+        if "EDITOR" in os.environ:
+            print(f"  # Or open in your editor:")
+            print(f"  $EDITOR {result_path}")
+
+        return 0
 
     goal_text = None
     if args.goal_file:
