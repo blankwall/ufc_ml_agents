@@ -1,6 +1,7 @@
 reports2/
 reports4/
 reports9/
+reports_strict/
 
 # Python
 __pycache__/

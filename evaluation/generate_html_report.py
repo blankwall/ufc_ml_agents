@@ -62,7 +62,71 @@ def generate_html_report(
             axis=1
         )
         logger.info(f"Created fight keys, found {df['fight_key'].nunique()} unique fights")
-        
+
+        # BEFORE deduplication: Calculate underdog stats on ALL rows
+        # Count underdog stats per unique fight (one per fight, not both perspectives)
+        if "market_prob_f1" in df.columns:
+            # Create fight_key if needed
+            df_temp = df.copy()
+            if "fight_key" not in df_temp.columns:
+                if "fighter_1_id" in df_temp.columns and "fighter_2_id" in df_temp.columns:
+                    df_temp["fight_key"] = df_temp.apply(
+                        lambda r: f"{int(r['fighter_1_id'])}_{min(int(r['fighter_1_id']), int(r['fighter_2_id']))}_{max(int(r['fighter_1_id']), int(r['fighter_2_id']))}",
+                        axis=1
+                    )
+
+            # Calculate model pick and correct
+            df_temp["model_pick_pre"] = (df_temp["model_prob_f1"] >= 0.5).astype(int)
+            df_temp["correct_pre"] = df_temp["model_pick_pre"] == df_temp["target"]
+
+            # Determine if the model picked the market underdog in each row
+            df_temp["model_picked_underdog"] = np.where(
+                df_temp["model_prob_f1"] >= 0.5,
+                df_temp["market_prob_f1"] < df_temp.get("market_prob_f2", 0.5),
+                df_temp.get("market_prob_f2", 0.5) < df_temp["market_prob_f1"]
+            )
+
+            # Determine if underdog won the fight
+            df_temp["underdog_won"] = np.where(
+                df_temp["market_prob_f1"] < df_temp.get("market_prob_f2", 0.5),
+                df_temp["target"] == 1,
+                df_temp["target"] == 0
+            )
+
+            # Count per unique fight: model bet on underdog AND was correct
+            seen_fights_bets = set()
+            underdog_picks_correct_pre = 0
+            underdog_picks_total_pre = 0
+
+            for idx, row in df_temp.iterrows():
+                fight_key = row.get("fight_key", "")
+                if fight_key and fight_key not in seen_fights_bets:
+                    if row["model_picked_underdog"]:
+                        underdog_picks_total_pre += 1
+                        if row["correct_pre"]:
+                            underdog_picks_correct_pre += 1
+                        seen_fights_bets.add(fight_key)
+
+            # Count per unique fight: underdog won AND model bet on underdog AND was correct
+            seen_fights_won = set()
+            underdog_wins_correct_pre = 0
+            underdog_wins_total_pre = 0
+
+            for idx, row in df_temp.iterrows():
+                fight_key = row.get("fight_key", "")
+                if fight_key and fight_key not in seen_fights_won:
+                    if row["underdog_won"]:
+                        underdog_wins_total_pre += 1
+                        if row["model_picked_underdog"] and row["correct_pre"]:
+                            underdog_wins_correct_pre += 1
+                        seen_fights_won.add(fight_key)
+        else:
+            df["model_picked_underdog"] = False
+            underdog_picks_total_pre = 0
+            underdog_picks_correct_pre = 0
+            underdog_wins_total_pre = 0
+            underdog_wins_correct_pre = 0
+
         # Keep only the first occurrence of each fight (where winner is fighter_1, target=1)
         # This ensures we always show fights from the winner's perspective
         df = df.sort_values("target", ascending=False)  # Put target=1 rows first
@@ -70,73 +134,56 @@ def generate_html_report(
         logger.info(f"After deduplication: {len(df)} fights")
     else:
         logger.warning("fighter_1_id/fighter_2_id not found, showing all rows (may have duplicates)")
-    
+        underdog_picks_total_pre = 0
+        underdog_picks_correct_pre = 0
+
     # Get event names from database
     db = DatabaseManager()
     session = db.get_session()
-    
+
     try:
         # Add event names
         df["event_name"] = df["event_id"].apply(lambda x: get_event_name(int(x), session))
-        
+
         # Calculate fight-level results
         df["model_pick"] = (df["model_prob_f1"] >= 0.5).astype(int)
         df["correct"] = df["model_pick"] == df["target"]
         df["model_confidence"] = np.abs(df["model_prob_f1"] - 0.5) * 2  # 0 to 1
 
+        # For row highlighting: check if THIS ROW (in winner perspective) was an underdog pick
+        # In winner-perspective rows (f1 is winner), was the model's pick an underdog?
+        if "market_prob_f1" in df.columns:
+            df["is_underdog_pick_display"] = np.where(
+                df["model_prob_f1"] >= 0.5,  # Model picked f1 (winner)
+                df["market_prob_f1"] < df.get("market_prob_f2", 0.5),  # f1 was underdog
+                df.get("market_prob_f2", 0.5) < df["market_prob_f1"]  # f2 was underdog (but model picked loser)
+            )
+        else:
+            df["is_underdog_pick_display"] = False
+
+        # Also calculate a winner-perspective version for display purposes
+        if "market_prob_f1" in df.columns:
+            # In winner-perspective rows (f1 is winner), was f1 the underdog?
+            df["winner_was_underdog"] = df["market_prob_f1"] < df.get("market_prob_f2", 0.5)
+        else:
+            df["winner_was_underdog"] = False
+
         # --------------------------------------------------------------
         # Underdog stats (market-based)
         # --------------------------------------------------------------
-        # We define "underdog" using market implied probabilities from the odds file.
-        # Because the eval CSV contains both the odds-file ordering (fighter1/fighter2)
-        # and the evaluation row ordering (f1_name/f2_name), we must map correctly.
+        # Show all underdog picks (not filtered by edge)
         underdog_pick_str = "N/A"
         underdog_win_str = "N/A"
         try:
-            required_cols = {
-                "fighter1_prob",
-                "fighter2_prob",
-                "fighter1_norm_odds",
-                "fighter2_norm_odds",
-                "f1_name_norm",
-            }
-            if required_cols.issubset(df.columns):
-                def _market_probs_row(r):
-                    f1n = str(r.get("f1_name_norm", "") or "")
-                    a = str(r.get("fighter1_norm_odds", "") or "")
-                    b = str(r.get("fighter2_norm_odds", "") or "")
-                    p1 = float(r.get("fighter1_prob", np.nan))
-                    p2 = float(r.get("fighter2_prob", np.nan))
-                    if f1n and f1n == a:
-                        return p1, p2
-                    if f1n and f1n == b:
-                        return p2, p1
-                    return np.nan, np.nan
+            if underdog_picks_total_pre > 0:
+                # Model picked underdog: model picked the fighter with lower market probability
+                underdog_pick_rate = (underdog_picks_correct_pre / underdog_picks_total_pre) if underdog_picks_total_pre > 0 else 0.0
+                underdog_pick_str = f"{underdog_picks_correct_pre}/{underdog_picks_total_pre} ({underdog_pick_rate:.0%})"
 
-                df[["market_prob_f1_calc", "market_prob_f2_calc"]] = df.apply(
-                    lambda r: pd.Series(_market_probs_row(r)), axis=1
-                )
-
-                df["f1_is_underdog"] = df["market_prob_f1_calc"] < df["market_prob_f2_calc"]
-                df["f2_is_underdog"] = df["market_prob_f2_calc"] < df["market_prob_f1_calc"]
-
-                # "Model bet the underdog" = model picked the side with lower market implied probability
-                df["model_picked_underdog"] = (
-                    ((df["model_pick"] == 1) & df["f1_is_underdog"])
-                    | ((df["model_pick"] == 0) & df["f2_is_underdog"])
-                )
-
-                underdog_picks_total = int(df["model_picked_underdog"].sum())
-                underdog_picks_correct = int((df["model_picked_underdog"] & df["correct"]).sum())
-                underdog_pick_rate = (underdog_picks_correct / underdog_picks_total) if underdog_picks_total else 0.0
-                underdog_pick_str = f"{underdog_picks_correct}/{underdog_picks_total} ({underdog_pick_rate:.0%})"
-
-                # "Underdog won" in the winner-perspective row (we intentionally keep target=1 rows first)
-                # If f1_is_underdog is true here, the winner was the market underdog (an upset).
-                underdog_wins_total = int(df["f1_is_underdog"].sum())
-                underdog_wins_correct = int((df["f1_is_underdog"] & df["correct"]).sum())
-                underdog_win_acc = (underdog_wins_correct / underdog_wins_total) if underdog_wins_total else 0.0
-                underdog_win_str = f"{underdog_wins_correct}/{underdog_wins_total} ({underdog_win_acc:.0%})"
+            if underdog_wins_total_pre > 0:
+                # Underdog won (upset): underdog won the fight AND model correctly predicted
+                underdog_win_rate = (underdog_wins_correct_pre / underdog_wins_total_pre) if underdog_wins_total_pre > 0 else 0.0
+                underdog_win_str = f"{underdog_wins_correct_pre}/{underdog_wins_total_pre} ({underdog_win_rate:.0%})"
         except Exception:
             # Keep as N/A if anything goes wrong (missing columns / data issues)
             pass
@@ -368,18 +415,119 @@ def generate_html_report(
         }}
         
         .row-correct {{
-            background: #e8f5e9 !important;
-            border-left: 4px solid #4caf50;
+            background: #1b5e20 !important;
+            color: white !important;
+            border-left: 6px solid #2e7d32;
         }}
-        
+
         .row-incorrect {{
-            background: #ffebee !important;
-            border-left: 4px solid #f44336;
+            background: #b71c1c !important;
+            color: white !important;
+            border-left: 6px solid #c62828;
         }}
-        
+
         .row-close {{
-            background: #e8f5e9 !important;
-            border-left: 4px solid #4caf50;
+            background: #1b5e20 !important;
+            color: white !important;
+            border-left: 6px solid #2e7d32;
+        }}
+
+        /* Underdog picks - pastel colors */
+        .row-correct.underdog {{
+            background: #b2dfdb !important;  /* Blueish green (pastel) */
+            color: #004d40 !important;
+            border-left: 6px solid #009688;
+        }}
+
+        .row-incorrect.underdog {{
+            background: #ffccbc !important;  /* Orangish red (pastel) */
+            color: #bf360c !important;
+            border-left: 6px solid #ff7043;
+        }}
+
+        /* Top 25% indicator - gold star badge */
+        .top-25-badge {{
+            display: inline-block;
+            background: linear-gradient(135deg, #ffd700 0%, #ffb300 100%);
+            color: #5d4037;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            font-weight: bold;
+            margin-left: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }}
+
+        /* Override text colors for dark backgrounds */
+        .row-correct a, .row-incorrect a, .row-close a {{
+            color: inherit;
+        }}
+
+        /* Ensure badges work on both dark and light backgrounds */
+        .row-correct .winner-badge.actual,
+        .row-incorrect .winner-badge.actual,
+        .row-close .winner-badge.actual {{
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }}
+
+        .row-correct .winner-badge.predicted,
+        .row-incorrect .winner-badge.predicted,
+        .row-close .winner-badge.predicted {{
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }}
+
+        .row-correct.underdog .winner-badge.actual,
+        .row-incorrect.underdog .winner-badge.actual {{
+            background: #4caf50;
+            color: white;
+        }}
+
+        .row-correct.underdog .winner-badge.predicted,
+        .row-incorrect.underdog .winner-badge.predicted {{
+            background: #2196f3;
+            color: white;
+        }}
+
+        /* Adjust edge text colors for different backgrounds */
+        .row-correct .edge,
+        .row-incorrect .edge,
+        .row-close .edge {{
+            color: inherit !important;
+        }}
+
+        .row-correct.underdog .edge.positive,
+        .row-incorrect.underdog .edge.positive {{
+            color: #2e7d32 !important;
+        }}
+
+        .row-correct.underdog .edge.negative,
+        .row-incorrect.underdog .edge.negative {{
+            color: #c62828 !important;
+        }}
+
+        /* Ensure fighter names are readable on dark backgrounds */
+        .row-correct .fighter-name,
+        .row-incorrect .fighter-name,
+        .row-close .fighter-name {{
+            color: white !important;
+        }}
+
+        .row-correct.underdog .fighter-name,
+        .row-incorrect.underdog .fighter-name {{
+            color: inherit !important;
+        }}
+
+        /* Market probability text color override */
+        .market-prob-dark {{
+            color: rgba(255,255,255,0.7) !important;
+        }}
+
+        .market-prob-light {{
+            color: #757575 !important;
         }}
         
         .prob-bar {{
@@ -465,7 +613,50 @@ def generate_html_report(
                 <div class="value">{underdog_win_str}</div>
             </div>
         </div>
-        
+
+        <div style="padding: 0 30px 20px 30px;">
+            <div style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); padding: 20px; border-radius: 8px; border-left: 5px solid #2196f3;">
+                <h3 style="margin: 0 0 15px 0; color: #1565c0;">📊 Color Coding Guide</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+                    <div style="display: flex; align-items: center;">
+                        <div style="width: 50px; height: 30px; background: #1b5e20; border-radius: 4px; margin-right: 12px; border-left: 4px solid #2e7d32;"></div>
+                        <div>
+                            <div style="font-weight: 600;">Dark Green</div>
+                            <div style="font-size: 0.9em; color: #666;">Correct prediction (regular pick)</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <div style="width: 50px; height: 30px; background: #b71c1c; border-radius: 4px; margin-right: 12px; border-left: 4px solid #c62828;"></div>
+                        <div>
+                            <div style="font-weight: 600;">Dark Red</div>
+                            <div style="font-size: 0.9em; color: #666;">Incorrect prediction (regular pick)</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <div style="width: 50px; height: 30px; background: #b2dfdb; border-radius: 4px; margin-right: 12px; border-left: 4px solid #009688;"></div>
+                        <div>
+                            <div style="font-weight: 600;">Blue-Green (Pastel)</div>
+                            <div style="font-size: 0.9em; color: #666;">Correct underdog pick</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <div style="width: 50px; height: 30px; background: #ffccbc; border-radius: 4px; margin-right: 12px; border-left: 4px solid #ff7043;"></div>
+                        <div>
+                            <div style="font-weight: 600;">Orange-Red (Pastel)</div>
+                            <div style="font-size: 0.9em; color: #666;">Incorrect underdog pick</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <div style="background: linear-gradient(135deg, #ffd700 0%, #ffb300 100%); padding: 5px 12px; border-radius: 4px; margin-right: 12px; font-weight: bold; color: #5d4037; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">⭐ Top 25%</div>
+                        <div>
+                            <div style="font-weight: 600;">Top 25% Badge</div>
+                            <div style="font-size: 0.9em; color: #666;">Highest model confidence on this card</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="events-container">
 """
     
@@ -488,7 +679,21 @@ def generate_html_report(
         
         # Get fights for this event
         event_fights = df[df["event_id"] == event_id].copy()
-        
+
+        # Calculate top 25% by model confidence for this event
+        event_fights = event_fights.copy()
+        if len(event_fights) > 0:
+            # confidence_threshold_75th = 75th percentile (top 25%)
+            confidence_threshold_75th = event_fights["model_confidence"].quantile(0.75)
+            event_fights["is_top_25_pct"] = event_fights["model_confidence"] >= confidence_threshold_75th
+
+            # Also mark underdogs (model picked the market underdog)
+            # Use the display column that checks if THIS ROW (winner perspective) was an underdog pick
+            if "is_underdog_pick_display" in event_fights.columns:
+                event_fights["is_underdog_pick"] = event_fights["is_underdog_pick_display"]
+            else:
+                event_fights["is_underdog_pick"] = False
+
         html += f"""
             <div class="event-section">
                 <div class="event-header" onclick="toggleEvent('event-{event_id}')">
@@ -501,6 +706,12 @@ def generate_html_report(
                     </div>
                 </div>
                 <div class="event-content" id="event-{event_id}">
+                    <div style="background: #fff3e0; padding: 10px 15px; margin-bottom: 15px; border-radius: 6px; border-left: 4px solid #ff9800;">
+                        <strong>📊 Legend:</strong>
+                        <span style="margin-left: 15px;"><span style="display: inline-block; width: 12px; height: 12px; background: #1b5e20; border-radius: 2px; margin-right: 5px;"></span> Dark green/red = Regular picks</span>
+                        <span style="margin-left: 15px;"><span style="display: inline-block; width: 12px; height: 12px; background: #b2dfdb; border-radius: 2px; margin-right: 5px;"></span> Blue-green/Orange = Underdog picks</span>
+                        <span style="margin-left: 15px;">⭐ <strong>Top 25%</strong> = Highest model confidence on this card</span>
+                    </div>
                     <table class="fights-table">
                         <thead>
                             <tr>
@@ -532,7 +743,9 @@ def generate_html_report(
             
             is_correct = fight["correct"]
             confidence = fight["model_confidence"]
-            
+            is_top_25 = fight.get("is_top_25_pct", False)
+            is_underdog = fight.get("is_underdog_pick", False)
+
             # Determine row class
             if is_correct:
                 if confidence > 0.6:
@@ -541,7 +754,11 @@ def generate_html_report(
                     row_class = "row-close"  # Correct but low confidence
             else:
                 row_class = "row-incorrect"
-            
+
+            # Add underdog class if applicable
+            if is_underdog:
+                row_class += " underdog"
+
             # Get the PREDICTED winner's probabilities (not the actual winner's)
             if predicted_winner == f1_name:
                 predicted_model_prob = model_prob_f1
@@ -549,11 +766,11 @@ def generate_html_report(
             else:
                 predicted_model_prob = model_prob_f2
                 predicted_market_prob = market_prob_f2
-            
+
             # Calculate edge for the PREDICTED winner
             predicted_edge = predicted_model_prob - predicted_market_prob
             edge_pct = predicted_edge * 100
-            
+
             # Edge formatting
             if abs(edge_pct) < 2:
                 edge_class = "neutral"
@@ -564,21 +781,36 @@ def generate_html_report(
             else:
                 edge_class = "negative"
                 edge_symbol = ""
-            
-            # Result icon - simple: green check if correct, X if wrong
+
+            # Result icon - simple: check if correct, X if wrong
+            # For dark backgrounds (row-correct, row-incorrect), use white
+            # For underdog pastel backgrounds, use darker colors
             if is_correct:
                 result_icon = "✓"
-                result_color = "#4caf50"  # Green
+                if is_underdog:
+                    result_color = "#00695c"  # Dark teal for pastel background
+                else:
+                    result_color = "#ffffff"  # White for dark background
             else:
                 result_icon = "✗"
-                result_color = "#f44336"  # Red
-            
+                if is_underdog:
+                    result_color = "#bf360c"  # Dark orange for pastel background
+                else:
+                    result_color = "#ffffff"  # White for dark background
+
+            # Build top 25% badge if applicable
+            top_25_badge = '<span class="top-25-badge">⭐ Top 25%</span>' if is_top_25 else ''
+
+            # Determine market probability class (dark vs light background)
+            market_prob_class = "market-prob-dark" if not is_underdog else "market-prob-light"
+
             html += f"""
                             <tr class="{row_class}">
                                 <td>
                                     <div class="fighter-name">{f1_name}</div>
                                     <div style="color: #999; font-size: 0.9em;">vs</div>
                                     <div class="fighter-name">{f2_name}</div>
+                                    {top_25_badge}
                                 </td>
                                 <td>
                                     <strong>{predicted_winner}</strong>
@@ -591,7 +823,7 @@ def generate_html_report(
                                 <td style="text-align: center; font-size: 1.1em; font-weight: 600;">
                                     {predicted_model_prob:.1%}
                                 </td>
-                                <td style="text-align: center; font-size: 1.1em; font-weight: 600; color: #757575;">
+                                <td style="text-align: center; font-size: 1.1em; font-weight: 600;" class="{market_prob_class}">
                                     {predicted_market_prob:.1%}
                                 </td>
                                 <td style="text-align: center;">
