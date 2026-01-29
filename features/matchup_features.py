@@ -16,6 +16,13 @@ from .fighter_features import FighterFeatureExtractor
 from .registry import FeatureRegistry
 from .feature_exclusions import get_columns_to_exclude, print_exclusion_summary
 
+try:
+    from tqdm import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+    tqdm = None
+
 
 class MatchupFeatureExtractor:
     """Extract features for a specific fight matchup"""
@@ -636,24 +643,32 @@ class MatchupFeatureExtractor:
 def create_training_dataset(
     session: Session,
     output_path: str = 'data/processed/training_data.csv',
-    feature_set: Optional[List[str]] = None
+    feature_set: Optional[List[str]] = None,
+    show_progress: bool = True
 ):
     """
     Create a training dataset from all completed fights
-    
+
     Args:
         session: Database session
         output_path: Where to save the dataset
         feature_set: Optional list of feature names to extract.
                     If None, uses FEATURE_SET_FULL (all features)
+        show_progress: Show progress bar if tqdm is available (default: True)
     """
     # Print exclusion summary at the start
     print_exclusion_summary()
-    
+
     logger.info("Creating training dataset from completed fights...")
-    
+
+    # Show progress bar info
+    if show_progress and TQDM_AVAILABLE:
+        logger.info("Progress bar enabled (tqdm available)")
+    elif show_progress and not TQDM_AVAILABLE:
+        logger.info("Install tqdm for progress bar: pip install tqdm")
+
     matchup_extractor = MatchupFeatureExtractor(session)
-    
+
     # Get all completed fights (with results)
     # CRITICAL: Use ORDER BY to ensure deterministic row ordering for reproducible train/test splits
     # Order by fight ID (primary key) to guarantee consistent ordering across runs
@@ -664,13 +679,21 @@ def create_training_dataset(
         .order_by(Fight.id)
         .all()
     )
-    
+
     training_data = []
-    
-    for i, fight in enumerate(fights, 1):
-        if i % 100 == 0:
-            logger.info(f"Processing fight {i}/{len(fights)}")
-        
+
+    # Use tqdm if available and requested
+    if show_progress and TQDM_AVAILABLE:
+        fights_iter = tqdm(
+            fights,
+            desc="Creating training dataset",
+            unit="fights",
+            ncols=80
+        )
+    else:
+        fights_iter = fights
+
+    for fight in fights_iter:
         try:
             # --- SIMPLE EXCLUSION HACK: skip Chimaev vs Du Plessis fight from training ---
             try:
@@ -688,7 +711,7 @@ def create_training_dataset(
             # Skip draws and no contests
             if fight.result not in ('fighter_1', 'fighter_2'):
                 continue
-            
+
             # Determine winner and loser IDs from current Fight row.
             # In the current DB, result is often normalized so that fighter_1 is the winner,
             # but we still handle both cases explicitly.
@@ -698,11 +721,11 @@ def create_training_dataset(
             else:
                 winner_id = fight.fighter_2_id
                 loser_id = fight.fighter_1_id
-            
+
             # Get event date for point-in-time feature calculation
             # This prevents data leakage by only using fights BEFORE this event
             event_date = fight.event.date if fight.event and fight.event.date else None
-            
+
             # Perspective 1: winner as fighter_1 (positive class)
             features_win = matchup_extractor.extract_matchup_features(
                 winner_id,
@@ -718,9 +741,9 @@ def create_training_dataset(
             features_win['weight_class'] = fight.weight_class
             features_win['is_title_fight'] = fight.is_title_fight
             features_win['method'] = fight.method
-            
+
             training_data.append(features_win)
-            
+
             # Perspective 2: loser as fighter_1 (negative class)
             features_lose = matchup_extractor.extract_matchup_features(
                 loser_id,
@@ -736,16 +759,16 @@ def create_training_dataset(
             features_lose['weight_class'] = fight.weight_class
             features_lose['is_title_fight'] = fight.is_title_fight
             features_lose['method'] = fight.method
-            
+
             training_data.append(features_lose)
-            
+
         except Exception as e:
             logger.error(f"Error processing fight {fight.id}: {e}")
             continue
-    
+
     # Convert to DataFrame
     df = pd.DataFrame(training_data)
-    
+
     # Apply column-level feature exclusions (fine-grained toggles)
     cols_to_drop = get_columns_to_exclude(df.columns)
     if cols_to_drop:
@@ -756,11 +779,11 @@ def create_training_dataset(
         logger.success(f"✓ Successfully excluded {len(cols_to_drop)} columns")
     else:
         logger.info("No feature columns excluded (all features will be used)")
-    
+
     # Save to file
     df.to_csv(output_path, index=False)
     logger.success(f"Created training dataset with {len(df)} fights. Saved to {output_path}")
-    
+
     return df
 
 

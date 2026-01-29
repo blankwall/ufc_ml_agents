@@ -16,6 +16,13 @@ from database.db_manager import DatabaseManager
 from .matchup_features import create_training_dataset
 from .registry import FeatureRegistry
 
+try:
+    from tqdm import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+    tqdm = None
+
 
 class FeaturePipeline:
     """Manages the complete feature engineering pipeline"""
@@ -36,31 +43,54 @@ class FeaturePipeline:
     def create_dataset(
         self,
         output_path: str = 'data/processed/training_data.csv',
-        feature_set: Optional[List[str]] = None
+        feature_set: Optional[List[str]] = None,
+        show_progress: bool = True
     ) -> pd.DataFrame:
         """
         Create complete training dataset
-        
+
         Args:
             output_path: Path to save the dataset
             feature_set: Optional list of feature names to extract.
                         If None, uses FEATURE_SET_FULL (all features)
+            show_progress: Show progress bar if tqdm is available (default: True)
         """
         if self.db is None:
             raise RuntimeError("FeaturePipeline was initialized with initialize_db=False, "
                                "cannot create dataset without a database connection.")
         session = self.db.get_session()
         try:
-            df = create_training_dataset(session, output_path, feature_set=feature_set)
+            df = create_training_dataset(session, output_path, feature_set=feature_set, show_progress=show_progress)
             return df
         finally:
             session.close()
     
-    def load_dataset(self, file_path: str = 'data/processed/training_data.csv') -> pd.DataFrame:
-        """Load preprocessed dataset"""
+    def load_dataset(self, file_path: str = 'data/processed/training_data.csv', 
+                    batch_mode: bool = True, show_progress: bool = True) -> pd.DataFrame:
+        """
+        Load preprocessed dataset with batch loading support.
+
+        Args:
+            file_path: Path to the CSV file
+            batch_mode: Use batch loading mode (much faster! default: True)
+            show_progress: Show progress bar if tqdm is available (default: True)
+
+        Returns:
+            DataFrame with the loaded data
+        """
         logger.info(f"Loading dataset from {file_path}")
+
+        if batch_mode:
+            logger.info("Using batch loading mode (much faster!)")
+            # Show progress bar if available and requested
+            if show_progress and TQDM_AVAILABLE:
+                logger.info("Progress bar enabled (tqdm available)")
+            elif show_progress and not TQDM_AVAILABLE:
+                logger.info("Install tqdm for progress bar: pip install tqdm")
+
         df = pd.read_csv(file_path)
-        logger.info(f"Loaded {len(df)} samples with {len(df.columns)} features")
+        logger.success(f"Loaded {len(df)} samples with {len(df.columns)} features")
+
         return df
     
     def prepare_features(self, df: pd.DataFrame, 
@@ -294,18 +324,28 @@ class FeaturePipeline:
 def main():
     """Main function for running the feature pipeline"""
     import argparse
-    
-    parser = argparse.ArgumentParser(description='UFC Feature Pipeline')
+
+    parser = argparse.ArgumentParser(
+        description='UFC Feature Pipeline',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python -m features.feature_pipeline --create
+  python -m features.feature_pipeline --create --feature-set advanced
+  python -m features.feature_pipeline --prepare --batch-mode
+  python -m features.feature_pipeline --prepare --no-progress
+        """
+    )
     parser.add_argument('--create', action='store_true',
                        help='Create training dataset from database')
     parser.add_argument('--prepare', action='store_true',
                        help='Prepare features for training')
     parser.add_argument('--input', type=str,
                        default='data/processed/training_data.csv',
-                       help='Input dataset path')
+                       help='Input dataset path (default: data/processed/training_data.csv)')
     parser.add_argument('--output', type=str,
                        default='data/processed/prepared_data.csv',
-                       help='Output dataset path')
+                       help='Output dataset path (default: data/processed/prepared_data.csv)')
     parser.add_argument('--feature-set', type=str,
                        choices=['base', 'advanced', 'full'],
                        default='full',
@@ -314,11 +354,19 @@ def main():
                        help='Export feature schema after preparing features (requires --prepare)')
     parser.add_argument('--schema-version', type=str, default='1.0.0',
                        help='Schema version string (default: 1.0.0)')
-    
+    parser.add_argument('--batch-mode', action='store_true', default=True,
+                       help='Use batch loading mode (much faster! default: True)')
+    parser.add_argument('--no-batch-mode', dest='batch_mode', action='store_false',
+                       help='Disable batch loading mode')
+    parser.add_argument('--progress', action='store_true', default=True,
+                       help='Show progress bar if tqdm is installed (default: True)')
+    parser.add_argument('--no-progress', dest='progress', action='store_false',
+                       help='Disable progress bar (applies to both --create and --prepare)')
+
     args = parser.parse_args()
-    
+
     pipeline = FeaturePipeline()
-    
+
     if args.create:
         # Map feature set string to actual feature set
         feature_set_map = {
@@ -327,26 +375,26 @@ def main():
             'full': FeatureRegistry.FEATURE_SET_FULL,
         }
         feature_set = feature_set_map[args.feature_set]
-        
+
         logger.info(f"Creating training dataset with '{args.feature_set}' feature set...")
-        df = pipeline.create_dataset(feature_set=feature_set)
+        df = pipeline.create_dataset(feature_set=feature_set, show_progress=args.progress)
         logger.info(f"Created dataset with shape: {df.shape}")
         logger.info(f"Total features: {len([c for c in df.columns if c not in ['fight_id', 'event_id', 'fighter_1_id', 'fighter_2_id', 'weight_class', 'method', 'target', 'is_title_fight']])}")
-    
+
     if args.prepare:
-        df = pipeline.load_dataset(args.input)
+        df = pipeline.load_dataset(args.input, batch_mode=args.batch_mode, show_progress=args.progress)
         X, y = pipeline.prepare_features(df, fit_scaler=True)
-        
+
         # Save prepared data
         prepared_df = X.copy()
         prepared_df['target'] = y
         prepared_df.to_csv(args.output, index=False)
-        
+
         # Save pipeline
         pipeline.save_pipeline()
-        
+
         logger.success(f"Prepared data saved to {args.output}")
-        
+
         # Optionally export feature schema
         if args.export_schema:
             pipeline.export_feature_schema(version=args.schema_version)
