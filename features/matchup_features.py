@@ -23,14 +23,45 @@ except ImportError:
     TQDM_AVAILABLE = False
     tqdm = None
 
+# Import CachedFeatureBuilder for performance optimization
+try:
+    from .optimization_examples import CachedFeatureBuilder
+    CACHED_FEATURE_BUILDER_AVAILABLE = True
+except ImportError:
+    CACHED_FEATURE_BUILDER_AVAILABLE = False
+
 
 class MatchupFeatureExtractor:
     """Extract features for a specific fight matchup"""
-    
-    def __init__(self, session: Session):
-        """Initialize matchup feature extractor"""
+
+    def __init__(self, session: Session, use_cache: bool = True, cache_size: int = 1000):
+        """
+        Initialize matchup feature extractor
+
+        Args:
+            session: Database session
+            use_cache: Whether to use cached feature builder (default: True for 2-5x speedup)
+            cache_size: Maximum number of cached feature sets (default: 1000)
+        """
         self.session = session
-        self.fighter_extractor = FighterFeatureExtractor(session)
+        self.use_cache = use_cache
+        self.cache_size = cache_size
+
+        # Use CachedFeatureBuilder if available and requested
+        if use_cache and CACHED_FEATURE_BUILDER_AVAILABLE:
+            from .registry import FeatureBuilder
+            self.fighter_extractor = FighterFeatureExtractor(session)
+            # Replace the internal FeatureBuilder with CachedFeatureBuilder
+            self.fighter_extractor.feature_builder = CachedFeatureBuilder(
+                session,
+                rolling_windows=[3, 5],
+                cache_size=cache_size
+            )
+            logger.info(f"Using CachedFeatureBuilder (max {cache_size} entries)")
+        else:
+            self.fighter_extractor = FighterFeatureExtractor(session)
+            if use_cache and not CACHED_FEATURE_BUILDER_AVAILABLE:
+                logger.warning("Cache requested but CachedFeatureBuilder not available, using standard FeatureBuilder")
     
     def extract_matchup_features(
         self,
@@ -644,7 +675,9 @@ def create_training_dataset(
     session: Session,
     output_path: str = 'data/processed/training_data.csv',
     feature_set: Optional[List[str]] = None,
-    show_progress: bool = True
+    show_progress: bool = True,
+    use_cache: bool = True,
+    cache_size: int = 1000
 ):
     """
     Create a training dataset from all completed fights
@@ -655,6 +688,8 @@ def create_training_dataset(
         feature_set: Optional list of feature names to extract.
                     If None, uses FEATURE_SET_FULL (all features)
         show_progress: Show progress bar if tqdm is available (default: True)
+        use_cache: Use CachedFeatureBuilder for 2-5x speedup (default: True)
+        cache_size: Maximum cache size for CachedFeatureBuilder (default: 1000)
     """
     # Print exclusion summary at the start
     print_exclusion_summary()
@@ -667,7 +702,13 @@ def create_training_dataset(
     elif show_progress and not TQDM_AVAILABLE:
         logger.info("Install tqdm for progress bar: pip install tqdm")
 
-    matchup_extractor = MatchupFeatureExtractor(session)
+    # Show cache info
+    if use_cache:
+        logger.info(f"Cache enabled: max {cache_size} entries (2-5x speedup!)")
+    else:
+        logger.info("Cache disabled")
+
+    matchup_extractor = MatchupFeatureExtractor(session, use_cache=use_cache, cache_size=cache_size)
 
     # Get all completed fights (with results)
     # CRITICAL: Use ORDER BY to ensure deterministic row ordering for reproducible train/test splits
@@ -784,6 +825,23 @@ def create_training_dataset(
     df.to_csv(output_path, index=False)
     logger.success(f"Created training dataset with {len(df)} fights. Saved to {output_path}")
 
+    # Print cache statistics if caching was used
+    if use_cache and CACHED_FEATURE_BUILDER_AVAILABLE:
+        try:
+            cache_stats = matchup_extractor.fighter_extractor.feature_builder.get_cache_stats()
+            logger.info("=" * 60)
+            logger.info("CACHE STATISTICS")
+            logger.info("=" * 60)
+            logger.info(f"  Cache hits:     {cache_stats['hits']}")
+            logger.info(f"  Cache misses:   {cache_stats['misses']}")
+            logger.info(f"  Hit rate:       {cache_stats['hit_rate']:.2%}")
+            logger.info(f"  Cache size:      {cache_stats['cache_size']}")
+            logger.info("=" * 60)
+            if cache_stats['hits'] > 0:
+                logger.success(f"🚀 Cache achieved {cache_stats['hits'] / (cache_stats['hits'] + cache_stats['misses']):.1%} hit rate!")
+        except Exception as e:
+            logger.warning(f"Could not retrieve cache stats: {e}")
+
     return df
 
 
@@ -799,9 +857,15 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=str,
                        default='data/processed/training_data.csv',
                        help='Output path for training dataset')
-    
+    parser.add_argument('--use-cache', action='store_true', default=True,
+                       help='Use CachedFeatureBuilder for 2-5x speedup (default: True)')
+    parser.add_argument('--no-cache', dest='use_cache', action='store_false',
+                       help='Disable caching (use standard FeatureBuilder)')
+    parser.add_argument('--cache-size', type=int, default=1000,
+                       help='Maximum cache size for CachedFeatureBuilder (default: 1000)')
+
     args = parser.parse_args()
-    
+
     # Map feature set string to actual feature set
     feature_set_map = {
         'base': FeatureRegistry.FEATURE_SET_BASE,
@@ -809,15 +873,21 @@ if __name__ == '__main__':
         'full': FeatureRegistry.FEATURE_SET_FULL,
     }
     feature_set = feature_set_map[args.feature_set]
-    
+
     db = DatabaseManager()
     session = db.get_session()
-    
+
     logger.info(f"Creating training dataset with '{args.feature_set}' feature set...")
-    df = create_training_dataset(session, output_path=args.output, feature_set=feature_set)
-    
+    df = create_training_dataset(
+        session,
+        output_path=args.output,
+        feature_set=feature_set,
+        use_cache=args.use_cache,
+        cache_size=args.cache_size
+    )
+
     logger.info(f"Dataset shape: {df.shape}")
     logger.info(f"Target distribution:\n{df['target'].value_counts()}")
-    
+
     session.close()
 

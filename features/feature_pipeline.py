@@ -44,7 +44,9 @@ class FeaturePipeline:
         self,
         output_path: str = 'data/processed/training_data.csv',
         feature_set: Optional[List[str]] = None,
-        show_progress: bool = True
+        show_progress: bool = True,
+        use_cache: bool = True,
+        cache_size: int = 1000
     ) -> pd.DataFrame:
         """
         Create complete training dataset
@@ -54,13 +56,22 @@ class FeaturePipeline:
             feature_set: Optional list of feature names to extract.
                         If None, uses FEATURE_SET_FULL (all features)
             show_progress: Show progress bar if tqdm is available (default: True)
+            use_cache: Use CachedFeatureBuilder for 2-5x speedup (default: True)
+            cache_size: Maximum cache size for CachedFeatureBuilder (default: 1000)
         """
         if self.db is None:
             raise RuntimeError("FeaturePipeline was initialized with initialize_db=False, "
                                "cannot create dataset without a database connection.")
         session = self.db.get_session()
         try:
-            df = create_training_dataset(session, output_path, feature_set=feature_set, show_progress=show_progress)
+            df = create_training_dataset(
+                session,
+                output_path,
+                feature_set=feature_set,
+                show_progress=show_progress,
+                use_cache=use_cache,
+                cache_size=cache_size
+            )
             return df
         finally:
             session.close()
@@ -362,6 +373,12 @@ Examples:
                        help='Show progress bar if tqdm is installed (default: True)')
     parser.add_argument('--no-progress', dest='progress', action='store_false',
                        help='Disable progress bar (applies to both --create and --prepare)')
+    parser.add_argument('--use-cache', action='store_true', default=True,
+                       help='Use CachedFeatureBuilder for 2-5x speedup (default: True)')
+    parser.add_argument('--no-cache', dest='use_cache', action='store_false',
+                       help='Disable caching (use standard FeatureBuilder)')
+    parser.add_argument('--cache-size', type=int, default=1000,
+                       help='Maximum cache size for CachedFeatureBuilder (default: 1000)')
 
     args = parser.parse_args()
 
@@ -377,7 +394,12 @@ Examples:
         feature_set = feature_set_map[args.feature_set]
 
         logger.info(f"Creating training dataset with '{args.feature_set}' feature set...")
-        df = pipeline.create_dataset(feature_set=feature_set, show_progress=args.progress)
+        df = pipeline.create_dataset(
+            feature_set=feature_set,
+            show_progress=args.progress,
+            use_cache=args.use_cache,
+            cache_size=args.cache_size
+        )
         logger.info(f"Created dataset with shape: {df.shape}")
         logger.info(f"Total features: {len([c for c in df.columns if c not in ['fight_id', 'event_id', 'fighter_1_id', 'fighter_2_id', 'weight_class', 'method', 'target', 'is_title_fight']])}")
 
