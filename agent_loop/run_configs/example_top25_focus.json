@@ -1,0 +1,29 @@
+{
+  "_comment": "Top 25% Confidence Focus - Improve high-confidence prediction accuracy",
+  "run_goal": ["top_25_pct"],
+  "priorities": {
+    "prioritize": ["top_25_pct"],
+    "avoid": []
+  },
+  "constraints": {
+    "avoid_features": [
+      "quality differences"
+    ],
+    "max_new_features_per_iteration": 8
+  },
+  "success_criteria": {
+    "min_roi_improvement": 0.02,
+    "required_improvements": [
+      {
+        "segment": "top_25_pct",
+        "metric": "accuracy",
+        "min_delta": 0.01
+      },
+      {
+        "segment": "top_25_pct",
+        "metric": "roi",
+        "min_delta": 0.03
+      }
+    ]
+  }
+}

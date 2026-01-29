@@ -1,0 +1,84 @@
+{
+  "agent": {
+    "model": "claude-sonnet-4-5-20250929",
+    "agent_cmd": "claude",
+    "timeout_seconds": 600,
+    "permission_mode": "acceptEdits",
+    "verbose": false,
+    "manual": false
+  },
+  "model_pipeline": {
+    "holdout_from_year": 2025,
+    "baseline_json": "models/baseline.json",
+    "train_model_name_prefix": "agent_loop_model",
+    "xgboost_predict_model_name": "jan_29",
+    "feature_set": "full",
+    "n_estimators": 200,
+    "max_depth": 4,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8
+  },
+  "evaluation": {
+    "eval_min_year": 2025,
+    "odds_path": "ufc_2025_odds.csv",
+    "odds_date_tolerance_days": 5,
+    "symmetric": true
+  },
+  "introspection": {
+    "non_feature_columns": [
+      "fighter1_id",
+      "fighter2_id",
+      "fighter_1_id",
+      "fighter_2_id",
+      "result",
+      "target",
+      "event_date",
+      "dataset",
+      "event_id",
+      "fight_id",
+      "method",
+      "weight_class"
+    ],
+    "low_importance_threshold": 0.01,
+    "top_n_features": 10,
+    "concentration_thresholds": {
+      "high": 70,
+      "low": 40
+    },
+    "feature_count_thresholds": {
+      "high": 200,
+      "low": 30,
+      "moderate": 150
+    }
+  },
+  "paths": {
+    "repo_root": ".",
+    "agent_artifacts_dir": "agent_loop/agent_artifacts",
+    "data_processed_dir": "data/processed",
+    "schema_dir": "schema",
+    "features_dir": "features",
+    "models_saved_dir": "models/saved",
+    "reports_dir": "reports_strict",
+    "prompts_dir": "agent_loop/prompts"
+  },
+  "feature_schema": {
+    "feature_schema_path": "schema/feature_schema.json",
+    "monotone_constraints_path": "schema/monotone_constraints.json",
+    "feature_exclusions_path": "features/feature_exclusions.py"
+  },
+  "feature_types": {
+    "interaction_pattern": "_x_",
+    "ratio_patterns": ["_ratio", "_over_", "_div_"],
+    "polynomial_patterns": ["_squared", "_cubed"],
+    "aggregate_patterns": ["_avg", "_sum", "_count", "_total", "_diff", "_delta"]
+  },
+  "roi_thresholds": {
+    "very_negative": -0.05,
+    "positive": 0.02
+  },
+  "accuracy_thresholds": {
+    "strong": 0.70,
+    "weak": 0.60
+  }
+}

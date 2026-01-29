@@ -1,0 +1,29 @@
+{
+  "_comment": "Balanced - Improve both underdog and top 25% performance",
+  "run_goal": ["underdog", "top_25_pct"],
+  "priorities": {
+    "prioritize": ["underdog", "top_25_pct"],
+    "avoid": []
+  },
+  "constraints": {
+    "avoid_features": [
+      "quality differences"
+    ],
+    "max_new_features_per_iteration": 10
+  },
+  "success_criteria": {
+    "min_roi_improvement": 0.01,
+    "required_improvements": [
+      {
+        "segment": "underdog",
+        "metric": "roi",
+        "min_delta": 0.015
+      },
+      {
+        "segment": "top_25_pct",
+        "metric": "accuracy",
+        "min_delta": 0.005
+      }
+    ]
+  }
+}

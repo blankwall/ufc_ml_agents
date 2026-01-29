@@ -1,0 +1,64 @@
+# Agent Loop Run Configuration
+# This file controls the goal/priorities for a single run
+# Edit this file before each run to change focus
+
+# ============================================
+# RUN GOAL - What should this run optimize for?
+# ============================================
+# Choose ONE or MORE from: "top_25_pct", "underdog", "overall_accuracy", "calibration"
+run_goal:
+  - "underdog"      # Focus on underdog predictions
+  # - "top_25_pct"   # Focus on high-confidence predictions
+  # - "overall_accuracy"  # Focus on overall accuracy
+  # - "calibration"  # Focus on probability calibration
+
+# ============================================
+# PRIORITIES - What to optimize
+# ============================================
+priorities:
+  # Which segments to prioritize (choose from run_goal)
+  prioritize:
+    - "underdog"
+
+  # Which segments to explicitly avoid (optional)
+  avoid:
+    - "favorites"
+
+# ============================================
+# CONSTRAINTS - What NOT to do
+# ============================================
+constraints:
+  # Features/concepts to avoid adding
+  avoid_features:
+    - "quality differences"  # Don't add threshold/interaction quality features
+    - "ratio features with small denominators"
+
+  # Other constraints
+  max_new_features_per_iteration: 5
+  prefer_existing_features_over_new: true
+
+# ============================================
+# SUCCESS METRICS - When to keep changes
+# ============================================
+success_criteria:
+  # Minimum improvement required to keep changes
+  min_roi_improvement: 0.01  # 1% ROI improvement
+
+  # Priority segments that MUST improve
+  required_improvements:
+    - segment: "underdog"
+      metric: "accuracy"
+      min_delta: 0.005  # 0.5% accuracy improvement
+
+    - segment: "underdog"
+      metric: "roi"
+      min_delta: 0.02  # 2% ROI improvement
+
+# ============================================
+# RUN SETTINGS (optional - overrides agent_loop_config.json)
+# ============================================
+# Uncomment to override for this specific run
+# run_settings:
+#   n_iters: 10
+#   model: "claude-opus-4-5-20251101"
+#   holdout_from_year: 2024

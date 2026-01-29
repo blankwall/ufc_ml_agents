@@ -53,6 +53,8 @@ def main() -> int:
     p.add_argument("--eval-min-year", type=int, default=2025)
     p.add_argument("--odds-path", type=str, default="ufc_2025_odds.csv")
     p.add_argument("--odds-date-tolerance-days", type=int, default=5)
+    p.add_argument("--run-config", type=str, default=None,
+                   help="Path to run configuration JSON file (e.g., agent_loop/run_config_underdog_focus.json)")
 
     args = p.parse_args()
 
@@ -124,6 +126,7 @@ def main() -> int:
         eval_min_year=int(args.eval_min_year),
         odds_path=Path(args.odds_path),
         odds_date_tolerance_days=int(args.odds_date_tolerance_days),
+        run_config_path=Path(args.run_config) if args.run_config else None,
     )
 
     def _resolve_run_dir(run_arg: str) -> Path:

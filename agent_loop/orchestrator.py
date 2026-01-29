@@ -21,6 +21,7 @@ from agent_loop.utils import (
     restore_paths,
     newest_matching,
 )
+from agent_loop.config import load_config, AgentLoopConfig
 from agent_loop.tools import (
     scrape_fight_details_json,
     run_xgboost_predict,
@@ -29,25 +30,90 @@ from agent_loop.tools import (
 
 @dataclass(frozen=True)
 class LoopConfig:
+    """
+    Legacy configuration wrapper for backward compatibility.
+
+    New code should use AgentLoopConfig directly via load_config().
+    This class maintains the old interface while delegating to AgentLoopConfig.
+    """
     repo_root: Path
     fight_url: Optional[str]
     n_iters: int
     goal_text: Optional[str] = None
-    model: str = "claude-sonnet-4-5-20250929"
-    agent_cmd: str = "claude"
-    verbose: bool = False
-    manual: bool = False  # If True, pause for manual agent execution instead of running agent binary
+    model: Optional[str] = None  # If None, uses config default
+    agent_cmd: Optional[str] = None  # If None, uses config default
+    verbose: Optional[bool] = None  # If None, uses config default
+    manual: Optional[bool] = None  # If None, uses config default
 
-    # Model/pipeline settings
-    holdout_from_year: int = 2025
-    baseline_json: Path = Path("models/baseline.json")
-    train_model_name_prefix: str = "agent_loop_model"
-    xgboost_predict_model_name: str = "baseline_jan_11_2026_age_feature_add_striking_landed"
+    # Model/pipeline settings - if None, uses config default
+    holdout_from_year: Optional[int] = None
+    baseline_json: Optional[Path] = None
+    train_model_name_prefix: Optional[str] = None
+    xgboost_predict_model_name: Optional[str] = None
 
-    # Evaluation settings
-    eval_min_year: int = 2025
-    odds_path: Path = Path("ufc_2025_odds.csv")
-    odds_date_tolerance_days: int = 5
+    # Evaluation settings - if None, uses config default
+    eval_min_year: Optional[int] = None
+    odds_path: Optional[Path] = None
+    odds_date_tolerance_days: Optional[int] = None
+
+    # Run-specific configuration (optional)
+    run_config_path: Optional[Path] = None
+
+    # Internal: full config (loaded on first access)
+    _full_config: Optional[AgentLoopConfig] = None
+    _run_config: Optional[Dict] = None
+
+    def __post_init__(self):
+        """Load full configuration and apply overrides from this instance."""
+        # Load the base configuration
+        base_config = load_config(repo_root=self.repo_root)
+
+        # Apply any non-None overrides from this LoopConfig
+        # For now, we'll store the base config and handle overrides in getters
+        object.__setattr__(self, '_full_config', base_config)
+
+        # Load run-specific configuration if provided
+        run_cfg = None
+        if self.run_config_path is not None and self.run_config_path.exists():
+            import json
+            with open(self.run_config_path, 'r') as f:
+                run_cfg = json.load(f)
+        object.__setattr__(self, '_run_config', run_cfg)
+
+    @property
+    def full_config(self) -> AgentLoopConfig:
+        """Get the full AgentLoopConfig."""
+        return self._full_config
+
+    @property
+    def run_config(self) -> Optional[Dict]:
+        """Get the run-specific configuration."""
+        return self._run_config
+
+    # Convenience properties that use config defaults or overrides
+    @property
+    def agent_model(self) -> str:
+        return self.model if self.model is not None else self._full_config.agent.model
+
+    @property
+    def agent_command(self) -> str:
+        return self.agent_cmd if self.agent_cmd is not None else self._full_config.agent.agent_cmd
+
+    @property
+    def agent_verbose(self) -> bool:
+        return self.verbose if self.verbose is not None else self._full_config.agent.verbose
+
+    @property
+    def agent_manual(self) -> bool:
+        return self.manual if self.manual is not None else self._full_config.agent.manual
+
+    @property
+    def agent_timeout(self) -> int:
+        return self._full_config.agent.timeout_seconds
+
+    @property
+    def agent_permission_mode(self) -> str:
+        return self._full_config.agent.permission_mode
 
 
 class AgentLoop:
@@ -89,14 +155,14 @@ class AgentLoop:
         # --permission-mode acceptEdits: Allow agents to write files (plan.json, change.json, etc.)
         #   without interactive prompting. This is required for autonomous operation.
         cmd = [
-            self.cfg.agent_cmd,
+            self.cfg.agent_command,
             "--print",
             "--output-format",
             "json",
             "--permission-mode",
-            "acceptEdits",  # Allow agents to write files without prompting
+            self.cfg.agent_permission_mode,  # Allow agents to write files without prompting
             "--model",
-            self.cfg.model,
+            self.cfg.agent_model,
         ]
         # Don't pass prompt as argument - pass via stdin instead
         # This is more robust for long prompts and avoids shell escaping issues
@@ -104,11 +170,11 @@ class AgentLoop:
         # Store raw agent output for debugging
         out_path = self.run_dir / "logs" / f"agent_{utc_timestamp()}.json"
         stderr_path = out_path.with_suffix(".stderr.txt")
-        self.dbg(f"Running agent: model={self.cfg.model}, output={out_path}")
+        self.dbg(f"Running agent: model={self.cfg.agent_model}, output={out_path}")
         self.dbg(f"Prompt file (for reference): {prompt_file}")
-        
+
         try:
-            # Pass prompt via stdin, with timeout (10 minutes)
+            # Pass prompt via stdin, with timeout from config
             proc = subprocess.run(
                 cmd,
                 cwd=str(self.cfg.repo_root),
@@ -117,15 +183,16 @@ class AgentLoop:
                 stdout=open(out_path, "w", encoding="utf-8"),
                 stderr=open(stderr_path, "w", encoding="utf-8"),
                 check=True,
-                timeout=600,  # 10 minutes
+                timeout=self.cfg.agent_timeout,
             )
             self.dbg(f"Agent completed: {out_path}")
         except subprocess.TimeoutExpired as e:
             stderr_content = ""
             if stderr_path.exists():
                 stderr_content = stderr_path.read_text(encoding="utf-8")[:3000]
+            timeout_minutes = self.cfg.agent_timeout / 60
             raise RuntimeError(
-                f"Agent command timed out after 10 minutes. Stderr:\n{stderr_content}\n\n"
+                f"Agent command timed out after {timeout_minutes:.0f} minutes. Stderr:\n{stderr_content}\n\n"
                 f"Prompt file: {prompt_file}\n\n"
                 f"Hint: The agent may be waiting for input or trying to connect to a service."
             ) from e
@@ -173,23 +240,58 @@ class AgentLoop:
             if not self.cfg.goal_text:
                 raise RuntimeError("goal_text is required when fight_url is not provided")
 
+            # Use run_config if available, otherwise use defaults
+            run_cfg = self.cfg.run_config or {}
+            schema_cfg = self.cfg.full_config.feature_schema
+
+            # Get priorities from run_config or use defaults
+            priorities = run_cfg.get("priorities", {})
+            prioritize_list = priorities.get("prioritize", ["top_25_pct", "underdog"])
+            avoid_list = priorities.get("avoid", [])
+
+            # Get constraints from run_config or use defaults
+            constraints_cfg = run_cfg.get("constraints", {})
+            avoid_features = constraints_cfg.get("avoid_features", ["quality differences"])
+
+            # Build avoid descriptions
+            avoid_descriptions = [f"Do NOT add new features involving {feat}." for feat in avoid_features]
+            if avoid_list:
+                avoid_descriptions.extend([f"Avoid optimizing for {seg}" for seg in avoid_list])
+
+            # Build goal text from run_config
+            run_goal = run_cfg.get("run_goal", [])
+            if run_goal:
+                goal_desc = f"This run focuses on: {', '.join(run_goal)}"
+            else:
+                goal_desc = self.cfg.goal_text
+
+            # Get success criteria from run_config
+            success_criteria = run_cfg.get("success_criteria", {})
+            required_improvements = success_criteria.get("required_improvements", [])
+
             context = {
                 "mode": "goal",
-                "goal_text": self.cfg.goal_text,
+                "goal_text": goal_desc,
+                "run_goal": run_goal,
                 "constraints": {
-                    "prioritize": ["top_25_pct", "underdog"],
-                    "avoid": [
-                        "Do NOT add new features involving quality differences (thresholds/interactions/quality-adjusted weighting).",
-                    ],
+                    "prioritize": prioritize_list,
+                    "avoid": avoid_descriptions,
+                },
+                "success_criteria": {
+                    "min_roi_improvement": success_criteria.get("min_roi_improvement", 0.01),
+                    "required_improvements": required_improvements,
                 },
                 "schema_paths": {
-                    "feature_schema": "schema/feature_schema.json",
-                    "monotone_constraints": "schema/monotone_constraints.json",
-                    "feature_exclusions": "features/feature_exclusions.py",
+                    "feature_schema": str(schema_cfg.feature_schema_path),
+                    "monotone_constraints": str(schema_cfg.monotone_constraints_path),
+                    "feature_exclusions": str(schema_cfg.feature_exclusions_path),
                 },
             }
             write_json(context_path, context)
             self.dbg(f"Wrote context.json: {context_path}")
+            self.dbg(f"Run goal: {run_goal}")
+            self.dbg(f"Prioritize: {prioritize_list}")
+            self.dbg(f"Avoid: {avoid_list}")
             return context_path
 
         # Fight mode: scrape fight details WITHOUT adding to database (prevents data leakage)
@@ -217,7 +319,7 @@ class AgentLoop:
             self.cfg.repo_root,
             fighter_1_ufcstats_id=fighters[0]["ufcstats_id"],
             fighter_2_ufcstats_id=fighters[1]["ufcstats_id"],
-            model_name=self.cfg.xgboost_predict_model_name,
+            model_name=self.cfg.full_config.model_pipeline.xgboost_predict_model_name,
             out_path=pred_out,
         )
         self.dbg("xgboost_predict complete.")
@@ -226,7 +328,7 @@ class AgentLoop:
             "mode": "fight",
             "fight_details_url": self.cfg.fight_url,
             "fighters": fighters,
-            "xgboost_predict_model_name": self.cfg.xgboost_predict_model_name,
+            "xgboost_predict_model_name": self.cfg.full_config.model_pipeline.xgboost_predict_model_name,
             "xgboost_predict_output_path": str(pred_out),
         }
         write_json(context_path, context)
@@ -292,7 +394,8 @@ class AgentLoop:
         report_lines.append("")
 
         # First, try to get the ACTUAL features from training data
-        training_data_path = self.cfg.repo_root / "data" / "processed" / "training_data.csv"
+        paths_cfg = self.cfg.full_config.paths
+        training_data_path = paths_cfg.data_processed_dir / "training_data.csv"
         actual_features = None
         actual_feature_count = 0
 
@@ -300,19 +403,16 @@ class AgentLoop:
             try:
                 import pandas as pd
                 df_sample = pd.read_csv(training_data_path, nrows=1)
-                # Exclude all non-feature columns (IDs, targets, metadata)
-                non_feature_cols = [
-                    'fighter1_id', 'fighter2_id', 'fighter_1_id', 'fighter_2_id',
-                    'result', 'target', 'event_date', 'dataset',
-                    'event_id', 'fight_id', 'method', 'weight_class'
-                ]
+                # Exclude all non-feature columns (IDs, targets, metadata) - from config
+                non_feature_cols = self.cfg.full_config.introspection.non_feature_columns
                 actual_features = [c for c in df_sample.columns if c not in non_feature_cols]
                 actual_feature_count = len(actual_features)
             except Exception as e:
                 self.dbg(f"Could not read training data: {e}")
 
         # Also read schema for comparison
-        feature_schema_path = self.cfg.repo_root / "schema" / "feature_schema.json"
+        schema_cfg = self.cfg.full_config.feature_schema
+        feature_schema_path = schema_cfg.feature_schema_path
         schema_feature_count = None
 
         if feature_schema_path.exists():
@@ -435,17 +535,19 @@ class AgentLoop:
 
         # Find feature importance file
         importance_path = None
+        paths_cfg = self.cfg.full_config.paths
+        introspection_cfg = self.cfg.full_config.introspection
         if model_name:
             # Try model-specific importance
             for ext in ["_feature_importance.csv", "_importance.csv"]:
-                candidate = self.cfg.repo_root / "models" / "saved" / f"{model_name}{ext}"
+                candidate = paths_cfg.models_saved_dir / f"{model_name}{ext}"
                 if candidate.exists():
                     importance_path = candidate
                     break
 
         # Fallback to most recent importance file
         if not importance_path:
-            models_dir = self.cfg.repo_root / "models" / "saved"
+            models_dir = paths_cfg.models_saved_dir
             if models_dir.exists():
                 importance_files = list(models_dir.glob("*feature_importance.csv"))
                 if importance_files:
@@ -468,17 +570,19 @@ class AgentLoop:
             features_with_importance.sort(key=lambda x: x[1], reverse=True)
 
             if features_with_importance:
-                # Top 10
-                report_lines.append("### Top 10 Features")
+                # Top N features (from config)
+                top_n = introspection_cfg.top_n_features
+                report_lines.append(f"### Top {top_n} Features")
                 report_lines.append("")
                 report_lines.append("| Rank | Feature | Gain |")
                 report_lines.append("|------|---------|------|")
-                for i, (feat, gain) in enumerate(features_with_importance[:10], 1):
+                for i, (feat, gain) in enumerate(features_with_importance[:top_n], 1):
                     report_lines.append(f"| {i} | `{feat}` | {gain:.2f} |")
                 report_lines.append("")
 
                 # Bottom features (near zero)
-                bottom_features = [(f, g) for f, g in features_with_importance if g < 0.01]
+                low_threshold = introspection_cfg.low_importance_threshold
+                bottom_features = [(f, g) for f, g in features_with_importance if g < low_threshold]
                 if bottom_features:
                     report_lines.append(f"### Near-Zero Importance Features ({len(bottom_features)} features)")
                     report_lines.append("")
@@ -512,6 +616,8 @@ class AgentLoop:
         # 2. Latest model_eval_*.json in reports_strict/
         # 3. models/baseline.json (fallback)
         eval_path = None
+        reports_dir = paths_cfg.reports_dir
+        pipeline_cfg = self.cfg.full_config.model_pipeline
 
         if model_name:
             # Try to find model-specific evaluation
@@ -521,7 +627,7 @@ class AgentLoop:
                 f"{model_name}_metrics.json",
             ]
             for pattern in patterns:
-                matches = list((self.cfg.repo_root / "reports_strict").glob(pattern))
+                matches = list(reports_dir.glob(pattern))
                 if matches:
                     eval_path = max(matches, key=lambda p: p.stat().st_mtime)
                     self.dbg(f"Found model-specific eval: {eval_path.name}")
@@ -529,14 +635,14 @@ class AgentLoop:
 
         # If no model-specific eval, try latest model_eval
         if not eval_path:
-            matches = list((self.cfg.repo_root / "reports_strict").glob("model_eval_*.json"))
+            matches = list(reports_dir.glob("model_eval_*.json"))
             if matches:
                 eval_path = max(matches, key=lambda p: p.stat().st_mtime)
                 self.dbg(f"Found latest eval: {eval_path.name}")
 
         # Last resort: use baseline config (may be stale)
         if not eval_path:
-            eval_path = self.cfg.repo_root / self.cfg.baseline_json
+            eval_path = pipeline_cfg.baseline_json
             self.dbg(f"Using baseline config (may be stale): {eval_path}")
 
         if eval_path and eval_path.exists():
@@ -633,11 +739,17 @@ class AgentLoop:
         # Use actual feature count for insights
         effective_feature_count = actual_feature_count if actual_feature_count > 0 else (schema_feature_count if schema_feature_count else 0)
 
+        # Get thresholds from config
+        feature_thresholds = introspection_cfg.feature_count_thresholds
+        concentration_thresholds = introspection_cfg.concentration_thresholds
+        roi_thresholds = self.cfg.full_config.roi_thresholds
+        accuracy_thresholds = self.cfg.full_config.accuracy_thresholds
+
         # Feature complexity insight
         if effective_feature_count > 0:
-            if effective_feature_count > 200:
+            if effective_feature_count > feature_thresholds["high"]:
                 insights.append(f"**High feature count**: {effective_feature_count} features - consider feature selection to reduce noise")
-            elif effective_feature_count < 30:
+            elif effective_feature_count < feature_thresholds["low"]:
                 insights.append(f"**Low feature count**: {effective_feature_count} features - may be missing important signals")
             else:
                 insights.append(f"**Feature count**: {effective_feature_count} features - balanced complexity")
@@ -650,33 +762,33 @@ class AgentLoop:
 
         # Importance concentration insight
         if importance_path and features_with_importance:
-            if concentration > 70:
-                insights.append(f"**High feature concentration**: Top 10 features drive {concentration:.0f}% of predictions - model relies heavily on few features")
-            elif concentration < 40:
-                insights.append(f"**Distributed feature importance**: Top 10 features only {concentration:.0f}% of gain - signal is well distributed")
+            if concentration > concentration_thresholds["high"]:
+                insights.append(f"**High feature concentration**: Top {introspection_cfg.top_n_features} features drive {concentration:.0f}% of predictions - model relies heavily on few features")
+            elif concentration < concentration_thresholds["low"]:
+                insights.append(f"**Distributed feature importance**: Top {introspection_cfg.top_n_features} features only {concentration:.0f}% of gain - signal is well distributed")
             else:
-                insights.append(f"**Moderate feature concentration**: Top 10 features account for {concentration:.0f}% of gain - good balance")
+                insights.append(f"**Moderate feature concentration**: Top {introspection_cfg.top_n_features} features account for {concentration:.0f}% of gain - good balance")
 
         # Low importance features
         if importance_path and bottom_features and effective_feature_count > 0:
             if len(bottom_features) > effective_feature_count * 0.2:
-                insights.append(f"**Many low-importance features**: {len(bottom_features)} features ({len(bottom_features)/effective_feature_count*100:.1f}%) with < 0.01 gain - candidates for removal")
+                insights.append(f"**Many low-importance features**: {len(bottom_features)} features ({len(bottom_features)/effective_feature_count*100:.1f}%) with < {introspection_cfg.low_importance_threshold} gain - candidates for removal")
 
         # Model performance insights
         if eval_path and eval_path.exists():
             eval_data = read_json(eval_path)
             if "roi_flat_edge_gt_0" in eval_data:
                 roi = eval_data["roi_flat_edge_gt_0"]
-                if roi < -0.05:
+                if roi < roi_thresholds["very_negative"]:
                     insights.append(f"**Negative ROI**: {roi:.1%} - betting predictions are losing money")
-                elif roi > 0.02:
+                elif roi > roi_thresholds["positive"]:
                     insights.append(f"**Positive ROI**: {roi:.1%} - betting predictions are profitable")
 
             if "overall" in eval_data and isinstance(eval_data["overall"].get("accuracy"), (int, float)):
                 acc = eval_data["overall"]["accuracy"]
-                if acc > 0.70:
+                if acc > accuracy_thresholds["strong"]:
                     insights.append(f"**Strong accuracy**: {acc:.2%} - model predictions are reliable")
-                elif acc < 0.60:
+                elif acc < accuracy_thresholds["weak"]:
                     insights.append(f"Weak accuracy: {acc:.2%} - model needs improvement")
 
         if not insights:
@@ -700,10 +812,10 @@ class AgentLoop:
 
         if eval_path and eval_path.exists():
             eval_data = read_json(eval_path)
-            if "underdog" in eval_data and eval_data["underdog"].get("roi", 0) < -0.05:
+            if "underdog" in eval_data and eval_data["underdog"].get("roi", 0) < roi_thresholds["very_negative"]:
                 recommendations.append("**Focus on underdog calibration**: Underdog performance is the top priority - consider adding underdog-specific features or calibration adjustments")
 
-        if effective_feature_count > 150:
+        if effective_feature_count > feature_thresholds["moderate"]:
             recommendations.append("**Consider feature selection**: High feature count may lead to overfitting - use diagnostics to identify redundant features")
 
         if not recommendations:
@@ -735,18 +847,20 @@ class AgentLoop:
 
         # Backup data outputs before rebuild (as requested)
         backup_dir = self.run_dir / "backups" / f"iter_{iter_idx}_data_before"
+        paths_cfg = self.cfg.full_config.paths
         self.dbg(f"[iter {iter_idx}] Backing up data/processed → {backup_dir}")
         backup_paths(
             [
-                self.cfg.repo_root / "data" / "processed",
+                paths_cfg.data_processed_dir,
             ],
             backup_dir,
         )
 
         # Build full feature set dataset
+        pipeline_cfg = self.cfg.full_config.model_pipeline
         self.dbg(f"[iter {iter_idx}] Building training_data.csv (this can take ~10 min)…")
         run_cmd(
-            ["python3", "-m", "features.feature_pipeline", "--create", "--feature-set", "full"],
+            ["python3", "-m", "features.feature_pipeline", "--create", "--feature-set", pipeline_cfg.feature_set],
             cwd=self.cfg.repo_root,
             stdout_path=logs_dir / "feature_pipeline.stdout.txt",
             stderr_path=logs_dir / "feature_pipeline.stderr.txt",
@@ -754,7 +868,8 @@ class AgentLoop:
         )
 
         # Train model (name includes run_ts + iteration)
-        model_name = f"{self.cfg.train_model_name_prefix}_{self.run_ts}_iter{iter_idx}"
+        pipeline_cfg = self.cfg.full_config.model_pipeline
+        model_name = f"{pipeline_cfg.train_model_name_prefix}_{self.run_ts}_iter{iter_idx}"
         self.dbg(f"[iter {iter_idx}] Training model: {model_name}")
         train_cmd = [
             "python3",
@@ -768,17 +883,17 @@ class AgentLoop:
             "--data-path",
             "data/processed/training_data.csv",
             "--n-estimators",
-            "200",
+            str(pipeline_cfg.n_estimators),
             "--max-depth",
-            "4",
+            str(pipeline_cfg.max_depth),
             "--holdout-from-year",
-            str(self.cfg.holdout_from_year),
+            str(pipeline_cfg.holdout_from_year),
             "--learning-rate",
-            "0.05",
+            str(pipeline_cfg.learning_rate),
             "--subsample",
-            "0.8",
+            str(pipeline_cfg.subsample),
             "--colsample-bytree",
-            "0.8",
+            str(pipeline_cfg.colsample_bytree),
             "--model-name",
             model_name,
         ]
@@ -791,7 +906,9 @@ class AgentLoop:
         )
 
         # Evaluate model (compare-to-baseline)
-        self.dbg(f"[iter {iter_idx}] Evaluating model vs baseline: {self.cfg.baseline_json}")
+        eval_cfg = self.cfg.full_config.evaluation
+        pipeline_cfg = self.cfg.full_config.model_pipeline
+        self.dbg(f"[iter {iter_idx}] Evaluating model vs baseline: {pipeline_cfg.baseline_json}")
         eval_cmd = [
             "python3",
             "-m",
@@ -799,19 +916,19 @@ class AgentLoop:
             "--data-path",
             "data/processed/training_data.csv",
             "--odds-path",
-            str(self.cfg.odds_path),
+            str(eval_cfg.odds_path),
             "--min-year",
-            str(self.cfg.eval_min_year),
+            str(eval_cfg.eval_min_year),
             "--output-dir",
             "reports_strict",
             "--odds-date-tolerance-days",
-            str(self.cfg.odds_date_tolerance_days),
+            str(eval_cfg.odds_date_tolerance_days),
             "--model-name",
             model_name,
             "--symmetric",
             "--compare-to-baseline",
             "--baseline-path",
-            str(self.cfg.baseline_json),
+            str(pipeline_cfg.baseline_json),
         ]
         run_cmd(
             eval_cmd,
@@ -821,7 +938,7 @@ class AgentLoop:
             check=True,
         )
 
-        latest = newest_matching(self.cfg.repo_root / "reports_strict", "model_eval_*.json")
+        latest = newest_matching(self.cfg.full_config.paths.reports_dir, "model_eval_*.json")
         if not latest:
             raise RuntimeError("Could not find reports_strict/model_eval_*.json after evaluation")
 
@@ -1095,10 +1212,11 @@ class AgentLoop:
         analysis_path = iter_dir / "analysis.json"
         self.dbg(f"[iter {iteration}] Running evaluator (objective analysis)...")
 
+        pipeline_cfg = self.cfg.full_config.model_pipeline
         evaluator_prompt = self._render_prompt(
             self.cfg.repo_root / "agent_loop" / "prompts" / "evaluator.md",
             eval_path=eval_path,
-            baseline_path=self.cfg.repo_root / self.cfg.baseline_json,
+            baseline_path=pipeline_cfg.baseline_json,
             change_path=change_path,
             analysis_path=analysis_path,
         )
@@ -1177,7 +1295,9 @@ class AgentLoop:
         self.dbg("Running diagnostics to analyze current model...")
 
         # Find baseline evaluation and feature importance files
-        baseline_eval = self.cfg.repo_root / self.cfg.baseline_json
+        pipeline_cfg = self.cfg.full_config.model_pipeline
+        paths_cfg = self.cfg.full_config.paths
+        baseline_eval = pipeline_cfg.baseline_json
         if not baseline_eval.exists():
             self.dbg(f"Warning: Baseline eval not found at {baseline_eval}")
             # Create a placeholder diagnostics with missing data info
@@ -1197,7 +1317,7 @@ class AgentLoop:
         # Try to find feature importance from the most recent model
         # Check models/saved/ directory for the baseline model
         feature_importance = None
-        models_dir = self.cfg.repo_root / "models" / "saved"
+        models_dir = paths_cfg.models_saved_dir
         if models_dir.exists():
             # Look for most recent feature importance CSV
             importance_files = list(models_dir.glob("*feature_importance.csv"))
@@ -1210,7 +1330,7 @@ class AgentLoop:
             self.cfg.repo_root / "agent_loop" / "prompts" / "diagnostics.md",
             baseline_eval_path=baseline_eval,
             feature_importance_path=feature_importance or "NOT_FOUND",
-            baseline_metrics=self.cfg.baseline_json,
+            baseline_metrics=pipeline_cfg.baseline_json,
             diagnostics_path=diagnostics_path,
         )
 
@@ -1237,16 +1357,17 @@ class AgentLoop:
 
     def loop(self) -> None:
         cfg = self.cfg
-        self.dbg(f"Starting loop: N={cfg.n_iters}, model={cfg.model}, holdout_from_year={cfg.holdout_from_year}")
+        pipeline_cfg = cfg.full_config.model_pipeline
+        self.dbg(f"Starting loop: N={cfg.n_iters}, model={cfg.agent_model}, holdout_from_year={pipeline_cfg.holdout_from_year}")
         run_config_path = self.run_dir / "run_config.json"
         if not run_config_path.exists():
             write_json(run_config_path, json.loads(json.dumps({
                 "fight_url": cfg.fight_url,
                 "n_iters": cfg.n_iters,
-                "model": cfg.model,
-                "holdout_from_year": cfg.holdout_from_year,
-                "baseline_json": str(cfg.baseline_json),
-                "train_model_name_prefix": cfg.train_model_name_prefix,
+                "model": cfg.agent_model,
+                "holdout_from_year": pipeline_cfg.holdout_from_year,
+                "baseline_json": str(pipeline_cfg.baseline_json),
+                "train_model_name_prefix": pipeline_cfg.train_model_name_prefix,
             })))
             self.dbg(f"Wrote run_config.json: {run_config_path}")
 
@@ -1281,11 +1402,12 @@ class AgentLoop:
         else:
             self.dbg(f"Reusing latest plan: {plan_path}")
 
-        # Paths to backup each iteration’s code changes (for revert)
+        # Paths to backup each iteration's code changes (for revert)
+        schema_cfg = cfg.full_config.feature_schema
         key_code_paths = [
-            cfg.repo_root / "schema" / "feature_schema.json",
-            cfg.repo_root / "schema" / "monotone_constraints.json",
-            cfg.repo_root / "features",
+            schema_cfg.feature_schema_path,
+            schema_cfg.monotone_constraints_path,
+            cfg.full_config.paths.features_dir,
         ]
 
         start_iter = self._next_iteration_index(history_path)
@@ -1366,10 +1488,11 @@ class AgentLoop:
         # Summarize
         report_path = self.run_dir / "report.html"
         self.dbg(f"Summarizer writing report → {report_path}")
+        pipeline_cfg = cfg.full_config.model_pipeline
         summarizer_prompt = self._render_prompt(
             cfg.repo_root / "agent_loop" / "prompts" / "summarizer.md",
             run_dir=self.run_dir,
-            baseline_path=cfg.repo_root / cfg.baseline_json,
+            baseline_path=pipeline_cfg.baseline_json,
             report_path=report_path,
         )
         self.run_agent(summarizer_prompt, wait_for_file=report_path)

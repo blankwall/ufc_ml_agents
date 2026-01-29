@@ -1,0 +1,24 @@
+{
+  "_comment": "Agent Loop Run Configuration - Copy this file and edit for each run",
+  "run_goal": ["CHANGE_ME"],
+  "priorities": {
+    "prioritize": ["CHANGE_ME"],
+    "avoid": []
+  },
+  "constraints": {
+    "avoid_features": [
+      "quality differences"
+    ],
+    "max_new_features_per_iteration": 5
+  },
+  "success_criteria": {
+    "min_roi_improvement": 0.01,
+    "required_improvements": [
+      {
+        "segment": "CHANGE_ME",
+        "metric": "roi",
+        "min_delta": 0.01
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "_comment": "Calibration Focus - Improve probability calibration across all segments",
+  "run_goal": ["calibration"],
+  "priorities": {
+    "prioritize": ["overall_accuracy"],
+    "avoid": []
+  },
+  "constraints": {
+    "avoid_features": [],
+    "max_new_features_per_iteration": 5,
+    "prefer_existing_features_over_new": true
+  },
+  "success_criteria": {
+    "min_roi_improvement": 0.0,
+    "required_improvements": [
+      {
+        "segment": "overall",
+        "metric": "brier_score",
+        "min_delta": -0.01
+      },
+      {
+        "segment": "overall",
+        "metric": "log_loss",
+        "min_delta": -0.02
+      }
+    ]
+  }
+}
