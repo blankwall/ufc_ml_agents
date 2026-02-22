@@ -1,17 +1,11 @@
 {
-  "comment": "Agent Loop Run Configuration - Edit this file before each run",
-  "run_goal": ["underdog"],
-  "priorities": {
-    "prioritize": ["underdog"],
-    "avoid": ["favorites"]
-  },
+  "_comment": "Default run configuration - Generic balanced optimization",
+  "run_goal": ["improve overall model performance"],
+  "prioritize": ["top_25_pct", "underdog"],
+  "avoid": [],
   "constraints": {
-    "avoid_features": [
-      "quality differences",
-      "ratio features with small denominators"
-    ],
-    "max_new_features_per_iteration": 5,
-    "prefer_existing_features_over_new": true
+    "avoid_features": ["quality differences"],
+    "max_new_features_per_iteration": 5
   },
   "success_criteria": {
     "min_roi_improvement": 0.01,
@@ -22,9 +16,9 @@
         "min_delta": 0.005
       },
       {
-        "segment": "underdog",
-        "metric": "roi",
-        "min_delta": 0.02
+        "segment": "top_25_pct",
+        "metric": "accuracy",
+        "min_delta": 0.01
       }
     ]
   }

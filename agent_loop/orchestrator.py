@@ -159,8 +159,7 @@ class AgentLoop:
             "--print",
             "--output-format",
             "json",
-            "--permission-mode",
-            self.cfg.agent_permission_mode,  # Allow agents to write files without prompting
+            "--dangerously-skip-permissions",
             "--model",
             self.cfg.agent_model,
         ]
@@ -217,7 +216,18 @@ class AgentLoop:
 
     def _render_prompt(self, template_path: Path, **kwargs) -> str:
         tpl = read_text(template_path)
-        return tpl.format(**{k: str(v) for k, v in kwargs.items()})
+        # Convert paths to relative from repo_root for portability
+        formatted_kwargs = {}
+        for k, v in kwargs.items():
+            if isinstance(v, Path):
+                try:
+                    formatted_kwargs[k] = str(v.relative_to(self.cfg.repo_root))
+                except ValueError:
+                    # Path is not relative to repo_root, use absolute
+                    formatted_kwargs[k] = str(v)
+            else:
+                formatted_kwargs[k] = str(v)
+        return tpl.format(**formatted_kwargs)
 
     # -----------------------
     # Core steps
@@ -245,9 +255,8 @@ class AgentLoop:
             schema_cfg = self.cfg.full_config.feature_schema
 
             # Get priorities from run_config or use defaults
-            priorities = run_cfg.get("priorities", {})
-            prioritize_list = priorities.get("prioritize", ["top_25_pct", "underdog"])
-            avoid_list = priorities.get("avoid", [])
+            prioritize_list = run_cfg.get("prioritize", ["top_25_pct", "underdog"])
+            avoid_list = run_cfg.get("avoid", [])
 
             # Get constraints from run_config or use defaults
             constraints_cfg = run_cfg.get("constraints", {})

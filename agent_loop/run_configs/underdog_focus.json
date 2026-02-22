@@ -1,19 +1,20 @@
 {
   "_comment": "Underdog Focus - Improve underdog prediction accuracy and ROI",
-  "run_goal": ["underdog"],
-  "priorities": {
-    "prioritize": ["underdog"],
-    "avoid": ["favorites"]
-  },
+
+  "run_goal": ["improve underdog focus by adjusting one monotone constraint at a time"],
+
+  "prioritize": ["underdog"],
+
+  "avoid": ["favorites"],
+
   "constraints": {
-    "avoid_features": [
-      "quality differences",
-      "ratio features with small denominators"
-    ],
     "max_new_features_per_iteration": 5
+
   },
+
   "success_criteria": {
     "min_roi_improvement": 0.01,
+
     "required_improvements": [
       {
         "segment": "underdog",
@@ -28,3 +29,4 @@
     ]
   }
 }
+

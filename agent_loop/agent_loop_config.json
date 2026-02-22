@@ -9,9 +9,9 @@
   },
   "model_pipeline": {
     "holdout_from_year": 2025,
-    "baseline_json": "models/baseline.json",
+    "baseline_json": "agent_loop/models/original_baseline.json",
     "train_model_name_prefix": "agent_loop_model",
-    "xgboost_predict_model_name": "jan_29",
+    "xgboost_predict_model_name": "baseline_jan_28_clean",
     "feature_set": "full",
     "n_estimators": 200,
     "max_depth": 4,
