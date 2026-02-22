@@ -35,11 +35,11 @@ This project uses `uv` for dependency management:
 # Install uv if you haven't already
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install dependencies
-uv sync
-
 # Activate virtual environment
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+uv sync
 ```
 
 ## Usage
