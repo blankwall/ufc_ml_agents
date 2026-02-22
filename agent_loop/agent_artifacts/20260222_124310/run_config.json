@@ -1,8 +1,0 @@
-{
-  "fight_url": null,
-  "n_iters": 5,
-  "model": "claude-sonnet-4-5-20250929",
-  "holdout_from_year": 2025,
-  "baseline_json": "/Users/tylerbohan/code/ufc_ml_agents/agent_loop/models/original_baseline.json",
-  "train_model_name_prefix": "agent_loop_model"
-}
