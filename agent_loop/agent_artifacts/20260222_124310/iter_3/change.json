@@ -1,0 +1,27 @@
+{
+  "iteration": 3,
+  "summary": "Add underdog_upset_potential feature to improve underdog prediction signal",
+  "files_changed": [
+    "features/time_based.py",
+    "features/registry.py",
+    "schema/feature_schema.json",
+    "schema/monotone_constraints.json"
+  ],
+  "rationale": "The baseline model demonstrates strong underdog ROI (0.51 overall, 0.92 on +250_plus, 1.21 on top 10% confidence) but with extremely conservative betting (2.86% bet rate, n=17). The diagnostics show top features are striking_volume_control, age_difference, and takedown_ability_diff. This iteration adds underdog_upset_potential, a composite feature that combines three key upset indicators: (1) striking volume control (offensive output - 40% weight), (2) youth factor (age decline curve with peak at low age - 30% weight), and (3) recent form quality adjusted (momentum against opponents - 30% weight). This provides the model with a dedicated signal for identifying fighters who may be undervalued as underdogs due to having offensive output, youth advantage, and positive momentum - factors the market systematically underprices. The monotone constraint is set to 1 (positive) because higher upset potential should correlate with higher win probability, directly addressing the 'middle_confidence_underperformance' issue by creating a feature that separates high-upset-potential fighters from low-upset-potential ones.",
+  "expected_effect": "Expected to improve underdog performance by providing a dedicated composite signal for upset potential. The feature combines the top predictive signals (striking volume, age, recent form) into a single underdog-focused metric that should help the model identify profitable underdog bets more frequently while maintaining the strong baseline ROI (0.51). By setting monotone constraint to 1, the model will be guided to use this feature in a positive direction (higher upset potential -> higher win probability), which should improve both underdog accuracy and betting volume beyond the current 2.86% rate. The interaction format (f1/f2/diff) allows the model to compare upset potential between fighters and identify matchups where the underdog has hidden advantages.",
+  "constraints_changed": {
+    "f1_underdog_upset_potential": 1,
+    "f2_underdog_upset_potential": 1,
+    "underdog_upset_potential_diff": 1
+  },
+  "features_added": [
+    "underdog_upset_potential"
+  ],
+  "features_removed": [],
+  "change_type": "feature_addition",
+  "target": "underdog",
+  "base_features_added": 1,
+  "estimated_columns_added": 3,
+  "fixes_schema_inconsistency": true,
+  "schema_consistency_fix": "Removed 14 orphaned features from monotone_constraints.json that were in constraints but not in feature_schema.json (age_x_recent_vs_career_decline_diff, f1_age_x_recent_vs_career_decline, f1_fights_in_last_year, f1_has_ever_won, f1_underdog_specialization_advantage, f2_age_x_recent_vs_career_decline, f2_fights_in_last_year, f2_has_ever_won, f2_long_layoff_over_1yr, f2_underdog_specialization_advantage, has_ever_won_diff, long_layoff_over_1yr_diff, orthodox_vs_southpaw, underdog_specialization_advantage_diff). Schema now consistent (136 features)."
+}

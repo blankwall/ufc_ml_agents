@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -1194,6 +1195,99 @@ class AgentLoop:
         self.dbg(f"[iter {iteration}] ✅ Validation passed: {summary}")
         return True
 
+    def update_plan_after_validation_failure(self, plan_path: Path,
+                                             validation_path: Path,
+                                             next_plan_path: Path) -> Path:
+        """
+        Update plan with lessons learned from validation failure.
+        Prevents repeating the same mistakes.
+
+        Args:
+            plan_path: Current plan JSON
+            validation_path: Validation result with errors
+            next_plan_path: Where to write updated plan
+
+        Returns:
+            Path to the updated plan (next_plan_path)
+        """
+        plan = read_json(plan_path)
+        validation = read_json(validation_path)
+
+        # Initialize avoid_constraints if not present
+        if "avoid_constraints" not in plan:
+            plan["avoid_constraints"] = []
+
+        # Extract validation errors and convert to avoid rules
+        new_avoids = self._validation_errors_to_avoids(validation.get("errors", []))
+
+        # Add new avoids (avoid duplicates)
+        existing = set(plan["avoid_constraints"])
+        added_count = 0
+        for avoid in new_avoids:
+            if avoid not in existing:
+                plan["avoid_constraints"].append(avoid)
+                existing.add(avoid)
+                added_count += 1
+
+        # Update diagnostics_summary with validation failure info
+        old_summary = plan.get("diagnostics_summary", "")
+        validation_summary = validation.get("summary", "")
+        plan["diagnostics_summary"] = f"Validation failed: {validation_summary}\n\nPrevious: {old_summary}"
+
+        # Write updated plan
+        write_json(next_plan_path, plan)
+        self.dbg(f"[plan update] Added {added_count} avoid_constraints from validation failure")
+        for avoid in new_avoids:
+            if avoid in plan["avoid_constraints"]:
+                self.dbg(f"[plan update]   - {avoid}")
+
+        return next_plan_path
+
+    def _validation_errors_to_avoids(self, errors: list) -> list:
+        """
+        Convert validation errors to avoid constraints for agents.
+
+        Args:
+            errors: List of error dicts from validation.json
+
+        Returns:
+            List of avoid constraint strings
+        """
+        avoids = []
+        for error in errors:
+            if error.get("severity") != "critical":
+                continue
+
+            check = error.get("check", "")
+            msg = error.get("message", "")
+
+            if "constraints_consistency" in check:
+                # Format 1: "Feature 'X' in constraints but not in feature_schema"
+                if "in constraints but not in feature_schema" in msg:
+                    if "'" in msg:
+                        feature = msg.split("'")[1]
+                        avoids.append(f"Do NOT add '{feature}' to monotone_constraints without also adding it to feature_schema")
+
+                # Format 2: "3 features in monotone_constraints.json do not exist in feature_schema.json: 'num_common_opponents', 'orthodox_vs_orthodox', 'southpaw_vs_southpaw'"
+                elif "do not exist in feature_schema.json:" in msg:
+                    # Extract all quoted feature names after the colon
+                    if ":" in msg:
+                        features_part = msg.split(":", 1)[1]
+                        # Extract all quoted feature names
+                        features = re.findall(r"'([^']+)'", features_part)
+                        for feature in features:
+                            avoids.append(f"Remove '{feature}' from monotone_constraints.json - it does not exist in feature_schema.json")
+
+            elif "schema_consistency" in check:
+                if "no implementation in features" in msg:
+                    # Format: "Feature 'underdog_upset_potential_diff' is in feature_schema.json and monotone_constraints.json but has no implementation"
+                    if "'" in msg:
+                        feature = msg.split("'")[1]
+                        avoids.append(f"Do NOT add '{feature}' to feature_schema/monotone_constraints without implementing it in features/ first")
+                        avoids.append(f"When adding '{feature}', implement in features/ BEFORE adding to schema/constraints")
+
+        return avoids
+
     def evaluation_phase(self, iteration: int, iter_dir: Path, change_path: Path,
                         eval_path: Path, plan_path: Path, history_path: Path,
                         diff_path: Path, code_backup: Path) -> str:
@@ -1466,12 +1560,14 @@ class AgentLoop:
                 )
                 write_json(history_path, hist)
 
-                # Create next plan to continue loop
+                # Update plan with lessons learned from validation failure
                 next_plan_path = iter_dir / "plan_next.json"
                 self.dbg(f"[iter {i}] Creating next plan after validation failure...")
-                # Reuse current plan for next iteration
-                shutil.copy(str(plan_path), str(next_plan_path))
-                plan_path = next_plan_path
+                plan_path = self.update_plan_after_validation_failure(
+                    plan_path=plan_path,
+                    validation_path=iter_dir / "validation.json",
+                    next_plan_path=next_plan_path
+                )
                 self.dbg(f"[iter {i}] Skipping to next iteration due to validation failure")
                 continue
 

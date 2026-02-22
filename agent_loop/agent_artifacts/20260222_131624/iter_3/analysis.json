@@ -1,0 +1,218 @@
+{
+  "overall": {
+    "accuracy": {
+      "baseline": 0.6801,
+      "new_model": 0.6498,
+      "delta": -0.0303,
+      "improved": false
+    },
+    "brier_score": {
+      "baseline": 0.2157,
+      "new_model": 0.218,
+      "delta": 0.0023,
+      "improved": false
+    },
+    "auc": {
+      "baseline": 0.7327,
+      "new_model": 0.7071,
+      "delta": -0.0256,
+      "improved": false
+    },
+    "log_loss": {
+      "baseline": 0.6223,
+      "new_model": 0.6263,
+      "delta": 0.004,
+      "improved": false
+    },
+    "improved": false
+  },
+  "top_25_pct": {
+    "accuracy": {
+      "baseline": 0.7919,
+      "new_model": 0.8467,
+      "delta": 0.0548,
+      "improved": true
+    },
+    "n_fights_baseline": 149,
+    "n_fights_new": 150,
+    "improved": true
+  },
+  "top_10_pct": {
+    "accuracy": {
+      "baseline": 0.8333,
+      "new_model": 0.8667,
+      "delta": 0.0334,
+      "improved": true
+    },
+    "n_fights_baseline": 60,
+    "n_fights_new": 60,
+    "improved": true
+  },
+  "underdog": {
+    "accuracy": {
+      "baseline": 0.6831,
+      "new_model": 0.6479,
+      "delta": -0.0352,
+      "improved": false
+    },
+    "roi": {
+      "baseline": 0.33,
+      "new_model": 0.1,
+      "delta": -0.23,
+      "improved": false
+    },
+    "roi_by_odds_band": {
+      "+100_to_+150": {
+        "baseline": 0.29,
+        "new_model": 0.16,
+        "delta": -0.13,
+        "improved": false
+      },
+      "+150_to_+250": {
+        "baseline": 0.32,
+        "new_model": 0.28,
+        "delta": -0.04,
+        "improved": false
+      },
+      "+250_plus": {
+        "baseline": 0.92,
+        "new_model": -0.16,
+        "delta": -1.08,
+        "improved": false
+      }
+    },
+    "accuracy_by_odds_band": {
+      "+100_to_+150": {
+        "baseline": 0.581,
+        "new_model": 0.526,
+        "delta": -0.055,
+        "improved": false
+      },
+      "+150_to_+250": {
+        "baseline": 0.444,
+        "new_model": 0.433,
+        "delta": -0.011,
+        "improved": false
+      },
+      "+250_plus": {
+        "baseline": 0.471,
+        "new_model": 0.222,
+        "delta": -0.249,
+        "improved": false
+      }
+    },
+    "calibration_by_odds_band": "Severe degradation in +250_plus odds band (accuracy dropped from 47.1% to 22.2%, ROI from 0.92 to -0.16). All odds bands show regression.",
+    "n_fights": 284,
+    "improved": false
+  },
+  "favorites": {
+    "accuracy": {
+      "baseline": 0.6774,
+      "new_model": 0.6516,
+      "delta": -0.0258,
+      "improved": false
+    },
+    "n_fights": 310,
+    "improved": false
+  },
+  "underdog_confidence_breakdown": {
+    "top_10_pct": {
+      "accuracy": {
+        "baseline": 0.75,
+        "new_model": 0.778,
+        "delta": 0.028,
+        "improved": true
+      },
+      "roi": {
+        "baseline": 1.21,
+        "new_model": 1.37,
+        "delta": 0.16,
+        "improved": true
+      },
+      "n_bets": {
+        "baseline": 8,
+        "new_model": 9
+      }
+    },
+    "top_25_pct": {
+      "accuracy": {
+        "baseline": 0.7,
+        "new_model": 0.619,
+        "delta": -0.081,
+        "improved": false
+      },
+      "roi": {
+        "baseline": 0.83,
+        "new_model": 0.7,
+        "delta": -0.13,
+        "improved": false
+      },
+      "n_bets": {
+        "baseline": 20,
+        "new_model": 21
+      }
+    },
+    "bottom_75_pct": {
+      "accuracy": {
+        "baseline": 0.467,
+        "new_model": 0.426,
+        "delta": -0.041,
+        "improved": false
+      },
+      "roi": {
+        "baseline": 0.33,
+        "new_model": 0.03,
+        "delta": -0.3,
+        "improved": false
+      },
+      "n_bets": {
+        "baseline": 60,
+        "new_model": 61
+      }
+    }
+  },
+  "calibration": {
+    "improved_buckets": ["Top 10% overall confidence", "Top 25% overall confidence", "Underdog top 10% confidence"],
+    "degraded_buckets": ["Overall accuracy", "Underdog overall accuracy", "Underdog all odds bands", "Favorites accuracy", "Underdog top 25% confidence", "Underdog bottom 75% confidence"],
+    "overall_assessment": "High-confidence predictions (top 10-25%) improved significantly, but this came at the cost of degraded performance across almost all other segments. The most severe degradation is in underdog +250_plus odds band where accuracy dropped from 47.1% to 22.2% and ROI turned from strongly positive (0.92) to negative (-0.16)."
+  },
+  "key_insights": [
+    "Overall accuracy degraded significantly (-3.03%)",
+    "Top 25% confidence accuracy improved substantially (+5.48%)",
+    "Top 10% confidence accuracy improved (+3.34%)",
+    "Underdog overall accuracy degraded (-3.52%)",
+    "Underdog ROI degraded significantly (-23 percentage points, from 0.33 to 0.10)",
+    "Severe regression in +250_plus underdog odds: accuracy dropped from 47.1% to 22.2%, ROI from 0.92 to -0.16",
+    "Favorites accuracy degraded (-2.58%)",
+    "Underdog top 10% confidence improved in both accuracy (+2.8%) and ROI (+0.16)",
+    "Underdog top 25% confidence degraded in both accuracy (-8.1%) and ROI (-0.13)",
+    "The model appears to have become more extreme: higher confidence on predictions it's most certain about, but worse performance on the broader set of predictions"
+  ],
+  "change_summary": "Remove stale monotonic constraints for features removed in iteration 1 (num_common_opponents, orthodox_vs_orthodox, southpaw_vs_southpaw) to fix validation error",
+  "metrics_summary": {
+    "baseline": {
+      "overall_accuracy": 0.6801,
+      "top_25_accuracy": 0.7919,
+      "top_10_accuracy": 0.8333,
+      "underdog_accuracy": 0.6831,
+      "underdog_roi": 0.33,
+      "favorites_accuracy": 0.6774
+    },
+    "new_model": {
+      "overall_accuracy": 0.6498,
+      "top_25_accuracy": 0.8467,
+      "top_10_accuracy": 0.8667,
+      "underdog_accuracy": 0.6479,
+      "underdog_roi": 0.1,
+      "favorites_accuracy": 0.6516
+    },
+    "deltas": {
+      "overall_accuracy": -0.0303,
+      "top_25_accuracy": 0.0548,
+      "top_10_accuracy": 0.0334,
+      "underdog_accuracy": -0.0352,
+      "underdog_roi": -0.23,
+      "favorites_accuracy": -0.0258
+    }
+  }
+}

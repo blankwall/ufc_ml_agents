@@ -1,0 +1,300 @@
+{
+  "weaknesses": [
+    {
+      "area": "low_betting_volume",
+      "severity": "high",
+      "evidence": "Only 17 bets identified with edge > 0 despite 594 evaluation rows and 68% accuracy - model is too conservative or edge calculation is too strict",
+      "suggested_focus": "Lower edge threshold or improve edge calculation to capture more profitable opportunities",
+      "metrics": {
+        "n_eval_rows": 594,
+        "n_bets_edge_gt_0": 17,
+        "bet_rate": 0.0286,
+        "roi_flat_edge_gt_0": 0.0035
+      }
+    },
+    {
+      "area": "underdog_sample_size",
+      "severity": "medium",
+      "evidence": "Strong underdog performance (+250_plus ROI: 0.92, top 10% confidence ROI: 1.21) but tiny sample sizes (n=17, n=8 respectively) - results may not be robust",
+      "suggested_focus": "Increase sample size by relaxing confidence thresholds or gathering more historical data to validate underdog performance",
+      "metrics": {
+        "underdog_250_plus_n": 17,
+        "underdog_250_plus_roi": 0.92,
+        "underdog_top_10_pct_n": 8,
+        "underdog_top_10_pct_roi": 1.21
+      }
+    },
+    {
+      "area": "middle_confidence_underperformance",
+      "severity": "medium",
+      "evidence": "Bottom 75% confidence underdog bets have only 46.7% accuracy compared to 75% for top 10% - model struggles with low-confidence predictions",
+      "suggested_focus": "Improve feature engineering for fights where model is uncertain, consider abstaining from low-confidence predictions",
+      "metrics": {
+        "underdog_top_10_pct_accuracy": 0.75,
+        "underdog_bottom_75_pct_accuracy": 0.467,
+        "accuracy_gap": 0.283
+      }
+    },
+    {
+      "area": "redundant_striking_features",
+      "severity": "low",
+      "evidence": "Both f1_striking_volume_control (93.0) and f2_striking_volume_control (108.0) are top features - likely capturing overlapping signal without clear differentiation",
+      "suggested_focus": "Consider using difference/ratio features instead of separate f1/f2 features to reduce multicollinearity",
+      "metrics": {
+        "f1_striking_volume_control_importance": 93.0,
+        "f2_striking_volume_control_importance": 108.0
+      }
+    }
+  ],
+  "redundant_features": [
+    {
+      "features": ["f1_underdog_specialization_advantage", "f2_underdog_specialization_advantage"],
+      "importance_scores": [2.0, 2.0],
+      "recommendation": "Remove both - near-zero importance for both fighters, suggesting this feature doesn't capture useful signal"
+    },
+    {
+      "features": ["f1_fights_in_last_year", "f2_fights_in_last_year"],
+      "importance_scores": [1.0, 2.0],
+      "recommendation": "Remove both - very low importance, consider using the difference version which has higher importance (25.0)"
+    },
+    {
+      "features": ["f1_recent_form_quality_adjusted", "f2_recent_form_quality_adjusted"],
+      "importance_scores": [6.0, 2.0],
+      "recommendation": "Remove both - very low importance, the diff version (16.0) is more useful"
+    },
+    {
+      "features": ["f1_performance_trend", "recent_improvement_score_diff"],
+      "importance_scores": [5.0, 16.0],
+      "recommendation": "Consider removing f1_performance_trend - the difference version captures the signal better"
+    },
+    {
+      "features": ["f1_age_x_recent_vs_career_decline", "f2_age_x_recent_vs_career_decline", "age_x_recent_vs_career_decline_diff"],
+      "importance_scores": [2.0, 1.0, 9.0],
+      "recommendation": "Remove f1 and f2 versions, keep only diff - individual features have minimal value"
+    }
+  ],
+  "low_importance_features": [
+    {
+      "feature": "has_ever_won_diff",
+      "importance": 1.0,
+      "recommendation": "Remove - near-zero importance, likely irrelevant for professional fighters who have all won"
+    },
+    {
+      "feature": "long_layoff_over_1yr_diff",
+      "importance": 1.0,
+      "recommendation": "Remove - near-zero importance, ring rust may not be significant or captured better elsewhere"
+    },
+    {
+      "feature": "f1_fights_in_last_year",
+      "importance": 1.0,
+      "recommendation": "Remove - near-zero importance, use age_x_fights_in_last_year_diff (10.0) or fights_in_last_year diff instead"
+    },
+    {
+      "feature": "f2_age_x_recent_vs_career_decline",
+      "importance": 1.0,
+      "recommendation": "Remove - near-zero importance, the diff version (9.0) is more useful"
+    },
+    {
+      "feature": "orthodox_vs_southpaw",
+      "importance": 2.0,
+      "recommendation": "Remove - stance matchup has minimal predictive power in this model"
+    },
+    {
+      "feature": "f1_underdog_specialization_advantage",
+      "importance": 2.0,
+      "recommendation": "Remove - near-zero importance, underdog specialization not predictive as currently engineered"
+    },
+    {
+      "feature": "f2_underdog_specialization_advantage",
+      "importance": 2.0,
+      "recommendation": "Remove - near-zero importance, underdog specialization not predictive as currently engineered"
+    },
+    {
+      "feature": "f2_fights_in_last_year",
+      "importance": 2.0,
+      "recommendation": "Remove - very low importance, diff version is more important"
+    },
+    {
+      "feature": "time_decayed_win_rate_x_opponent_quality_diff",
+      "importance": 3.0,
+      "recommendation": "Remove - near-zero importance, interaction not adding value beyond base features"
+    },
+    {
+      "feature": "f1_round_3_finish_rate",
+      "importance": 3.0,
+      "recommendation": "Remove - near-zero importance, round-specific finish rate not predictive"
+    },
+    {
+      "feature": "f1_recent_finish_loss_ratio_last_2",
+      "importance": 3.0,
+      "recommendation": "Remove - near-zero importance, recent finish losses not captured well"
+    },
+    {
+      "feature": "f2_recent_form_quality_adjusted",
+      "importance": 2.0,
+      "recommendation": "Remove - very low importance, diff version (16.0) is better"
+    },
+    {
+      "feature": "f1_recent_form_quality_adjusted",
+      "importance": 6.0,
+      "recommendation": "Consider removing - low importance, diff version is more useful"
+    },
+    {
+      "feature": "f1_performance_trend",
+      "importance": 5.0,
+      "recommendation": "Consider removing - low importance, diff version (16.0) captures signal"
+    },
+    {
+      "feature": "f1_first_round_finish_rate",
+      "importance": 4.0,
+      "recommendation": "Consider removing - low importance, first round finish not predictive as isolated feature"
+    },
+    {
+      "feature": "f2_sig_strikes_landed_per_min_lifetime",
+      "importance": 4.0,
+      "recommendation": "Consider removing - low importance, recent striking (26.0) is more predictive"
+    },
+    {
+      "feature": "f1_sig_strikes_landed_per_min_lifetime",
+      "importance": 4.0,
+      "recommendation": "Consider removing - low importance, recent striking (26.0) is more predictive"
+    },
+    {
+      "feature": "f2_time_decayed_win_rate_adj_opp_quality",
+      "importance": 4.0,
+      "recommendation": "Consider removing - low importance, f1 version (28.0) and diff (31.0) are more important"
+    },
+    {
+      "feature": "f1_time_decayed_finish_rate",
+      "importance": 11.0,
+      "recommendation": "Consider removing - lower importance, f2 version (19.0) and diff (9.0) may be sufficient"
+    },
+    {
+      "feature": "f2_time_decayed_ko_rate",
+      "importance": 11.0,
+      "recommendation": "Consider removing - lower importance, f1 version (22.0) and diff (18.0) may be sufficient"
+    }
+  ],
+  "top_features": [
+    {
+      "feature": "f2_striking_volume_control",
+      "importance": 108.0,
+      "insight": "Highest importance feature - model relies heavily on opponent's striking volume control ability"
+    },
+    {
+      "feature": "f1_striking_volume_control",
+      "importance": 93.0,
+      "insight": "Second highest - striking volume control for both fighters dominates predictions. Consider if this creates over-reliance on one aspect of fighting"
+    },
+    {
+      "feature": "age_difference",
+      "importance": 84.0,
+      "insight": "Age is critical - age difference is third most important, confirming ring rust/prime age theories"
+    },
+    {
+      "feature": "takedown_ability_diff",
+      "importance": 53.0,
+      "insight": "Wrestling/grappling differential is important, though much less than striking metrics"
+    },
+    {
+      "feature": "recent_control_time_sec_last_3_diff",
+      "importance": 52.0,
+      "insight": "Recent control time (grappling dominance) is a strong signal"
+    },
+    {
+      "feature": "striking_output_diff",
+      "importance": 41.0,
+      "insight": "Striking output differential is moderately important"
+    },
+    {
+      "feature": "f1_reach_inches",
+      "importance": 40.0,
+      "insight": "Reach advantage matters, though f2 reach (30.0) suggests asymmetry"
+    },
+    {
+      "feature": "f1_age",
+      "importance": 36.0,
+      "insight": "Absolute age matters in addition to age difference (84.0)"
+    },
+    {
+      "feature": "takedown_matchup",
+      "importance": 36.0,
+      "insight": "Takedown matchup is another wrestling/grappling signal"
+    },
+    {
+      "feature": "f1_days_between_last_2_fights",
+      "importance": 35.0,
+      "insight": "Recent fight schedule is predictive, ring rust matters"
+    }
+  ],
+  "opportunities": [
+    {
+      "area": "aggressive_underdog_betting",
+      "description": "Top 10% confidence underdog bets show exceptional ROI (1.21) but only 8 bets placed - massive opportunity to expand this strategy",
+      "potential_fix": "Increase sample size by slightly lowering confidence threshold for underdog bets to validate and expand this profitable segment",
+      "priority": "high"
+    },
+    {
+      "area": "long_shot_underdogs",
+      "description": "+250_plus underdogs show 0.92 ROI with 47.1% accuracy - model identifies value in extreme underdogs that betting market misprices",
+      "potential_fix": "Create specialized model or threshold for extreme underdogs (+200 or higher) to capture more of these opportunities",
+      "priority": "high"
+    },
+    {
+      "area": "feature_engineering_strike_ratios",
+      "description": "Both f1 and f2 striking_volume_control are top features (93.0, 108.0) - consider ratio or interaction features instead of raw values",
+      "potential_fix": "Create striking_volume_control_ratio and striking_volume_control_diff to capture relative advantage more efficiently",
+      "priority": "medium"
+    },
+    {
+      "area": "feature_pruning",
+      "description": "19 features with importance <= 5.0 are adding noise without signal - removing them could improve model generalization",
+      "potential_fix": "Remove all features with importance < 5.0 and retrain to test if performance improves or stays same with simpler model",
+      "priority": "medium"
+    },
+    {
+      "area": "edge_threshold_optimization",
+      "description": "Only 2.86% of fights result in bets with edge > 0 - edge calculation may be too conservative or missing opportunities",
+      "potential_fix": "Test different edge thresholds (0, 0.01, 0.02) to find optimal balance between bet volume and ROI, or improve edge calculation methodology",
+      "priority": "high"
+    },
+    {
+      "area": "low_confidence_predictions",
+      "description": "Bottom 75% confidence underdog bets have only 46.7% accuracy - model is uncertain but still makes predictions",
+      "potential_fix": "Implement confidence threshold for betting - abstain from bets when model confidence is below a certain level (e.g., 0.22)",
+      "priority": "medium"
+    },
+    {
+      "area": "recency_bias_validation",
+      "description": "Multiple recent performance features (recent_control_time_sec_last_3_diff: 52.0, recent_sig_strike_diff_last_3_diff: 29.0) are important - validate this isn't overfitting to recent form",
+      "potential_fix": "Test model performance excluding recent form features to ensure they generalize and aren't just capturing noise",
+      "priority": "low"
+    }
+  ],
+  "calibration_issues": [
+    {
+      "confidence_range": "underdog_top_10_pct",
+      "min_confidence": 0.31,
+      "accuracy": 0.75,
+      "issue": "well_calibrated_high_confidence",
+      "note": "Model is well-calibrated on high-confidence underdog predictions"
+    },
+    {
+      "confidence_range": "underdog_bottom_75_pct",
+      "accuracy": 0.467,
+      "issue": "poor_low_confidence",
+      "note": "Model performs poorly on low-confidence predictions - should abstain"
+    }
+  ],
+  "feature_importance_distribution": {
+    "total_features": 127,
+    "max_importance": 108.0,
+    "min_importance": 1.0,
+    "mean_importance": 24.2,
+    "features_above_50": 5,
+    "features_above_25": 21,
+    "features_below_5": 19,
+    "features_below_10": 36
+  },
+  "summary": "Model achieves solid overall accuracy (68.01%) with good discrimination (AUC: 0.7327) and excellent underdog performance at high confidence (top 10% ROI: 1.21), but suffers from extremely low betting volume (only 17 bets) and too many low-importance features (19 with importance < 5). The model is too conservative in identifying edges and includes significant feature noise. Key priorities: lower edge threshold to increase bet volume, prune near-zero importance features, and expand the successful high-confidence underdog strategy to capture more of the +250_plus opportunities that show 0.92 ROI."
+}

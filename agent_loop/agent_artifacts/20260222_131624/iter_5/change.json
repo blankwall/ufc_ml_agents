@@ -1,0 +1,29 @@
+{
+  "iteration": 5,
+  "summary": "Revert to true baseline (pre-iteration 3 configuration) by removing 3 features from constraints that were added in iteration 4",
+  "files_changed": [
+    "schema/monotone_constraints.json"
+  ],
+  "rationale": "Iterations 2, 3, and 4 all failed to improve performance, with iteration 3 causing catastrophic underdog collapse (ROI dropped 70% from 0.33 to 0.10, accuracy -3.52%, +250_plus odds band imploded from 47.1% to 22.2%). Iteration 4 attempted to restore baseline by adding back 3 features (num_common_opponents, orthodox_vs_orthodox, southpaw_vs_southpaw) at 0 constraint, but produced IDENTICAL results to iteration 3, proving that constraint manipulation is not reversible.\n\nThe key learning from 4 failed iterations: 'Once constraints are removed, adding them back at 0 does NOT restore previous model behavior. The relationship between these features, constraints, and model behavior is poorly understood. Constraint manipulation must be abandoned entirely.'\n\nThis iteration reverts monotone_constraints.json to the true baseline configuration that existed BEFORE iteration 3's constraint removal (version 1.1.0 with 130 constraints). This restores the stable baseline with expected metrics: 68% overall accuracy, 68.31% underdog accuracy, and 0.33 underdog ROI. Once we confirm baseline restoration, we can proceed with regularization-based improvements exclusively (avoiding any further constraint manipulation).",
+  "expected_effect": "This change should restore the true baseline performance that existed before iteration 3's catastrophic underdog collapse. Expected metrics:\n- Overall accuracy: ~68%\n- Underdog accuracy: ~68.31%\n- Underdog ROI: ~0.33\n- +250_plus odds band accuracy: ~47%\n- Top 25% accuracy: ~79%\n\nThis provides a stable, confirmed starting point for future iterations using regularization hyperparameters (lambda, min_child_weight, max_depth, subsample, colsample_bytree, gamma, learning_rate) instead of constraint manipulation.",
+  "constraints_changed": {
+    "num_common_opponents": null,
+    "orthodox_vs_orthodox": null,
+    "southpaw_vs_southpaw": null
+  },
+  "constraints_removed": [
+    "num_common_opponents",
+    "orthodox_vs_orthodox",
+    "southpaw_vs_southpaw"
+  ],
+  "constraints_added": {},
+  "features_added": [],
+  "features_removed": [],
+  "constraints_version_from": "1.3.0",
+  "constraints_version_to": "1.4.0",
+  "num_constraints_from": 133,
+  "num_constraints_to": 130,
+  "target": "baseline_restoration",
+  "approach": "revert_to_pre_iteration_3_baseline",
+  "note": "These 3 features (num_common_opponents, orthodox_vs_orthodox, southpaw_vs_southpaw) are implemented in features/matchup_features.py and remain in the feature_schema.json, but have been excluded from training via features/feature_exclusions.py since iteration 1. Removing them from monotone_constraints.json restores the true baseline configuration that existed before iteration 3."
+}

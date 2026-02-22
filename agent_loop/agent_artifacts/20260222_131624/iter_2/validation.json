@@ -1,0 +1,20 @@
+{
+  "status": "fail",
+  "errors": [
+    {
+      "check": "constraints_consistency",
+      "file": "schema/monotone_constraints.json",
+      "message": "3 features in monotone_constraints.json do not exist in feature_schema.json: 'num_common_opponents', 'orthodox_vs_orthodox', 'southpaw_vs_southpaw'. These constraint entries will cause model training to fail because the referenced features are not defined in the feature schema.",
+      "severity": "critical"
+    }
+  ],
+  "checks_performed": {
+    "json_syntax": "pass",
+    "python_syntax": "pass",
+    "schema_consistency": "pass",
+    "feature_naming": "pass",
+    "constraints_consistency": "fail"
+  },
+  "can_proceed": false,
+  "summary": "CRITICAL: The monotone_constraints.json file contains constraints for 3 features that do not exist in feature_schema.json. This will cause model training to fail. The affected features are: num_common_opponents, orthodox_vs_orthodox, and southpaw_vs_southpaw. All other checks passed (JSON syntax valid, Python syntax valid, no duplicates, no reserved words, proper naming conventions, valid constraint values)."
+}

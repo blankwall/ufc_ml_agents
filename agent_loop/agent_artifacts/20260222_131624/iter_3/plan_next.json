@@ -1,0 +1,74 @@
+{
+  "goal_text": "Improve Top 25% performance while maintaining or improving underdog performance",
+  "diagnostics_summary": "Iteration 3: Removed stale monotonic constraints (set to 0) for 3 features removed in iteration 1. Result: catastrophic underdog collapse. ROI dropped 70% (0.33 to 0.10), accuracy -3.52%, +250_plus odds band imploded (47.1% to 22.2% accuracy, 0.92 to -0.16 ROI). Top 25% improved substantially (+5.48%) and Top 10% (+3.34%), but this came at unacceptable cost to underdogs. Model became more extreme: higher confidence on top predictions but worse broad performance. Lesson: Even 'stale' constraints set to 0 influence model behavior and prevent features from contributing unconstrained.",
+  "previous_iteration_result": {
+    "iteration": 3,
+    "decision": "revert",
+    "summary": "Removing stale monotonic constraints caused catastrophic underdog performance collapse: ROI -70%, accuracy -3.52%, +250_plus odds band imploded. Top 25% improved +5.48% but insufficient to offset underdog damage.",
+    "key_learning": "Even constraints set to 0 prevent features from influencing predictions. Removing them allows unconstrained learning, which can catastrophically harm underdog calibration. Keep stale constraints at 0 to disable features without removing them from the schema."
+  },
+  "priorities": [
+    "underdog",
+    "top_25_pct"
+  ],
+  "avoid_constraints": [
+    "Do NOT remove features (learned from iteration 1)",
+    "Do NOT remove monotonic constraints, even if stale (learned from iteration 3)",
+    "Do NOT add new features involving quality differences",
+    "Underdog performance must NOT degrade significantly (>2%)",
+    "Underdog ROI must NOT drop more than 10%"
+  ],
+  "strategy_pivot": "Abandon constraint manipulation. Focus exclusively on regularization hyperparameters (lambda, min_child_weight, max_depth, subsample, colsample_bytree) to reduce overfitting and improve Top 25% while preserving underdog performance. The model's 8% train-validation gap suggests regularization is the right approach, but must be done more carefully.",
+  "hypotheses": [
+    "Moderate lambda increase (1.5 to 3.0, not higher) will reduce overfitting and improve Top 25% without harming underdogs",
+    "Increasing min_child_weight (3 to 5) prevents overfitting on small samples while maintaining feature interactions",
+    "Combining small regularization adjustments (lambda + min_child_weight) will be more effective than large single changes",
+    "Reducing max_depth (6 to 5) limits complexity while preserving most feature interactions",
+    "The 3 constrained features should remain at 0 to prevent unconstrained learning that harms underdogs",
+    "Sampling-based regularization (subsample, colsample_bytree) reduces variance without removing features"
+  ],
+  "proposed_iterations": [
+    {
+      "iteration": 4,
+      "focus": "Restore monotone_constraints.json with 3 removed features at 0 constraint",
+      "target": "validation_fix",
+      "rationale": "Iteration 3 removed constraints for num_common_opponents, orthodox_vs_orthodox, southpaw_vs_southpaw, causing catastrophic underdog collapse. This iteration restores those constraints at 0 to disable the features while keeping them in the schema. This should restore baseline performance and allow further iterations to proceed with stable configuration."
+    },
+    {
+      "iteration": 5,
+      "focus": "Moderate lambda regularization increase (1.5 → 2.5)",
+      "target": "top_25_pct",
+      "rationale": "Current lambda (1.5) may be too low, causing overfitting. Increasing to 2.5 will penalize large leaf weights and reduce the 8% train-validation gap. This moderate increase should improve Top 25% validation accuracy without harming underdogs, avoiding the aggressive changes that caused issues in iteration 3."
+    },
+    {
+      "iteration": 6,
+      "focus": "Increase min_child_weight (3 → 5)",
+      "target": "top_25_pct",
+      "rationale": "Higher min_child_weight prevents leaves with few samples, reducing overfitting. Increasing from 3 to 5 will improve generalization by requiring more samples in each leaf. This should improve Top 25% accuracy while preserving feature interactions that underdogs depend on."
+    },
+    {
+      "iteration": 7,
+      "focus": "Reduce max_depth (6 → 5)",
+      "target": "top_25_pct",
+      "rationale": "Current max_depth of 6 may allow too much complexity. Reducing to 5 will limit interaction depth, reducing overfitting while preserving most feature interactions. This moderate reduction should improve Top 25% validation performance without the catastrophic effects seen in iteration 3."
+    },
+    {
+      "iteration": 8,
+      "focus": "Adjust subsample and colsample_bytree (1.0 → 0.85)",
+      "target": "top_25_pct",
+      "rationale": "Current subsample and colsample_bytree are both 1.0 (no sampling). Reducing both to 0.85 adds stochastic regularization, preventing the model from memorizing specific patterns. This sampling-based approach should improve Top 25% generalization by reducing variance without removing features."
+    },
+    {
+      "iteration": 9,
+      "focus": "Combined moderate regularization (lambda=2.5, min_child_weight=5)",
+      "target": "top_25_pct",
+      "rationale": "If iterations 5 and 6 individually show promise but insufficient improvement, combining them may have additive effects. Moderate increases to both lambda and min_child_weight together will reduce overfitting through multiple mechanisms without aggressive changes that harm underdogs."
+    },
+    {
+      "iteration": 10,
+      "focus": "Add underdog-specific interaction feature",
+      "target": "underdog",
+      "rationale": "If regularization approaches improve Top 25% but underdogs still struggle in +150 to +250 band (44.4% accuracy), add a targeted feature capturing underdog momentum specifically for mid-range odds. This feature will help the model identify live underdogs without removing existing features or disrupting high-confidence predictions."
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+
+================================================================================
+BASELINE COMPARISON RESULTS
+================================================================================
+
+Baseline: /Users/tylerbohan/code/ufc_ml_agents/agent_loop/models/original_baseline.json
+Current:  reports_strict/model_eval_20260222_065431.json
+
+================================================================================
+FINAL VERDICT: REJECT
+Reason: Hard FAIL detected in core metrics
+================================================================================
+
+Core Metrics:
+  Accuracy: FAIL   - Accuracy decreased by 2.69 pp
+  AUC:      FAIL   - AUC dropped by 0.0194
+  Brier:    PASS   - Brier changed by 0.0014 (within tolerance)
+
+Bucket Analysis: REVIEW
+  Favorites: -2.3%  REVIEW
+  Underdogs: -3.2%  REVIEW
+  ⚠️  Underdogs accuracy dropped by 3.17 pp
+
+Confidence Analysis: PASS
+  Top 10%: +0.0%  PASS
+  Top 25%: +6.0%  PASS
+
+================================================================================
+
+================================================================================
+Fighter-row prediction accuracy (model_prob_f1 >= 0.5 as pick):
+  Correct rows: 388/594  (accuracy=0.653)
+
+================================================================================
+Top 10 fights by max positive edge (edge_best)
+================================================================================
+      Date              Winner  Model %  Market %  Edge %
+2025-02-08             Rongzhu     68.0      26.3    41.7
+2025-10-04       Jakub Wiklacz     66.2      26.3    39.9
+2025-01-11 Christian Rodriguez     70.0      31.7    38.3
+2025-01-18         Ailin Perez     70.1      32.8    37.3
+2025-01-18   Merab Dvalishvili     66.9      31.2    35.7
+2025-06-21     Muhammad Naimov     33.3      71.4   -38.2
+2025-06-21 Daria Zhelezniakova     66.2      32.8    33.5
+2025-06-07           Wang Cong     49.1      86.7   -37.6
+2025-10-25        Mitch Raposo     52.6      20.6    32.0
+2025-06-14         Ricky Simon     44.2      79.6   -35.3
+
+================================================================================
+Bottom 10 fights by max edge (most negative edge_best)
+================================================================================
+      Date             Winner  Model %  Market %  Edge %
+2025-05-10      Natalia Silva     68.1      70.1    -2.1
+2025-06-28  Terrance McKinney     61.3      63.2    -2.0
+2025-11-22   Myktybek Orolbai     64.5      66.4    -2.0
+2025-11-08      Chris Padilla     51.9      54.1    -2.3
+2025-07-19      Brendan Allen     68.5      72.6    -4.1
+2025-08-16       Karine Silva     64.8      66.7    -1.8
+2025-05-10    Navajo Stirling     74.4      76.7    -2.3
+2025-11-15 Benoit Saint Denis     63.8      65.5    -1.7
+2025-06-28       Tracy Cortez     66.1      67.7    -1.7
+2025-12-06      Maycee Barber     67.1      68.8    -1.7
+
+================================================================================
+Top 10 fights where model favored the LOSER over the WINNER (loser_model_prob > winner_model_prob)
+================================================================================
+      Date              Winner  Model %  Market %  Edge %
+2025-03-22     Caolan Loughran     14.2      43.1   -28.9
+2025-01-18      Raoni Barcelos     14.8      11.8     3.0
+2025-06-14    Alonzo Menifield     20.7      16.9     3.8
+2025-10-11 Deiveson Figueiredo     21.2      27.4    -6.2
+2025-06-21       Rafael Fiziev     25.2      44.6   -19.4
+2025-02-22        Ion Cutelaba     25.3      35.7   -10.4
+2025-08-09          Andre Fili     25.6      32.8    -7.2
+2025-04-05        Pat Sabatini     25.8      36.8   -11.0
+2025-02-15     Jared Cannonier     26.0      34.0    -8.0
+2025-12-06            Petr Yan     26.9      25.0     1.9
+
+================================================================================
+Fight-level accuracy (winner_model_prob > loser_model_prob):
+  Correct fights: 194/297  (accuracy=0.653)
+
+================================================================================
+ALL BETS ROI ANALYSIS
+================================================================================
+Analysis of all bets where: model prob > 50% AND edge > 0
+(Includes both favorites and underdogs)
+
+
+--------------------------------------------------------------------------------
+ALL BETS SUMMARY:
+  Total bets: 141
+  Correct predictions: 79/141 (56.0%)
+  Underdog bets: 58
+  Favorite bets: 83
+
+  FINANCIAL SUMMARY - ALL BETS (Flat 1 unit bets):
+  Total staked: 141.00 units
+  Total profit/loss: +29.70 units
+  ROI: +21.06%
+
+  UNDERDOG BETS:
+  Total staked: 58.00 units
+  Total profit/loss: +52.51 units
+  ROI: +90.53%
+
+  FAVORITE BETS:
+  Total staked: 83.00 units
+  Total profit/loss: -22.81 units
+  ROI: -27.48%
+
+  FINANCIAL SUMMARY - TOP 25% CONFIDENCE BETS:
+  Total staked: 36.00 units
+  Total profit/loss: +7.58 units
+  ROI: +21.06%
+  Correct predictions: 26/36 (72.2%)
+  Confidence threshold: 0.3964
+
+  CSV saved to: reports_strict/all_bets_20260222_065431.csv
+
+================================================================================
+SPECIFIC FIGHT: Jalin Turner vs Edson Barboza
+================================================================================
+⚠️  Fight not found in evaluation data or odds file

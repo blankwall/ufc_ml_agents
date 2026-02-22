@@ -1,0 +1,26 @@
+{
+  "decision": "revert",
+  "reasoning": "Underdog performance degraded catastrophically across all metrics. While Top 10% accuracy improved by 3.34%, underdog accuracy dropped by 4.23% and ROI collapsed across all odds bands - most severely in the +250_plus band where ROI fell from 0.92 to 0.03. Since underdog performance is the top priority, this tradeoff is unacceptable. The feature removal failed to achieve its intended effect and instead caused broad performance degradation.",
+  "key_considerations": [
+    "Underdog accuracy decreased by 4.23% (68.31% → 64.08%)",
+    "Underdog ROI collapsed across all odds bands, losing 0.89 ROI in +250_plus band",
+    "Underdog top 25% confidence accuracy dropped by 8.1%",
+    "Overall accuracy degraded by 3.36%",
+    "AUC dropped by 2.24% (0.7327 → 0.7103)",
+    "Only Top 10% improved meaningfully (+3.34%), Top 25% improvement was minimal (+0.68%)",
+    "Underdog performance is the top priority per the goals"
+  ],
+  "metrics_considered": {
+    "underdog_accuracy_delta": -0.0423,
+    "underdog_roi_delta_250_plus": -0.89,
+    "underdog_roi_delta_150_to_250": -0.13,
+    "underdog_roi_delta_100_to_150": -0.15,
+    "top_25_accuracy_delta": 0.0068,
+    "top_10_accuracy_delta": 0.0334,
+    "overall_accuracy_delta": -0.0336,
+    "auc_delta": -0.0224
+  },
+  "tradeoffs": "The small gains in Top 10% accuracy (+3.34%) and minimal Top 25% improvement (+0.68%) are far outweighed by catastrophic underdog degradation (-4.23% accuracy, massive ROI losses) and significant overall model degradation (AUC -2.24%, overall accuracy -3.36%)",
+  "next_steps": "Revert the feature removal changes. Abandon the feature removal approach and pivot to alternative strategies: (1) increase regularization without removing features, (2) tune hyperparameters to address overfitting directly, (3) create underdog-specific improvements without removing potentially valuable features",
+  "lessons_learned": "Low-importance features may have indirect value through feature interactions. Removing features with importance 1-2 can catastrophically harm underdog performance even if it helps Top 10% slightly. The model's feature interactions are complex and removing 'noise' features disrupted underdog prediction quality, particularly for high-odds underdogs."
+}

@@ -1,0 +1,138 @@
+{
+  "goal_text": "Abandon constraint manipulation entirely. Reset to known-good baseline and use ONLY minimal, conservative regularization adjustments.",
+  "diagnostics_summary": "CRITICAL SYSTEM FAILURE: All 5 iterations have failed catastrophically. Iteration 5 was the final proof - even a complete revert to pre-iteration 3 monotone_constraints.json (130 constraints) FAILED to restore baseline performance. The model is in an irreversibly degraded state that cannot be fixed through file reversion. Constraint manipulation has proven to cause permanent, irreversible changes to model behavior. Underdog performance has completely collapsed (ROI -82%, bottom 75% ROI -91%, +250_plus odds band imploded from 47.1% to 22.2% accuracy). The entire constraint manipulation approach must be abandoned.",
+  "previous_iteration_result": {
+    "iteration": 5,
+    "decision": "revert",
+    "summary": "BASELINE RESTORATION FAILED - The definitive proof that constraint manipulation is irreversible. Despite reverting monotone_constraints.json to exact pre-iteration 3 state (130 constraints), model remained catastrophically degraded (64.98% vs expected 68% accuracy, underdog ROI collapsed to 0.09 from 0.51). The model state has been permanently altered in ways that file reversion cannot fix.",
+    "key_learning": "Once constraints are manipulated, the model's learned feature interactions and weights are permanently altered. Reverting constraint files does NOT restore previous model behavior. The only way to recover is complete code reset and model retraining from scratch using the original baseline configuration."
+  },
+  "priorities": [
+    "CRITICAL: Reset to known-good baseline before any further iterations",
+    "underdog",
+    "top_25_pct"
+  ],
+  "avoid_constraints": [
+    "NEVER manipulate monotone_constraints.json again - proven irreversible",
+    "NEVER remove features from training",
+    "NEVER add features with 0 constraints expecting reversibility",
+    "NO changes to feature_schema.json",
+    "NO changes to feature_exclusions.py",
+    "Underdog performance must NOT degrade under any circumstances (>1% threshold)",
+    "Any underdog degradation >1% requires immediate revert",
+    "All hyperparameter changes must be minimal (max 10% adjustment)"
+  ],
+  "strategy_pivot": "COMPLETE STRATEGIC RESET: Five iterations of constraint manipulation have all failed and proven irreversible. The only viable path forward is a COMPLETE RESET to the known-good baseline state:\n\n1. CODE RESET: Revert ALL code changes to commit dbd9069 (before agent loop began)\n2. CONSTRAINTS RESET: Revert monotone_constraints.json to version 1.0.0 (original baseline)\n3. MODEL RESET: Delete all saved models and retrain from scratch\n4. BASELINE VERIFICATION: Confirm metrics match expected baseline (68% accuracy, 68.31% underdog accuracy, 0.51 underdog ROI)\n5. CONSERVATIVE ITERATION: Only tiny regularization adjustments (λ +/- 0.1, not +/- 0.5) with immediate revert on any underdog degradation >1%\n\nThe agent loop must pause and wait for manual reset. No further automatic iterations should occur until baseline is confirmed restored.",
+  "hypotheses": [
+    "Reverting ALL code to commit dbd9069 will restore the true baseline configuration",
+    "Retraining the model from scratch with baseline configuration will restore underdog performance",
+    "The current degraded model state cannot be fixed - only complete reset will work",
+    "Minimal regularization adjustments (λ +/- 0.1) from clean baseline will improve Top 25% without harming underdogs",
+    "Conservative hyperparameter changes with immediate rollback thresholds will prevent catastrophic failures",
+    "The 8% train-validation gap can be addressed with tiny regularization increases rather than aggressive changes",
+    "Underdog performance is fragile and requires extreme caution in any model modifications"
+  ],
+  "proposed_iterations": [
+    {
+      "iteration": 6,
+      "focus": "MANUAL RESET REQUIRED - Revert all code to commit dbd9069",
+      "target": "baseline_restoration",
+      "rationale": "Five iterations have catastrophically failed and proven that constraint manipulation is irreversible. The current model state is permanently degraded and cannot be recovered. The ONLY path forward is a complete manual reset:\n\n1. git reset --hard dbd9069 (revert all agent loop changes)\n2. Revert monotone_constraints.json to version 1.0.0 manually if needed\n3. Delete all models/saved/agent_loop_model_* files\n4. Retrain model from scratch with baseline configuration only\n5. Verify metrics match expected baseline (68% accuracy, 68.31% underdog accuracy, 0.51 underdog ROI)\n\nThis iteration MUST be done manually by the user. The agent loop should pause and wait for confirmation that baseline has been restored before proceeding.",
+      "manual_intervention_required": true,
+      "expected_outcome": "After manual reset and retraining, metrics should match the original baseline: overall accuracy ~68%, underdog accuracy ~68.31%, underdog ROI ~0.51, Top 25% ~79%. Once this is confirmed, the agent loop can resume with conservative regularization-based iterations.",
+      "rollback_instructions": "If after manual reset the baseline is still not restored, investigate: (1) whether training data has changed, (2) whether random seed issues exist, (3) whether other configuration files were modified. The baseline from dbd9069 should be reproducible."
+    },
+    {
+      "iteration": 7,
+      "focus": "Verify baseline restoration after manual reset",
+      "target": "validation",
+      "rationale": "After the manual reset in iteration 6, verify that all metrics match the expected original baseline. This is CRITICAL - no further iterations should proceed until baseline is confirmed. Expected metrics:\n- Overall accuracy: ~68%\n- Underdog accuracy: ~68.31%\n- Underdog ROI overall: ~0.51\n- Underdog ROI bottom 75%: ~0.33\n- +250_plus accuracy: ~47%\n- +250_plus ROI: ~0.92\n- Top 25% accuracy: ~79%\n\nIf any metric deviates by more than 1%, the reset was not successful and must be investigated before proceeding.",
+      "blocked_on": "iteration_6_manual_reset_complete"
+    },
+    {
+      "iteration": 8,
+      "focus": "Minimal lambda increase (1.5 → 1.6)",
+      "target": "top_25_pct",
+      "rationale": "From CONFIRMED clean baseline, make the smallest possible lambda increase (+0.1, not +0.5 or +1.0). This minimal adjustment will slightly reduce overfitting by penalizing large leaf weights. The 8% train-validation gap suggests regularization is needed, but previous iterations used changes that were 5-10x too large. This conservative change should improve Top 25% by 1-2% without harming underdog performance. If underdog degrades >1%, immediately revert.",
+      "hyperparameter_change": {
+        "lambda": 1.6,
+        "change_magnitude": 0.1
+      },
+      "rollback_threshold": {
+        "underdog_accuracy_max_decline": 0.01,
+        "underdog_roi_max_decline": 0.05
+      },
+      "blocked_on": "iteration_7_baseline_confirmed"
+    },
+    {
+      "iteration": 9,
+      "focus": "Minimal min_child_weight increase (3 → 3.5)",
+      "target": "top_25_pct",
+      "rationale": "From confirmed baseline, increase min_child_weight by only 0.5 (not 1 or 2). This small increase will require slightly more samples in leaf nodes, reducing overfitting while preserving the feature interactions that underdogs depend on. Combined with lambda=1.6 from iteration 8 (if successful), this may have additive benefits. If underdog degrades >1%, immediately revert.",
+      "hyperparameter_change": {
+        "min_child_weight": 3.5,
+        "change_magnitude": 0.5
+      },
+      "rollback_threshold": {
+        "underdog_accuracy_max_decline": 0.01,
+        "underdog_roi_max_decline": 0.05
+      },
+      "blocked_on": "iteration_8_success"
+    },
+    {
+      "iteration": 10,
+      "focus": "Minimal subsample reduction (1.0 → 0.95)",
+      "target": "top_25_pct",
+      "rationale": "From confirmed baseline, add mild stochastic regularization by reducing subsample by only 0.05 (not 0.1 or 0.15). This small reduction will prevent the model from memorizing specific training patterns while maintaining stability. Sampling-based regularization is less invasive than other methods and should improve Top 25% generalization by 1-2% without affecting underdogs. If underdog degrades >1%, immediately revert.",
+      "hyperparameter_change": {
+        "subsample": 0.95,
+        "change_magnitude": 0.05
+      },
+      "rollback_threshold": {
+        "underdog_accuracy_max_decline": 0.01,
+        "underdog_roi_max_decline": 0.05
+      },
+      "blocked_on": "iteration_9_success"
+    },
+    {
+      "iteration": 11,
+      "focus": "Minimal colsample_bytree reduction (1.0 → 0.95)",
+      "target": "top_25_pct",
+      "rationale": "From confirmed baseline, add mild feature sampling by reducing colsample_bytree by only 0.05. This prevents the model from relying too heavily on any single feature subset, reducing overfitting. Combined with subsample=0.95 from iteration 10 (if successful), this provides comprehensive sampling-based regularization. More conservative than previous 0.85 or 0.9 proposals. If underdog degrades >1%, immediately revert.",
+      "hyperparameter_change": {
+        "colsample_bytree": 0.95,
+        "change_magnitude": 0.05
+      },
+      "rollback_threshold": {
+        "underdog_accuracy_max_decline": 0.01,
+        "underdog_roi_max_decline": 0.05
+      },
+      "blocked_on": "iteration_10_success"
+    },
+    {
+      "iteration": 12,
+      "focus": "Combined minimal regularization (lambda=1.6, min_child_weight=3.5, subsample=0.95, colsample_bytree=0.95)",
+      "target": "top_25_pct",
+      "rationale": "If iterations 8, 9, 10, and 11 individually show promise but insufficient improvement, combining them may have additive effects. These four minimal regularization adjustments together (all +0.05 to +0.1 changes) will reduce overfitting through multiple mechanisms while being conservative enough to preserve underdog performance. This is the combined approach that should have been tried originally, rather than aggressive constraint manipulation.",
+      "hyperparameter_changes": {
+        "lambda": 1.6,
+        "min_child_weight": 3.5,
+        "subsample": 0.95,
+        "colsample_bytree": 0.95
+      },
+      "rollback_threshold": {
+        "underdog_accuracy_max_decline": 0.01,
+        "underdog_roi_max_decline": 0.05
+      },
+      "blocked_on": "iterations_8_9_10_11_all_successful"
+    }
+  ],
+  "critical_notes": [
+    "AGENT LOOP MUST PAUSE: Iteration 6 requires manual user intervention to reset the codebase",
+    "Do NOT proceed automatically with iterations 7-12 until baseline is confirmed restored",
+    "All future hyperparameter changes must be minimal (max 10% adjustment, preferably 5%)",
+    "Any underdog degradation >1% requires immediate revert - no exceptions",
+    "The aggressive approach of the first 5 iterations must never be repeated",
+    "If minimal regularization adjustments also fail to improve Top 25% without harming underdogs, accept that the current baseline may be near-optimal and focus on data quality or feature engineering instead"
+  ]
+}

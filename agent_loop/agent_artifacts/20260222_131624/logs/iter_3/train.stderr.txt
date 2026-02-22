@@ -1,0 +1,37 @@
+2026-02-22 07:50:42.802 | INFO     | __main__:main:571 - Loading data...
+2026-02-22 07:50:42.802 | INFO     | features.feature_pipeline:load_dataset:92 - Loading dataset from data/processed/training_data.csv
+2026-02-22 07:50:42.802 | INFO     | features.feature_pipeline:load_dataset:95 - Using batch loading mode (much faster!)
+2026-02-22 07:50:42.802 | INFO     | features.feature_pipeline:load_dataset:98 - Progress bar enabled (tqdm available)
+2026-02-22 07:50:42.957 | SUCCESS  | features.feature_pipeline:load_dataset:103 - Loaded 16562 samples with 153 features
+2026-02-22 07:50:42.970 | INFO     | database.db_manager:__init__:64 - Database initialized: sqlite:///data/ufc_database.db
+2026-02-22 07:50:42.997 | INFO     | __main__:_split_train_holdout_by_year:620 - Year-based split with holdout_from_year=2025: 15538 train rows, 1024 holdout rows.
+2026-02-22 07:50:42.998 | INFO     | features.feature_pipeline:prepare_features:120 - Preparing features for training...
+2026-02-22 07:50:43.086 | INFO     | features.feature_pipeline:prepare_features:159 - Fitted scaler on training data
+2026-02-22 07:50:43.086 | SUCCESS  | features.feature_pipeline:prepare_features:165 - Prepared 146 features
+2026-02-22 07:50:43.087 | INFO     | __main__:_load_monotone_constraints:681 - Using monotone_constraints from schema: (0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,1,1,0,0,0,0,1,1,1,0,1,0,0,0,0,0,1,1,0,0,0)
+2026-02-22 07:50:43.092 | INFO     | database.db_manager:__init__:64 - Database initialized: sqlite:///data/ufc_database.db
+2026-02-22 07:50:43.101 | INFO     | __main__:_compute_recency_weights:731 - Recency weights summary — min: 0.000, max: 0.700, mean: 0.149
+2026-02-22 07:50:43.110 | INFO     | __main__:main:745 - Data loaded: 12430 train, 3108 test
+2026-02-22 07:50:43.110 | INFO     | __main__:create_model:108 - Created XGBoost model with parameters:
+2026-02-22 07:50:43.110 | INFO     | __main__:create_model:109 -   n_estimators=200, max_depth=4
+2026-02-22 07:50:43.110 | INFO     | __main__:create_model:110 -   learning_rate=0.05, subsample=0.8
+2026-02-22 07:50:43.110 | INFO     | __main__:train:141 - Training XGBoost on 12430 samples...
+2026-02-22 07:50:43.110 | INFO     | __main__:train:142 - Features: 146
+2026-02-22 07:50:43.110 | INFO     | __main__:train:146 - Using recency-based sample weights for training.
+2026-02-22 07:50:43.678 | SUCCESS  | __main__:train:176 - Training complete!
+2026-02-22 07:50:43.678 | INFO     | __main__:train:177 - Train Accuracy: 0.705
+2026-02-22 07:50:43.678 | INFO     | __main__:train:178 - Train Log Loss: 0.5765
+2026-02-22 07:50:43.678 | INFO     | __main__:train:179 - Train AUC: 0.776
+2026-02-22 07:50:43.678 | INFO     | __main__:train:182 - Val Accuracy: 0.634
+2026-02-22 07:50:43.678 | INFO     | __main__:train:183 - Val Log Loss: 0.6309
+2026-02-22 07:50:43.678 | INFO     | __main__:train:184 - Val AUC: 0.693
+2026-02-22 07:50:43.681 | INFO     | __main__:save_model:430 - Saved model to models/saved/agent_loop_model_20260222_131624_iter3.json
+2026-02-22 07:50:43.683 | SUCCESS  | __main__:export_feature_schema:505 - Exported feature schema to schema/feature_schema.json
+2026-02-22 07:50:43.683 | INFO     | __main__:export_feature_schema:506 - Schema version: 1.0.0
+2026-02-22 07:50:43.683 | INFO     | __main__:export_feature_schema:507 - Total features: 146
+2026-02-22 07:50:43.683 | SUCCESS  | __main__:save_model:451 - Model saved to models/saved
+2026-02-22 07:50:43.685 | SUCCESS  | features.feature_pipeline:save_pipeline:199 - Saved feature pipeline to models/saved (model_name=agent_loop_model_20260222_131624_iter3)
+2026-02-22 07:50:44.108 | INFO     | __main__:check_calibration:295 - Saved calibration curve to models/saved/calibration_curve.png
+2026-02-22 07:50:44.109 | INFO     | __main__:check_calibration:303 - Calibration Metrics:
+2026-02-22 07:50:44.109 | INFO     | __main__:check_calibration:304 -   Brier Score: 0.2211 (lower is better)
+2026-02-22 07:50:44.109 | SUCCESS  | __main__:main:793 - Done!

@@ -1,0 +1,271 @@
+{
+  "weaknesses": [
+    {
+      "area": "overfitting",
+      "severity": "high",
+      "evidence": "Train accuracy (70.77%) is 8 percentage points higher than validation accuracy (62.90%), indicating the model is memorizing training data rather than learning generalizable patterns",
+      "suggested_focus": "Reduce model complexity, increase regularization, or remove low-importance features that may be adding noise",
+      "metrics": {
+        "train_accuracy": 0.7077,
+        "val_accuracy": 0.6290,
+        "accuracy_gap": 0.0787,
+        "train_auc": 0.7783,
+        "val_auc": 0.6944,
+        "auc_gap": 0.0839
+      }
+    },
+    {
+      "area": "validation_performance_degradation",
+      "severity": "high",
+      "evidence": "Current model validation Brier (0.2205) is worse than baseline (0.2157), and validation AUC (0.694) is significantly worse than baseline (0.733). Recent changes have hurt model performance.",
+      "suggested_focus": "Review recent feature additions or hyperparameter changes that may have degraded performance. Consider reverting to baseline configuration.",
+      "metrics": {
+        "current_val_brier": 0.2205,
+        "baseline_brier": 0.2157,
+        "brier_delta": 0.0048,
+        "current_val_auc": 0.6944,
+        "baseline_auc": 0.7327,
+        "auc_delta": -0.0383
+      }
+    },
+    {
+      "area": "low_importance_feature_bloat",
+      "severity": "medium",
+      "evidence": "15+ features with importance < 5 (out of max 112), including stance indicators (orthodox_vs_orthodox, southpaw_vs_southpaw) and common opponents counter",
+      "suggested_focus": "Remove features with importance < 5 to reduce overfitting and improve model generalization",
+      "metrics": {
+        "total_features": 133,
+        "near_zero_features": 15,
+        "max_importance": 112
+      }
+    },
+    {
+      "area": "underdog_accuracy_variance",
+      "severity": "medium",
+      "evidence": "Underdog accuracy varies significantly by odds band: +100 to +150 (58.1%), +150 to +250 (44.4%), +250+ (47.1%). Model struggles with mid-range underdogs (+150 to +250).",
+      "suggested_focus": "Improve feature engineering for mid-range underdog predictions, possibly by adding features specific to close matchups",
+      "metrics": {
+        "underdog_100_150_accuracy": 0.581,
+        "underdog_150_250_accuracy": 0.444,
+        "underdog_250_plus_accuracy": 0.471
+      }
+    }
+  ],
+  "redundant_features": [
+    {
+      "features": ["f1_recent_form_quality_adjusted", "f2_recent_form_quality_adjusted", "recent_form_quality_adjusted_diff"],
+      "importance_scores": [9, 3, 24],
+      "recommendation": "f2_recent_form_quality_adjusted (importance 3) is redundant with the diff version and has very low importance. Consider removing."
+    },
+    {
+      "features": ["f1_time_decayed_win_rate_adj_opp_quality", "f2_time_decayed_win_rate_adj_opp_quality", "time_decayed_win_rate_adj_opp_quality_diff"],
+      "importance_scores": [24, 2, 28],
+      "recommendation": "f2_time_decayed_win_rate_adj_opp_quality (importance 2) is near-zero. Remove this feature."
+    },
+    {
+      "features": ["f1_recent_finish_loss_ratio_last_2", "f2_recent_finish_loss_ratio_last_2", "recent_finish_loss_ratio_last_2_diff"],
+      "importance_scores": [2, 4, 26],
+      "recommendation": "Both f1 (2) and f2 (4) individual features have very low importance compared to the diff (26). Consider removing the individual features."
+    },
+    {
+      "features": ["f1_performance_trend", "f2_performance_trend"],
+      "importance_scores": [4, 12],
+      "recommendation": "Both features have very low importance. Consider removing both as they add little predictive value."
+    },
+    {
+      "features": ["f1_sig_strikes_landed_per_min", "f1_sig_strikes_landed_per_min_lifetime"],
+      "importance_scores": [20, 10],
+      "recommendation": "Similar features measuring the same thing. f1_sig_strikes_landed_per_min_lifetime (10) has half the importance of the recent version. Consider removing the lifetime version."
+    },
+    {
+      "features": ["f2_sig_strikes_landed_per_min", "f2_sig_strikes_landed_per_min_lifetime"],
+      "importance_scores": [20, 4],
+      "recommendation": "f2_sig_strikes_landed_per_min_lifetime (4) has very low importance. Remove this feature."
+    }
+  ],
+  "low_importance_features": [
+    {"feature": "southpaw_vs_southpaw", "importance": 1, "recommendation": "Candidate for removal - near-zero importance. Stance matching adds little predictive value."},
+    {"feature": "num_common_opponents", "importance": 1, "recommendation": "Candidate for removal - near-zero importance. Common opponents rarely occur in UFC."},
+    {"feature": "f2_time_decayed_win_rate_adj_opp_quality", "importance": 2, "recommendation": "Candidate for removal - redundant with diff version which has importance 28."},
+    {"feature": "orthodox_vs_orthodox", "importance": 2, "recommendation": "Candidate for removal - near-zero importance. Stance matching adds little predictive value."},
+    {"feature": "f1_recent_finish_loss_ratio_last_2", "importance": 2, "recommendation": "Candidate for removal - diff version has importance 26."},
+    {"feature": "f2_recent_form_quality_adjusted", "importance": 3, "recommendation": "Candidate for removal - diff version has importance 24."},
+    {"feature": "f1_performance_trend", "importance": 4, "recommendation": "Candidate for removal - very low importance."},
+    {"feature": "f2_recent_finish_loss_ratio_last_2", "importance": 4, "recommendation": "Candidate for removal - diff version has importance 26."},
+    {"feature": "f2_sig_strikes_landed_per_min_lifetime", "importance": 4, "recommendation": "Candidate for removal - redundant with recent version (importance 20)."},
+    {"feature": "f2_round_3_win_rate", "importance": 4, "recommendation": "Candidate for removal - near-zero importance. Round-specific metrics have low value."},
+    {"feature": "f2_age_x_fights_since_last_win", "importance": 5, "recommendation": "Candidate for removal - very low importance."},
+    {"feature": "f2_height_cm", "importance": 6, "recommendation": "Candidate for removal - reach advantage (importance 24) captures this signal better."},
+    {"feature": "style_volatility_mismatch_diff", "importance": 6, "recommendation": "Candidate for removal - very low importance despite being a diff feature."}
+  ],
+  "top_features": [
+    {
+      "feature": "f2_striking_volume_control",
+      "importance": 112,
+      "insight": "Strongest single predictor - fighter 2's striking volume control is critical. This captures how well a fighter controls striking output, which is a dominant factor in UFC outcomes."
+    },
+    {
+      "feature": "f1_striking_volume_control",
+      "importance": 98,
+      "insight": "Second strongest - striking volume control for both fighters is extremely important. The model heavily weighs striking output control."
+    },
+    {
+      "feature": "age_difference",
+      "importance": 83,
+      "insight": "Age difference is the third most important feature. Youth advantage is a strong predictor in MMA."
+    },
+    {
+      "feature": "takedown_ability_diff",
+      "importance": 58,
+      "insight": "Takedown ability differential is important - wrestling/grappling advantage matters significantly."
+    },
+    {
+      "feature": "recent_control_time_sec_last_3_diff",
+      "importance": 47,
+      "insight": "Recent control time (ground control) differential is highly predictive - recent performance matters more than career averages."
+    },
+    {
+      "feature": "recent_sig_strike_diff_last_3_diff",
+      "importance": 47,
+      "insight": "Recent significant strike differential is important - recent striking performance is a key signal."
+    },
+    {
+      "feature": "f1_reach_inches",
+      "importance": 36,
+      "insight": "Fighter 1's reach is important independently (not just as a differential). Physical advantages matter."
+    },
+    {
+      "feature": "striking_output_diff",
+      "importance": 36,
+      "insight": "Striking output differential captures volume advantages between fighters."
+    }
+  ],
+  "opportunities": [
+    {
+      "area": "feature_pruning",
+      "description": "15+ features with importance < 5 are likely adding noise and contributing to overfitting",
+      "potential_fix": "Remove all features with importance < 5 to reduce model complexity and improve generalization. This should reduce the train-validation gap.",
+      "priority": "high"
+    },
+    {
+      "area": "regularization_tuning",
+      "description": "8% accuracy gap between train and validation suggests overfitting",
+      "potential_fix": "Increase regularization (lambda, min_child_weight, or max_depth reduction) to prevent overfitting. Consider early stopping based on validation Brier score.",
+      "priority": "high"
+    },
+    {
+      "area": "redundant_feature_cleanup",
+      "description": "Multiple features capturing similar signals (e.g., lifetime vs recent stats, individual vs diff versions)",
+      "potential_fix": "Remove redundant individual features when diff versions have higher importance. Remove lifetime stat versions when recent versions are more predictive.",
+      "priority": "medium"
+    },
+    {
+      "area": "mid_range_underdog_features",
+      "description": "Underdog accuracy drops to 44.4% in +150 to +250 odds band (vs 58.1% in +100 to +150)",
+      "potential_fix": "Add features specific to competitive matchups where fighters are more evenly matched. Consider interaction features for close skill differentials.",
+      "priority": "medium"
+    },
+    {
+      "area": "stance_feature_removal",
+      "description": "Stance indicators (orthodox_vs_orthodox, southpaw_vs_southpaw) have near-zero importance (1-2)",
+      "potential_fix": "Remove all stance-related features. They add noise without predictive value.",
+      "priority": "low"
+    }
+  ],
+  "calibration_issues": [
+    {
+      "confidence_range": "top_10_pct_overall",
+      "min_confidence": 0.4289,
+      "accuracy": 0.8333,
+      "n_predictions": 60,
+      "issue": "well_calibrated",
+      "assessment": "Top 10% confidence predictions show excellent calibration (83.33% accuracy)"
+    },
+    {
+      "confidence_range": "top_25_pct_overall",
+      "min_confidence": 0.2713,
+      "accuracy": 0.7919,
+      "n_predictions": 149,
+      "issue": "well_calibrated",
+      "assessment": "Top 25% confidence predictions show good calibration (79.19% accuracy)"
+    },
+    {
+      "confidence_range": "underdog_top_10_pct",
+      "min_confidence": 0.31,
+      "accuracy": 0.75,
+      "n_bets": 8,
+      "roi": 1.21,
+      "issue": "excellent",
+      "assessment": "High-confidence underdog predictions are very profitable (121% ROI)"
+    },
+    {
+      "confidence_range": "underdog_top_25_pct",
+      "min_confidence": 0.22,
+      "accuracy": 0.70,
+      "n_bets": 20,
+      "roi": 0.83,
+      "issue": "good",
+      "assessment": "Top 25% confidence underdogs show strong profitability (83% ROI)"
+    },
+    {
+      "confidence_range": "underdog_bottom_75_pct",
+      "accuracy": 0.467,
+      "n_bets": 60,
+      "roi": 0.33,
+      "issue": "overconfident",
+      "assessment": "Low-confidence underdog predictions drop to 46.7% accuracy but still show positive ROI due to underdog payouts"
+    }
+  ],
+  "feature_categories_summary": {
+    "total_features": 133,
+    "features_in_importance_file": 119,
+    "missing_from_importance_file": 14,
+    "max_importance": 112,
+    "min_importance": 1,
+    "avg_importance": 26.9,
+    "features_with_importance_lt_5": 15,
+    "features_with_importance_lt_10": 30
+  },
+  "missing_features": [
+    "age_weighted_recent_damage_diff",
+    "age_x_elite_experience_diff",
+    "defensive_fight",
+    "durability_collapse_diff",
+    "f1_athleticism_decline",
+    "f1_has_fight_history",
+    "f1_long_layoff_over_2yr",
+    "f1_title_fight_experience",
+    "f2_athleticism_decline",
+    "f2_has_fight_history",
+    "f2_long_layoff_over_2yr",
+    "f2_title_fight_experience",
+    "is_title_fight",
+    "long_layoff_over_2yr_diff"
+  ],
+  "comparison_to_baseline": {
+    "overall_accuracy": {
+      "current_val": 0.6290,
+      "baseline": 0.6801,
+      "delta": -0.0511,
+      "assessment": "degraded"
+    },
+    "brier_score": {
+      "current_val": 0.2205,
+      "baseline": 0.2157,
+      "delta": 0.0048,
+      "assessment": "degraded"
+    },
+    "auc": {
+      "current_val": 0.6944,
+      "baseline": 0.7327,
+      "delta": -0.0383,
+      "assessment": "degraded"
+    },
+    "top_25_pct_accuracy": {
+      "baseline": 0.7919,
+      "current_goal": "improve",
+      "assessment": "target metric"
+    }
+  },
+  "summary": "The current model shows significant overfitting with an 8% train-validation accuracy gap (70.77% vs 62.90%). Validation metrics have degraded compared to baseline: accuracy dropped from 68.01% to 62.90%, Brier increased from 0.2157 to 0.2205, and AUC decreased from 0.733 to 0.694. Feature analysis reveals 15+ near-zero importance features (<5) that should be removed to reduce overfitting. The model relies heavily on striking volume control (top 2 features), age difference, and takedown ability. Top 25% confidence predictions show 79.19% accuracy (baseline), and underdog betting is profitable (121% ROI on top 10% confidence). Key priority: prune low-importance features and increase regularization to close the train-validation gap."
+}

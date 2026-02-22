@@ -1,0 +1,89 @@
+{
+  "goal_text": "Improve Top 25% performance while maintaining or improving underdog performance",
+  "diagnostics_summary": "Iteration 4 FAILED completely. The 'restore constraints at 0' fix was supposed to restore baseline performance but produced IDENTICAL results to iteration 3 (catastrophic underdog collapse: -3.52% accuracy, -0.30 ROI, +250_plus odds band imploded). This proves that adding back features with 0 constraints does NOT reverse the damage from removing them. Constraint manipulation is not reversible and must be abandoned entirely. Four iterations have failed: iter 1 (removed features), iter 2 (validation failed), iter 3 (removed constraints), iter 4 (failed to restore). The only viable path forward is reverting to true baseline (before iter 3) and using regularization hyperparameters exclusively.",
+  "previous_iteration_result": {
+    "iteration": 4,
+    "decision": "revert",
+    "summary": "The restore-constraints fix completely failed - results are identical to iteration 3 (catastrophic underdog collapse). Adding back 3 features with 0 constraints did NOT restore baseline performance, proving constraint manipulation is not reversible.",
+    "key_learning": "Once constraints are removed, adding them back at 0 does NOT restore previous model behavior. The relationship between these features, constraints, and model behavior is poorly understood. Constraint manipulation must be abandoned entirely. Focus exclusively on regularization hyperparameters."
+  },
+  "priorities": [
+    "underdog",
+    "top_25_pct"
+  ],
+  "avoid_constraints": [
+    "Do NOT remove features (learned from iteration 1)",
+    "Do NOT remove monotonic constraints, even if stale (learned from iteration 3)",
+    "Do NOT add back features with 0 constraints expecting to restore baseline (learned from iteration 4)",
+    "Do NOT manipulate monotone_constraints.json in any way",
+    "Underdog performance must NOT degrade significantly (>2%)",
+    "Underdog ROI must NOT drop more than 10%",
+    "Top 25% improvement must NOT come at underdog expense"
+  ],
+  "strategy_pivot": "CRITICAL PIVOT: Constraint manipulation has completely failed across 4 iterations and must be ABANDONED. The only viable path forward is: (1) Revert to the TRUE baseline configuration before iteration 3 began, (2) Focus EXCLUSIVELY on regularization hyperparameters (lambda, min_child_weight, max_depth, subsample, colsample_bytree, gamma, learning_rate) to improve Top 25% while preserving underdog performance. The model's 8% train-validation gap suggests regularization is the right approach, but we must work from the true baseline, not the degraded state.",
+  "hypotheses": [
+    "Reverting to pre-iteration 3 baseline will restore underdog performance (68% accuracy, 0.33 ROI)",
+    "Moderate lambda increase (1.5 to 2.0-2.5) will reduce overfitting and improve Top 25% without harming underdogs",
+    "Increasing min_child_weight (3 to 4-5) prevents overfitting on small samples while maintaining feature interactions",
+    "Small regularization adjustments are more effective than large single changes",
+    "Reducing max_depth (6 to 5) limits complexity while preserving most feature interactions",
+    "Sampling-based regularization (subsample, colsample_bytree) reduces variance without constraint manipulation",
+    "Combining multiple moderate regularization adjustments will have additive benefits without catastrophic effects"
+  ],
+  "proposed_iterations": [
+    {
+      "iteration": 5,
+      "focus": "REVERT to true baseline (pre-iteration 3 configuration)",
+      "target": "baseline_restoration",
+      "rationale": "Iterations 2, 3, and 4 all failed. We must revert to the true baseline configuration BEFORE iteration 3's constraint removal to restore underdog performance. This means reverting monotone_constraints.json to version 1.1.0 (130 constraints), which will give us the stable baseline with 68% overall accuracy, 68.31% underdog accuracy, and 0.33 underdog ROI. Once we confirm baseline restoration, we can proceed with regularization-based improvements."
+    },
+    {
+      "iteration": 6,
+      "focus": "Verify baseline restoration and establish stable metrics",
+      "target": "validation",
+      "rationale": "After reverting to baseline, verify that all metrics match the expected baseline: overall accuracy ~68%, underdog accuracy ~68.31%, underdog ROI ~0.33, Top 25% ~79%. This confirms we have a stable starting point before attempting further improvements. If baseline is not restored, investigate what other changes may have persisted."
+    },
+    {
+      "iteration": 7,
+      "focus": "Moderate lambda regularization increase (1.5 → 2.0)",
+      "target": "top_25_pct",
+      "rationale": "Working from confirmed baseline, current lambda (1.5) may be too low, causing overfitting. Increasing to 2.0 (not 2.5) will moderately penalize large leaf weights and reduce the 8% train-validation gap. This conservative increase should improve Top 25% validation accuracy without harming underdogs. Previous failures used aggressive changes; this iteration uses minimal adjustment."
+    },
+    {
+      "iteration": 8,
+      "focus": "Increase min_child_weight (3 → 4)",
+      "target": "top_25_pct",
+      "rationale": "Higher min_child_weight prevents leaves with few samples, reducing overfitting. Increasing from 3 to 4 (not 5) will improve generalization by requiring slightly more samples in each leaf. This conservative change should improve Top 25% accuracy while preserving feature interactions that underdogs depend on. Combined with lambda=2.0, this may have additive benefits."
+    },
+    {
+      "iteration": 9,
+      "focus": "Reduce max_depth (6 → 5)",
+      "target": "top_25_pct",
+      "rationale": "Current max_depth of 6 may allow too much complexity. Reducing to 5 will limit interaction depth, reducing overfitting while preserving most feature interactions. This moderate reduction should improve Top 25% validation performance without the catastrophic effects seen in previous iterations. Works from stable baseline rather than degraded state."
+    },
+    {
+      "iteration": 10,
+      "focus": "Adjust subsample and colsample_bytree (1.0 → 0.9)",
+      "target": "top_25_pct",
+      "rationale": "Current subsample and colsample_bytree are both 1.0 (no sampling). Reducing both to 0.9 adds mild stochastic regularization, preventing the model from memorizing specific patterns. This sampling-based approach should improve Top 25% generalization by reducing variance without constraint manipulation. More conservative than previous 0.85 proposal."
+    },
+    {
+      "iteration": 11,
+      "focus": "Combined moderate regularization (lambda=2.0, min_child_weight=4, max_depth=5)",
+      "target": "top_25_pct",
+      "rationale": "If individual iterations 7, 8, and 9 show promise but insufficient improvement, combining them may have additive effects. These three moderate regularization changes together will reduce overfitting through multiple mechanisms without aggressive changes that caused failures in previous iterations. All are conservative adjustments from stable baseline."
+    },
+    {
+      "iteration": 12,
+      "focus": "Add gamma regularization parameter (0 → 0.1)",
+      "target": "top_25_pct",
+      "rationale": "Gamma is minimum loss reduction required to make a split. Adding gamma=0.1 will prevent the model from making splits that don't significantly improve loss, reducing complexity. This parameter has not been explored yet and may improve Top 25% by eliminating noisy splits without affecting underdog performance."
+    },
+    {
+      "iteration": 13,
+      "focus": "Reduce learning rate (0.1 → 0.05) with more rounds",
+      "target": "top_25_pct",
+      "rationale": "Lower learning rate makes the model learn more slowly and carefully, potentially improving generalization. With early stopping, the model will train for more rounds but each round will make smaller adjustments. This can improve Top 25% validation performance by preventing overfitting to training noise."
+    }
+  ]
+}

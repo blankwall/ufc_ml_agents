@@ -1,0 +1,38 @@
+{
+  "iteration": 2,
+  "summary": "Revert feature removals from iteration 1 to restore baseline model and recover underdog performance",
+  "files_changed": [
+    "features/feature_exclusions.py"
+  ],
+  "rationale": "Iteration 1 removed 6 base features with importance <= 1.0 (has_ever_won, long_layoff_over_1yr, fights_in_last_year, age_x_recent_vs_career_decline, underdog_specialization_advantage, orthodox_vs_southpaw). This achieved the targeted top_25_pct improvement (+6.04% accuracy: 0.7919 to 0.8523) but at disproportionate cost to underdog performance: ROI dropped 16% points (0.51 to 0.35), accuracy dropped 3.17%, and all odds bands degraded. The removed low-importance features contained subtle signals important for underdog predictions that the ensemble relies on. Restoring these features recovers the baseline model's strong underdog value identification (0.51 ROI, 0.6831 accuracy) before proceeding with other optimization strategies.",
+  "expected_effect": "Expected to restore underdog performance to baseline levels (0.51 ROI, 0.6831 accuracy) by recovering the subtle signals contained in the removed features. This reverts the top_25_pct gains (accuracy will return from 0.8523 to 0.7919) but prioritizes recovering underdog performance which is the model's core strength. This sets a clean baseline for subsequent iterations that will optimize edge thresholds and implement confidence thresholds rather than feature removal.",
+  "constraints_changed": [],
+  "features_added": [
+    "has_ever_won",
+    "has_ever_won_diff",
+    "f1_has_ever_won",
+    "f2_has_ever_won",
+    "long_layoff_over_1yr",
+    "long_layoff_over_1yr_diff",
+    "f1_long_layoff_over_1yr",
+    "fights_in_last_year",
+    "fights_in_last_year_diff",
+    "f1_fights_in_last_year",
+    "f2_fights_in_last_year",
+    "age_x_recent_vs_career_decline",
+    "age_x_recent_vs_career_decline_diff",
+    "f1_age_x_recent_vs_career_decline",
+    "f2_age_x_recent_vs_career_decline",
+    "underdog_specialization_advantage",
+    "underdog_specialization_advantage_diff",
+    "f1_underdog_specialization_advantage",
+    "f2_underdog_specialization_advantage",
+    "orthodox_vs_southpaw"
+  ],
+  "features_removed": [],
+  "change_type": "feature_restoration",
+  "target": "underdog",
+  "base_features_restored": 6,
+  "estimated_columns_restored": 18,
+  "reverts_iteration": 1
+}

@@ -1,0 +1,24 @@
+{
+  "decision": "revert",
+  "reasoning": "Removing stale monotonic constraints caused catastrophic underdog performance collapse. Underdog ROI dropped 70% (0.33 to 0.10), accuracy fell 3.52%, and the +250_plus odds band imploded (accuracy -24.9%, ROI -1.08). While Top 25% improved substantially (+5.48%), underdog performance is the top priority and this degradation is unacceptable. The model may have become overconfident, leading to extreme predictions that harm underdog calibration.",
+  "key_considerations": [
+    "Underdog ROI dropped 70% from 0.33 to 0.10 (catastrophic)",
+    "Underdog accuracy degraded 3.52% (exceeds 2% threshold)",
+    "+250_plus odds band collapsed: accuracy 47.1% to 22.2%, ROI 0.92 to -0.16",
+    "All underdog odds bands regressed",
+    "Top 25% accuracy improved 5.48% (impressive but insufficient to offset)",
+    "Overall accuracy degraded 3.03%",
+    "Model became more extreme: higher top confidence but worse broad performance"
+  ],
+  "metrics_considered": {
+    "underdog_accuracy_delta": -0.0352,
+    "underdog_roi_delta": -0.23,
+    "top_25_accuracy_delta": 0.0548,
+    "top_10_accuracy_delta": 0.0334,
+    "overall_accuracy_delta": -0.0303,
+    "favorites_accuracy_delta": -0.0258
+  },
+  "tradeoffs": "Removing constraints (even stale ones set to 0) changed model behavior significantly, boosting high-confidence predictions but catastrophically harming underdog performance. The tradeoff is unacceptable given underdog priority.",
+  "next_steps": "Restore monotone_constraints.json to include the 3 removed features with 0 constraints. Investigate why removing stale constraints caused such dramatic shifts. Focus on regularization-based improvements (lambda, min_child_weight) rather than constraint removal.",
+  "lessons_learned": "Even 'stale' constraints set to 0 influence model behavior. Removing them allows more flexible learning on those features, which can harm underdog calibration. The 3 features (num_common_opponents, orthodox_vs_orthodox, southpaw_vs_southpaw) should remain constrained at 0 to prevent them from contributing to predictions. Future iterations should use regularization hyperparameters rather than constraint manipulation."
+}

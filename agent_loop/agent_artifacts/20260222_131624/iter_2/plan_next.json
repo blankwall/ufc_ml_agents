@@ -1,0 +1,85 @@
+{
+  "goal_text": "Improve Top 25% performance while maintaining or improving underdog performance",
+  "diagnostics_summary": "Validation failed: CRITICAL: The monotone_constraints.json file contains constraints for 3 features that do not exist in feature_schema.json. This will cause model training to fail. The affected features are: num_common_opponents, orthodox_vs_orthodox, and southpaw_vs_southpaw. All other checks passed (JSON syntax valid, Python syntax valid, no duplicates, no reserved words, proper naming conventions, valid constraint values).\n\nPrevious: Model shows severe overfitting (8% train-validation gap: 70.77% vs 62.90%). Validation metrics degraded vs baseline: accuracy -5.1% (68% \u2192 63%), AUC -0.038 (0.733 \u2192 0.694), Brier +0.005. 15+ near-zero importance features (<5) adding noise. Stance features contribute minimal predictive value. Top 25% currently at 79.19% accuracy with excellent calibration. Underdogs show 121% ROI on top 10% confidence but struggle in +150 to +250 band (44.4% accuracy). Model heavily weights striking volume control (top 2 features), age difference, and takedown ability.",
+  "previous_iteration_result": {
+    "iteration": 1,
+    "decision": "revert",
+    "summary": "Removing low-importance features (southpaw_vs_southpaw, orthodox_vs_orthodox, num_common_opponents) catastrophically degraded underdog performance (-4.23% accuracy, massive ROI losses) despite small Top 10% gains",
+    "key_learning": "Low-importance features may provide value through feature interactions. Removing them can harm underdog predictions even when Top 10% improves slightly."
+  },
+  "priorities": [
+    "underdog",
+    "top_25_pct"
+  ],
+  "avoid_constraints": [
+    "Do NOT remove features (learned from iteration 1 failure)",
+    "Do NOT add new features involving quality differences",
+    "Underdog performance must NOT degrade significantly (>2%)"
+  ],
+  "strategy_pivot": "Abandon feature removal approach. Focus on (1) regularization/hyperparameter tuning to reduce overfitting without removing features, (2) underdog-specific improvements, (3) probability calibration improvements",
+  "hypotheses": [
+    "Increasing regularization (lambda, min_child_weight) will reduce overfitting and improve Top 25% accuracy without harming underdogs by constraining model complexity",
+    "Reducing max_depth will prevent overfitting while preserving all feature interactions, benefiting both Top 25% and underdog performance",
+    "Adjusting subsample and colsample_bytree will reduce overfitting through sampling-based regularization",
+    "Adding monotonic constraints can improve calibration for Top 25% predictions without feature removal",
+    "Targeted hyperparameter tuning can close the train-validation gap while maintaining underdog ROI",
+    "Probability calibration (Platt scaling or isotonic regression) can improve Top 25% accuracy estimates",
+    "Underdog-specific feature engineering (without quality differences) can improve the +150 to +250 band"
+  ],
+  "proposed_iterations": [
+    {
+      "iteration": 2,
+      "focus": "Increase lambda regularization parameter",
+      "target": "top_25_pct",
+      "rationale": "Current lambda may be too low, allowing overfitting. Increasing lambda will penalize large leaf weights and reduce overfitting. This should improve Top 25% validation accuracy by closing the train-validation gap, while preserving all features to maintain underdog performance."
+    },
+    {
+      "iteration": 3,
+      "focus": "Increase min_child_weight parameter",
+      "target": "top_25_pct",
+      "rationale": "Higher min_child_weight prevents the model from creating leaves with few samples, reducing overfitting. This should improve generalization to Top 25% confidence predictions while maintaining feature interactions important for underdogs."
+    },
+    {
+      "iteration": 4,
+      "focus": "Reduce max_depth to constrain model complexity",
+      "target": "top_25_pct",
+      "rationale": "Current max_depth may allow too much complexity. Reducing it will limit interaction depth, reducing overfitting while preserving all feature interactions. This should improve Top 25% validation performance without removing features that underdogs depend on."
+    },
+    {
+      "iteration": 5,
+      "focus": "Adjust subsample and colsample_bytree for sampling-based regularization",
+      "target": "top_25_pct",
+      "rationale": "Reducing subsample (row sampling) and colsample_bytree (column sampling) adds stochastic regularization, preventing the model from memorizing specific patterns. This should improve Top 25% generalization by reducing variance."
+    },
+    {
+      "iteration": 6,
+      "focus": "Apply probability calibration (Platt scaling or isotonic regression)",
+      "target": "top_25_pct",
+      "rationale": "Top 25% accuracy at 79.19% could improve with better-calibrated probabilities. Calibration adjusts the model's probability estimates to better match true frequencies, improving confidence-based bucketing and Top 25% accuracy."
+    },
+    {
+      "iteration": 7,
+      "focus": "Add underdog momentum feature for mid-range odds",
+      "target": "underdog",
+      "rationale": "Underdog accuracy drops to 44.4% in +150 to +250 odds band. Add a feature capturing fighter momentum specifically when fighting as slight/medium underdog to improve predictions in this range without removing existing features."
+    },
+    {
+      "iteration": 8,
+      "focus": "Add close matchup differential features",
+      "target": "underdog",
+      "rationale": "Mid-range underdogs (+150 to +250) likely represent more competitive fights. Add interaction features that amplify signal when skill differentials are small, helping the model better identify these close matchups."
+    },
+    {
+      "iteration": 9,
+      "focus": "Fine-tune learning rate with increased iterations",
+      "target": "top_25_pct",
+      "rationale": "Lower learning rate with more n_estimators can improve generalization by taking smaller, more conservative steps. This should reduce overfitting while allowing the model to converge more slowly to a better solution."
+    },
+    {
+      "iteration": 10,
+      "focus": "Adjust scale_pos_weight for better class balance",
+      "target": "underdog",
+      "rationale": "Underdogs may be underrepresented in high-confidence predictions. Adjusting scale_pos_weight can help the model better learn underdog patterns, improving accuracy in the +150 to +250 band without removing features."
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "goal_text": "Improve Top 25% performance",
+  "diagnostics_summary": "Diagnostics reveal three critical issues: (1) extremely low betting volume (2.86% bet rate) due to conservative edge calculation, (2) strong underdog ROI (0.92-1.21) but tiny sample sizes (n=8-17) suggesting the model finds value but threshold is too strict, (3) 19 features with importance <= 5.0 adding noise. Model is well-calibrated on high-confidence underdog predictions (75% accuracy) but performs poorly on low-confidence predictions (46.7%). Top features are striking_volume_control (108.0, 93.0) and age_difference (84.0).",
+  "priorities": [
+    "Increase betting volume by optimizing edge thresholds",
+    "Validate and expand successful high-confidence underdog strategy",
+    "Remove low-importance features to reduce noise"
+  ],
+  "avoid_constraints": [
+    "Do NOT add new features involving quality differences"
+  ],
+  "hypotheses": [
+    "Removing low-importance features (< 5.0) will improve model signal clarity and potentially increase edge detection",
+    "Lowering edge threshold slightly will capture more profitable underdog bets without sacrificing ROI",
+    "Consolidating redundant striking features (f1/f2_striking_volume_control) into ratio/diff features will reduce multicollinearity",
+    "Implementing a confidence threshold for betting will avoid low-confidence predictions (46.7% accuracy) and focus on high-confidence underdogs (75% accuracy)"
+  ],
+  "proposed_iterations": [
+    {
+      "iteration": 1,
+      "focus": "Remove near-zero importance features (<= 1.0)",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics show 7 features with importance 1.0 (has_ever_won_diff, long_layoff_over_1yr_diff, f1_fights_in_last_year, f2_age_x_recent_vs_career_decline) and 2.0 (orthodox_vs_southpaw, f1_underdog_specialization_advantage, f2_underdog_specialization_advantage, f2_fights_in_last_year). Removing this noise will improve signal clarity and may help edge detection for top 25% predictions.",
+      "features_to_remove": [
+        "has_ever_won_diff",
+        "long_layoff_over_1yr_diff",
+        "f1_fights_in_last_year",
+        "f2_age_x_recent_vs_career_decline",
+        "orthodox_vs_southpaw",
+        "f1_underdog_specialization_advantage",
+        "f2_underdog_specialization_advantage",
+        "f2_fights_in_last_year"
+      ]
+    },
+    {
+      "iteration": 2,
+      "focus": "Remove additional low-importance features (2.0-5.0)",
+      "target": "top_25_pct",
+      "rationale": "Continue feature pruning by removing features with importance 2.0-5.0: time_decayed_win_rate_x_opponent_quality_diff (3.0), f1_round_3_finish_rate (3.0), f1_recent_finish_loss_ratio_last_2 (3.0), f2_recent_form_quality_adjusted (2.0), f1_recent_form_quality_adjusted (6.0), f1_performance_trend (5.0), f1_first_round_finish_rate (4.0). This reduces model complexity and may improve generalization.",
+      "features_to_remove": [
+        "time_decayed_win_rate_x_opponent_quality_diff",
+        "f1_round_3_finish_rate",
+        "f1_recent_finish_loss_ratio_last_2",
+        "f2_recent_form_quality_adjusted",
+        "f1_recent_form_quality_adjusted",
+        "f1_performance_trend",
+        "f1_first_round_finish_rate"
+      ]
+    },
+    {
+      "iteration": 3,
+      "focus": "Remove redundant lifetime striking features",
+      "target": "underdog",
+      "rationale": "Diagnostics show f1_sig_strikes_landed_per_min_lifetime (4.0) and f2_sig_strikes_landed_per_min_lifetime (4.0) have low importance while recent striking (26.0) is more predictive. Also consider removing f1_time_decayed_finish_rate (11.0), f2_time_decayed_ko_rate (11.0), f2_time_decayed_win_rate_adj_opp_quality (4.0) as diff/f1 versions are more important. Lifetime performance is less relevant for underdog predictions than recent form.",
+      "features_to_remove": [
+        "f1_sig_strikes_landed_per_min_lifetime",
+        "f2_sig_strikes_landed_per_min_lifetime",
+        "f1_time_decayed_finish_rate",
+        "f2_time_decayed_ko_rate",
+        "f2_time_decayed_win_rate_adj_opp_quality"
+      ]
+    },
+    {
+      "iteration": 4,
+      "focus": "Optimize edge threshold to increase betting volume",
+      "target": "underdog",
+      "rationale": "Diagnostics show only 17 bets (2.86% bet rate) with edge > 0 from 594 evaluation rows, resulting in 0.0035 ROI. The model is too conservative. Test lower edge thresholds (0, -0.01) to capture more profitable opportunities. This directly addresses the 'low_betting_volume' high-severity weakness and should expand the successful underdog strategy (currently 1.21 ROI on top 10% but only n=8)."
+    },
+    {
+      "iteration": 5,
+      "focus": "Implement confidence threshold for underdog betting",
+      "target": "underdog",
+      "rationale": "Diagnostics show bottom 75% confidence underdog bets have only 46.7% accuracy while top 10% have 75% accuracy with 1.21 ROI. Implement a minimum confidence threshold (e.g., 0.25-0.30) for underdog bets to avoid low-confidence predictions and focus on the profitable high-confidence segment. This addresses the 'middle_confidence_underperformance' medium-severity weakness."
+    },
+    {
+      "iteration": 6,
+      "focus": "Create specialized underdog extreme value threshold",
+      "target": "underdog",
+      "rationale": "Diagnostics show +250_plus underdogs have 0.92 ROI with 47.1% accuracy (n=17) - model identifies value in extreme underdogs that market misprices. Create a specialized betting threshold for extreme underdogs (+200 or higher moneyline) to capture more of these opportunities. This addresses the 'long_shot_underdogs' high-priority opportunity and could significantly increase profitable bet volume."
+    },
+    {
+      "iteration": 7,
+      "focus": "Consolidate redundant striking features",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics show f1_striking_volume_control (93.0) and f2_striking_volume_control (108.0) are top features but likely capture overlapping signal. Create striking_volume_control_diff feature to replace both f1 and f2 versions, reducing multicollinearity while preserving the signal. This addresses the 'redundant_striking_features' low-severity weakness and may improve model stability."
+    },
+    {
+      "iteration": 8,
+      "focus": "Add underdog-specific interaction features",
+      "target": "underdog",
+      "rationale": "Top features are striking_volume_control, age_difference, and takedown_ability_diff. Create underdog-specific interactions: underdog_x_striking_advantage, underdog_x_age_advantage, underdog_x_wrestling_advantage. These features will help the model better identify situations where underdogs have specific advantages that the market underprices, potentially improving the 1.21 ROI on high-confidence underdog predictions.",
+      "potential_features": [
+        "underdog_x_striking_volume_advantage",
+        "underdog_x_age_advantage",
+        "underdog_x_takedown_advantage",
+        "underdog_x_recent_form_advantage"
+      ]
+    },
+    {
+      "iteration": 9,
+      "focus": "Add underdog momentum indicator",
+      "target": "underdog",
+      "rationale": "Underdogs with positive momentum may be undervalued by the market. Create underdog_recent_improvement_x_days_since_fight feature that combines recent improvement trajectory with recency. Fighters who are improving and haven't fought recently may be undervalued, especially as underdogs. This could help identify underdog opportunities before the market adjusts.",
+      "potential_features": [
+        "underdog_recent_improvement_x_fight_recency",
+        "underdog_win_streak_x_odds"
+      ]
+    },
+    {
+      "iteration": 10,
+      "focus": "Add experience-based underdog features",
+      "target": "underdog",
+      "rationale": "Experienced fighters who are underdogs may have hidden value. Create underdog_x_total_fights_experience and underdog_x_elite_experience features. Veterans with high total fights or elite opponent experience may be undervalued as underdogs, especially against less proven opponents. This addresses the underdog sample size issue by creating more signal to identify profitable underdog bets.",
+      "potential_features": [
+        "underdog_total_fights_x_opponent_experience_gap",
+        "underdog_elite_experience_advantage",
+        "underdog_veteran_vs_prospect_indicator"
+      ]
+    }
+  ]
+}

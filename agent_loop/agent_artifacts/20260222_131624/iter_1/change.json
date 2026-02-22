@@ -1,0 +1,17 @@
+{
+  "iteration": 1,
+  "summary": "Remove lowest importance stance and common opponent features to reduce overfitting",
+  "files_changed": [
+    "features/feature_exclusions.py"
+  ],
+  "rationale": "Diagnostics show southpaw_vs_southpaw (importance 1), orthodox_vs_orthodox (importance 2), and num_common_opponents (importance 1) have near-zero importance. These binary stance matchup features add noise without meaningful predictive value. The model shows severe overfitting with an 8% train-validation gap (70.77% vs 62.90%). Removing these low-importance features should reduce overfitting and improve Top 25% generalization by eliminating noise in the feature space.",
+  "expected_effect": "Expected to reduce overfitting and improve Top 25% confidence accuracy by removing noise features. The train-validation gap should decrease as the model focuses on more predictive signals. Underdog performance may also benefit from cleaner feature representation.",
+  "constraints_changed": [],
+  "features_removed": [
+    "southpaw_vs_southpaw",
+    "orthodox_vs_orthodox",
+    "num_common_opponents"
+  ],
+  "features_added": [],
+  "target_metric": "top_25_pct"
+}

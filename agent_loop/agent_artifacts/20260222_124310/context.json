@@ -1,0 +1,23 @@
+{
+  "mode": "goal",
+  "goal_text": "Improve Top 25% performance",
+  "run_goal": [],
+  "constraints": {
+    "prioritize": [
+      "top_25_pct",
+      "underdog"
+    ],
+    "avoid": [
+      "Do NOT add new features involving quality differences."
+    ]
+  },
+  "success_criteria": {
+    "min_roi_improvement": 0.01,
+    "required_improvements": []
+  },
+  "schema_paths": {
+    "feature_schema": "/Users/tylerbohan/code/ufc_ml_agents/schema/feature_schema.json",
+    "monotone_constraints": "/Users/tylerbohan/code/ufc_ml_agents/schema/monotone_constraints.json",
+    "feature_exclusions": "/Users/tylerbohan/code/ufc_ml_agents/features/feature_exclusions.py"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "iteration": 1,
+  "summary": "Remove near-zero importance features (importance <= 1.0) to improve model signal clarity",
+  "files_changed": [
+    "features/feature_exclusions.py"
+  ],
+  "rationale": "Diagnostics reveal 19 features with importance <= 5.0 adding noise to the model. This iteration removes 6 base features with near-zero importance (<= 1.0): has_ever_won, long_layoff_over_1yr, fights_in_last_year, age_x_recent_vs_career_decline, underdog_specialization_advantage, and orthodox_vs_southpaw. By removing these low-value features, we reduce model noise and improve signal clarity, which should enhance edge detection for top 25% predictions. The change is conservative (removing only features with importance 1.0 or less) to avoid harming ensemble performance while targeting the primary goal of improving top_25_pct accuracy.",
+  "expected_effect": "Expected to improve top_25_pct performance by reducing noise from low-importance features. The cleaner feature space should enable better edge detection and more confident predictions. Removing these 6 base features (which generate ~18 columns including f1_*, f2_*, *_diff variants) reduces model complexity without removing any high-importance predictive signals.",
+  "constraints_changed": [],
+  "features_added": [],
+  "features_removed": [
+    "has_ever_won",
+    "has_ever_won_diff",
+    "f1_has_ever_won",
+    "f2_has_ever_won",
+    "long_layoff_over_1yr",
+    "long_layoff_over_1yr_diff",
+    "f1_long_layoff_over_1yr",
+    "fights_in_last_year",
+    "fights_in_last_year_diff",
+    "f1_fights_in_last_year",
+    "f2_fights_in_last_year",
+    "age_x_recent_vs_career_decline",
+    "age_x_recent_vs_career_decline_diff",
+    "f1_age_x_recent_vs_career_decline",
+    "f2_age_x_recent_vs_career_decline",
+    "underdog_specialization_advantage",
+    "underdog_specialization_advantage_diff",
+    "f1_underdog_specialization_advantage",
+    "f2_underdog_specialization_advantage",
+    "orthodox_vs_southpaw"
+  ],
+  "change_type": "feature_removal",
+  "target": "top_25_pct",
+  "base_features_removed": 6,
+  "estimated_columns_removed": 18
+}

@@ -1,0 +1,182 @@
+
+================================================================================
+FEATURE EXCLUSION SUMMARY
+================================================================================
+
+Excluding 82 base features (will drop f1_*, f2_*, *_diff variants):
+  • years_since_last_win
+    → will exclude: f1_years_since_last_win, f2_years_since_last_win, years_since_last_win_diff
+  • age_x_years_since_last_win
+    → will exclude: f1_age_x_years_since_last_win, f2_age_x_years_since_last_win, age_x_years_since_last_win_diff
+  • age_x_recent_sig_strike_diff_last_3
+    → will exclude: f1_age_x_recent_sig_strike_diff_last_3, f2_age_x_recent_sig_strike_diff_last_3, age_x_recent_sig_strike_diff_last_3_diff
+  • stance_orthodox
+    → will exclude: f1_stance_orthodox, f2_stance_orthodox, stance_orthodox_diff
+  • stance_southpaw
+    → will exclude: f1_stance_southpaw, f2_stance_southpaw, stance_southpaw_diff
+  • stance_switch
+    → will exclude: f1_stance_switch, f2_stance_switch, stance_switch_diff
+  • both_grapplers
+    → will exclude: f1_both_grapplers, f2_both_grapplers, both_grapplers_diff
+  • both_strikers
+    → will exclude: f1_both_strikers, f2_both_strikers, both_strikers_diff
+  • both_finishers
+    → will exclude: f1_both_finishers, f2_both_finishers, both_finishers_diff
+  • draws
+    → will exclude: f1_draws, f2_draws, draws_diff
+  • age_in_prime
+    → will exclude: f1_age_in_prime, f2_age_in_prime, age_in_prime_diff
+  • age_past_prime
+    → will exclude: f1_age_past_prime, f2_age_past_prime, age_past_prime_diff
+  • striking_accuracy
+    → will exclude: f1_striking_accuracy, f2_striking_accuracy, striking_accuracy_diff
+  • striking_defense
+    → will exclude: f1_striking_defense, f2_striking_defense, striking_defense_diff
+  • defensive_efficiency
+    → will exclude: f1_defensive_efficiency, f2_defensive_efficiency, defensive_efficiency_diff
+  • distance_accuracy_last_3
+    → will exclude: f1_distance_accuracy_last_3, f2_distance_accuracy_last_3, distance_accuracy_last_3_diff
+  • clinch_accuracy_last_3
+    → will exclude: f1_clinch_accuracy_last_3, f2_clinch_accuracy_last_3, clinch_accuracy_last_3_diff
+  • ground_output_per_min_last_3
+    → will exclude: f1_ground_output_per_min_last_3, f2_ground_output_per_min_last_3, ground_output_per_min_last_3_diff
+  • leg_strike_rate_last_3
+    → will exclude: f1_leg_strike_rate_last_3, f2_leg_strike_rate_last_3, leg_strike_rate_last_3_diff
+  • knockdowns_last_3
+    → will exclude: f1_knockdowns_last_3, f2_knockdowns_last_3, knockdowns_last_3_diff
+  • striking_accuracy_last_3
+    → will exclude: f1_striking_accuracy_last_3, f2_striking_accuracy_last_3, striking_accuracy_last_3_diff
+  • sig_strikes_landed_per_min_last_3
+    → will exclude: f1_sig_strikes_landed_per_min_last_3, f2_sig_strikes_landed_per_min_last_3, sig_strikes_landed_per_min_last_3_diff
+  • head_strike_rate_last_3
+    → will exclude: f1_head_strike_rate_last_3, f2_head_strike_rate_last_3, head_strike_rate_last_3_diff
+  • body_strike_rate_last_3
+    → will exclude: f1_body_strike_rate_last_3, f2_body_strike_rate_last_3, body_strike_rate_last_3_diff
+  • ground_strike_rate_last_3
+    → will exclude: f1_ground_strike_rate_last_3, f2_ground_strike_rate_last_3, ground_strike_rate_last_3_diff
+  • distance_strike_rate_last_3
+    → will exclude: f1_distance_strike_rate_last_3, f2_distance_strike_rate_last_3, distance_strike_rate_last_3_diff
+  • distance_accuracy_lifetime
+    → will exclude: f1_distance_accuracy_lifetime, f2_distance_accuracy_lifetime, distance_accuracy_lifetime_diff
+  • clinch_accuracy_lifetime
+    → will exclude: f1_clinch_accuracy_lifetime, f2_clinch_accuracy_lifetime, clinch_accuracy_lifetime_diff
+  • ground_output_per_min_lifetime
+    → will exclude: f1_ground_output_per_min_lifetime, f2_ground_output_per_min_lifetime, ground_output_per_min_lifetime_diff
+  • leg_strike_rate_lifetime
+    → will exclude: f1_leg_strike_rate_lifetime, f2_leg_strike_rate_lifetime, leg_strike_rate_lifetime_diff
+  • knockdowns_lifetime
+    → will exclude: f1_knockdowns_lifetime, f2_knockdowns_lifetime, knockdowns_lifetime_diff
+  • head_strike_rate_lifetime
+    → will exclude: f1_head_strike_rate_lifetime, f2_head_strike_rate_lifetime, head_strike_rate_lifetime_diff
+  • body_strike_rate_lifetime
+    → will exclude: f1_body_strike_rate_lifetime, f2_body_strike_rate_lifetime, body_strike_rate_lifetime_diff
+  • ground_strike_rate_lifetime
+    → will exclude: f1_ground_strike_rate_lifetime, f2_ground_strike_rate_lifetime, ground_strike_rate_lifetime_diff
+  • distance_strike_rate_lifetime
+    → will exclude: f1_distance_strike_rate_lifetime, f2_distance_strike_rate_lifetime, distance_strike_rate_lifetime_diff
+  • striking_accuracy_lifetime
+    → will exclude: f1_striking_accuracy_lifetime, f2_striking_accuracy_lifetime, striking_accuracy_lifetime_diff
+  • takedown_avg_per_15min
+    → will exclude: f1_takedown_avg_per_15min, f2_takedown_avg_per_15min, takedown_avg_per_15min_diff
+  • takedown_accuracy
+    → will exclude: f1_takedown_accuracy, f2_takedown_accuracy, takedown_accuracy_diff
+  • takedown_defense
+    → will exclude: f1_takedown_defense, f2_takedown_defense, takedown_defense_diff
+  • submission_avg_per_15min
+    → will exclude: f1_submission_avg_per_15min, f2_submission_avg_per_15min, submission_avg_per_15min_diff
+  • common_opponent_performance
+    → will exclude: f1_common_opponent_performance, f2_common_opponent_performance, common_opponent_performance_diff
+  • current_loss_streak
+    → will exclude: f1_current_loss_streak, f2_current_loss_streak, current_loss_streak_diff
+  • current_win_streak
+    → will exclude: f1_current_win_streak, f2_current_win_streak, current_win_streak_diff
+  • decision_losses_since_last_win
+    → will exclude: f1_decision_losses_since_last_win, f2_decision_losses_since_last_win, decision_losses_since_last_win_diff
+  • early_finish_rate_last_3
+    → will exclude: f1_early_finish_rate_last_3, f2_early_finish_rate_last_3, early_finish_rate_last_3_diff
+  • early_finish_rate_last_5
+    → will exclude: f1_early_finish_rate_last_5, f2_early_finish_rate_last_5, early_finish_rate_last_5_diff
+  • fights_since_last_win
+    → will exclude: f1_fights_since_last_win, f2_fights_since_last_win, fights_since_last_win_diff
+  • finish_losses_since_last_win
+    → will exclude: f1_finish_losses_since_last_win, f2_finish_losses_since_last_win, finish_losses_since_last_win_diff
+  • finish_rate
+    → will exclude: f1_finish_rate, f2_finish_rate, finish_rate_diff
+  • finish_rate_last_3
+    → will exclude: f1_finish_rate_last_3, f2_finish_rate_last_3, finish_rate_last_3_diff
+  • finish_rate_last_3_years
+    → will exclude: f1_finish_rate_last_3_years, f2_finish_rate_last_3_years, finish_rate_last_3_years_diff
+  • finish_rate_last_5
+    → will exclude: f1_finish_rate_last_5, f2_finish_rate_last_5, finish_rate_last_5_diff
+  • first_round_ko_rate
+    → will exclude: f1_first_round_ko_rate, f2_first_round_ko_rate, first_round_ko_rate_diff
+  • ko_rate_last_5
+    → will exclude: f1_ko_rate_last_5, f2_ko_rate_last_5, ko_rate_last_5_diff
+  • losses_last_3_years
+    → will exclude: f1_losses_last_3_years, f2_losses_last_3_years, losses_last_3_years_diff
+  • losses_since_last_win
+    → will exclude: f1_losses_since_last_win, f2_losses_since_last_win, losses_since_last_win_diff
+  • opponent_quality_score
+    → will exclude: f1_opponent_quality_score, f2_opponent_quality_score, opponent_quality_score_diff
+  • power_striker_matchup
+    → will exclude: f1_power_striker_matchup, f2_power_striker_matchup, power_striker_matchup_diff
+  • recent_finish_loss_last_fight
+    → will exclude: f1_recent_finish_loss_last_fight, f2_recent_finish_loss_last_fight, recent_finish_loss_last_fight_diff
+  • recent_finish_losses_last_2
+    → will exclude: f1_recent_finish_losses_last_2, f2_recent_finish_losses_last_2, recent_finish_losses_last_2_diff
+  • recent_form
+    → will exclude: f1_recent_form, f2_recent_form, recent_form_diff
+  • recent_knockdown_diff_last_3
+    → will exclude: f1_recent_knockdown_diff_last_3, f2_recent_knockdown_diff_last_3, recent_knockdown_diff_last_3_diff
+  • striker_vs_grappler
+    → will exclude: f1_striker_vs_grappler, f2_striker_vs_grappler, striker_vs_grappler_diff
+  • weight_lbs
+    → will exclude: f1_weight_lbs, f2_weight_lbs, weight_lbs_diff
+  • win_rate_last_3
+    → will exclude: f1_win_rate_last_3, f2_win_rate_last_3, win_rate_last_3_diff
+  • win_rate_last_5
+    → will exclude: f1_win_rate_last_5, f2_win_rate_last_5, win_rate_last_5_diff
+  • wins_last_3_years
+    → will exclude: f1_wins_last_3_years, f2_wins_last_3_years, wins_last_3_years_diff
+  • time_decayed_win_rate
+    → will exclude: f1_time_decayed_win_rate, f2_time_decayed_win_rate, time_decayed_win_rate_diff
+  • avg_opponent_win_rate
+    → will exclude: f1_avg_opponent_win_rate, f2_avg_opponent_win_rate, avg_opponent_win_rate_diff
+  • avg_opponent_total_fights
+    → will exclude: f1_avg_opponent_total_fights, f2_avg_opponent_total_fights, avg_opponent_total_fights_diff
+  • recent_control_time_diff_last_3
+    → will exclude: f1_recent_control_time_diff_last_3, f2_recent_control_time_diff_last_3, recent_control_time_diff_last_3_diff
+  • ko_rate_last_3
+    → will exclude: f1_ko_rate_last_3, f2_ko_rate_last_3, ko_rate_last_3_diff
+  • ko_rate_last_5
+    → will exclude: f1_ko_rate_last_5, f2_ko_rate_last_5, ko_rate_last_5_diff
+  • height_cmlong_layoff_over_1yr
+    → will exclude: f1_height_cmlong_layoff_over_1yr, f2_height_cmlong_layoff_over_1yr, height_cmlong_layoff_over_1yr_diff
+  • recent_losses_last_2
+    → will exclude: f1_recent_losses_last_2, f2_recent_losses_last_2, recent_losses_last_2_diff
+  • activity_rate
+    → will exclude: f1_activity_rate, f2_activity_rate, activity_rate_diff
+  • youth_form_score
+    → will exclude: f1_youth_form_score, f2_youth_form_score, youth_form_score_diff
+  • has_ever_won
+    → will exclude: f1_has_ever_won, f2_has_ever_won, has_ever_won_diff
+  • long_layoff_over_1yr
+    → will exclude: f1_long_layoff_over_1yr, f2_long_layoff_over_1yr, long_layoff_over_1yr_diff
+  • fights_in_last_year
+    → will exclude: f1_fights_in_last_year, f2_fights_in_last_year, fights_in_last_year_diff
+  • age_x_recent_vs_career_decline
+    → will exclude: f1_age_x_recent_vs_career_decline, f2_age_x_recent_vs_career_decline, age_x_recent_vs_career_decline_diff
+  • underdog_specialization_advantage
+    → will exclude: f1_underdog_specialization_advantage, f2_underdog_specialization_advantage, underdog_specialization_advantage_diff
+
+Excluding 8 exact column names:
+  • f1_long_layoff_over_1yr
+  • f2_recent_losses_last_2
+  • f2_activity_rate
+  • f1_striking_differential
+  • f2_striking_differential
+  • f1_age_x_days_since_last_fight
+  • f2_age_x_days_since_last_fight
+  • orthodox_vs_southpaw
+================================================================================
+

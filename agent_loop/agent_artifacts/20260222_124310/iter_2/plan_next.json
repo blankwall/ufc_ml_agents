@@ -1,0 +1,90 @@
+{
+  "goal_text": "Improve Underdog Performance (ROI and Accuracy)",
+  "diagnostics_summary": "Iteration 1 (feature removal) achieved top 25% gains but significantly degraded underdog performance: ROI dropped 16% points (0.51 to 0.35), accuracy dropped 3.17%, and all odds bands degraded. The removed low-importance features likely contained subtle signals important for underdog predictions. Reverting to baseline model. The model's core strength remains underdog value identification (baseline 0.51 ROI, 0.6831 accuracy) but needs optimization. Original diagnostics showed conservative edge threshold (2.86% bet rate) and strong high-confidence underdog performance (75% accuracy, 1.21 ROI) with tiny sample sizes.",
+  "priorities": [
+    "Restore baseline model by reverting feature removals",
+    "Optimize edge thresholds to increase underdog betting volume while maintaining ROI",
+    "Implement confidence thresholds to focus on high-confidence underdog predictions",
+    "Create specialized underdog betting strategies for extreme underdogs"
+  ],
+  "avoid_constraints": [
+    "Do NOT remove features with importance <= 5.0 - they may contain underdog signals",
+    "Do NOT add new features involving quality differences",
+    "Do NOT sacrifice underdog metrics for top 25% gains"
+  ],
+  "hypotheses": [
+    "Lowering edge threshold from current conservative level will capture more profitable underdog bets without sacrificing ROI",
+    "Implementing a minimum confidence threshold for underdog bets will avoid low-confidence predictions (46.7% accuracy) and focus on high-profitable ones (75% accuracy, 1.21 ROI)",
+    "Creating a specialized edge threshold for extreme underdogs (+200+) will capture the 0.92 ROI opportunities more frequently",
+    "Adding underdog-specific interaction features will improve signal for underdog predictions without harming top 25% performance"
+  ],
+  "proposed_iterations": [
+    {
+      "iteration": 2,
+      "focus": "Optimize edge threshold to increase underdog betting volume",
+      "target": "underdog",
+      "rationale": "Baseline model shows only 2.86% bet rate (17 bets from 594 rows) with edge > 0. This extreme conservatism is limiting the profitable underdog strategy. Test lower edge thresholds (0, -0.01, -0.02) to capture more opportunities. The model has demonstrated strong underdog ROI (0.51 overall, 0.92 on +250_plus, 1.21 on top 10% confidence) but sample sizes are too small (n=8-17). Increasing bet volume while maintaining ROI is the highest-priority improvement.",
+      "constraints_to_modify": [
+        "edge_threshold"
+      ],
+      "test_values": [
+        0.0,
+        -0.01,
+        -0.02
+      ]
+    },
+    {
+      "iteration": 3,
+      "focus": "Implement confidence threshold for underdog betting",
+      "target": "underdog",
+      "rationale": "Baseline diagnostics show bottom 75% confidence underdog bets have 46.7% accuracy (below random) while top 10% have 75% accuracy with 1.21 ROI. Implement a minimum confidence threshold (0.25-0.30) for underdog bets to avoid low-confidence predictions and focus on the profitable high-confidence segment. This directly addresses the 'middle_confidence_underperformance' issue and should improve both accuracy and ROI by filtering out weak predictions.",
+      "new_feature": "underdog_confidence_threshold",
+      "test_values": [
+        0.25,
+        0.30,
+        0.35
+      ]
+    },
+    {
+      "iteration": 4,
+      "focus": "Create specialized underdog extreme value threshold",
+      "target": "underdog",
+      "rationale": "Baseline shows +250_plus underdogs have 0.92 ROI with 47.1% accuracy (n=17) - the model finds significant value in extreme underdogs that the market misprices. Create a specialized lower edge threshold for extreme underdogs (+200 or higher moneyline) to capture more of these opportunities. For example, if moneyline >= +200, use edge_threshold = -0.02 instead of 0.0. This leverages the model's demonstrated strength in identifying long-shot value.",
+      "new_feature": "adaptive_edge_threshold_by_moneyline",
+      "logic": "if underdog_moneyline >= 200: edge_threshold = -0.02, else: edge_threshold = 0.0"
+    },
+    {
+      "iteration": 5,
+      "focus": "Add underdog-specific interaction features",
+      "target": "underdog",
+      "rationale": "Top features are striking_volume_control, age_difference, and takedown_ability_diff. Create underdog-specific interactions that help the model identify when underdogs have specific advantages the market underprices. This differs from iteration 1 (which removed features) by adding targeted signal rather than removing noise. The successful 1.21 ROI on high-confidence underdogs suggests the model finds underdog value but needs more signal to identify it more frequently.",
+      "potential_features": [
+        "underdog_x_striking_volume_advantage",
+        "underdog_x_age_advantage",
+        "underdog_x_takedown_advantage",
+        "underdog_x_recent_form_advantage"
+      ]
+    },
+    {
+      "iteration": 6,
+      "focus": "Add underdog momentum indicator",
+      "target": "underdog",
+      "rationale": "Underdogs with positive momentum may be undervalued by the market. Create underdog_recent_improvement_x_days_since_fight feature that combines recent improvement trajectory with recency. Fighters who are improving and haven't fought recently may be undervalued as underdogs, especially before the market adjusts. This could help identify underdog opportunities earlier and expand the profitable sample size beyond the current n=17 on +250_plus.",
+      "potential_features": [
+        "underdog_recent_improvement_x_fight_recency",
+        "underdog_win_streak_x_odds"
+      ]
+    },
+    {
+      "iteration": 7,
+      "focus": "Add experience-based underdog features",
+      "target": "underdog",
+      "rationale": "Experienced fighters who are underdogs may have hidden value that the market overlooks. Create underdog_x_total_fights_experience and underdog_x_elite_experience features. Veterans with high total fights or elite opponent experience may be undervalued as underdogs, especially against less proven prospects. This addresses the fundamental sample size issue - we need more signal to identify profitable underdog bets beyond the current 2.86% bet rate.",
+      "potential_features": [
+        "underdog_total_fights_x_opponent_experience_gap",
+        "underdog_elite_experience_advantage",
+        "underdog_veteran_vs_prospect_indicator"
+      ]
+    }
+  ]
+}

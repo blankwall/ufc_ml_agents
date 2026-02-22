@@ -1,0 +1,23 @@
+{
+  "iteration": 2,
+  "summary": "Add monotonic constraints to improve calibration for Top 25% predictions",
+  "files_changed": [
+    "schema/monotone_constraints.json"
+  ],
+  "rationale": "The model shows severe overfitting (8% train-validation gap: 70.77% vs 62.90%) and Top 25% accuracy needs improvement. Adding monotonic constraints constrains the model to respect logical relationships between features and win probability, improving calibration without removing features (learned from iteration 1 failure that removing features harms underdog performance). Three key features with clear directional relationships were constrained:\n\n1. striking_differential (+1): Landing more strikes than you absorb should monotonically increase win probability\n2. recent_improvement_score_diff (+1): If fighter A is improving more than fighter B, A should have higher win probability\n3. prospect_momentum_score_diff (+1): Higher momentum should monotonically increase win probability\n\nThis regularization through monotonic constraints should reduce overfitting and improve Top 25% accuracy while maintaining all features that underdogs depend on.",
+  "expected_effect": "Expected to improve Top 25% accuracy through better calibration. Monotonic constraints reduce model flexibility, which should help close the train-validation gap (currently 8%) and improve generalization. By constraining these features to have positive relationships with win probability, the model will make more logically consistent predictions, particularly in high-confidence buckets. Underdog performance should be maintained since all features are preserved.",
+  "constraints_changed": {
+    "striking_differential": 0,
+    "recent_improvement_score_diff": 0,
+    "prospect_momentum_score_diff": 0
+  },
+  "constraints_added": {
+    "striking_differential": 1,
+    "recent_improvement_score_diff": 1,
+    "prospect_momentum_score_diff": 1
+  },
+  "features_added": [],
+  "features_removed": [],
+  "target": "top_25_pct",
+  "approach": "monotonic_constraints"
+}

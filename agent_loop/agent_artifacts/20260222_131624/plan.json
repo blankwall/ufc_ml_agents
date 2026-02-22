@@ -1,0 +1,110 @@
+{
+  "goal_text": "Improve Top 25% performance",
+  "diagnostics_summary": "Model shows severe overfitting (8% train-validation gap: 70.77% vs 62.90%). Validation metrics degraded vs baseline: accuracy -5.1% (68% → 63%), AUC -0.038 (0.733 → 0.694), Brier +0.005. 15+ near-zero importance features (<5) adding noise. Stance features contribute minimal predictive value. Top 25% currently at 79.19% accuracy with excellent calibration. Underdogs show 121% ROI on top 10% confidence but struggle in +150 to +250 band (44.4% accuracy). Model heavily weights striking volume control (top 2 features), age difference, and takedown ability.",
+  "priorities": [
+    "top_25_pct",
+    "underdog"
+  ],
+  "avoid_constraints": [
+    "Do NOT add new features involving quality differences."
+  ],
+  "hypotheses": [
+    "Removing 15+ low-importance features will reduce overfitting and improve validation Top 25% accuracy by reducing noise in the model.",
+    "Increasing regularization will close the train-validation gap and improve generalization to Top 25% predictions.",
+    "Removing redundant individual features (keeping only diff versions) will streamline signal and improve both Top 25% and underdog performance.",
+    "Adding underdog-specific features (without quality differences) will improve the +150 to +250 odds band accuracy from 44.4%.",
+    "Model recalibration after feature pruning will improve probability estimates for Top 25% confidence predictions."
+  ],
+  "proposed_iterations": [
+    {
+      "iteration": 1,
+      "focus": "Remove lowest importance stance and common opponent features",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics show southpaw_vs_southpaw (importance 1), orthodox_vs_orthodox (2), and num_common_opponents (1) have near-zero importance. Removing these noise features should reduce overfitting and improve Top 25% generalization."
+    },
+    {
+      "iteration": 2,
+      "focus": "Remove redundant individual recent_finish_loss_ratio features",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics identify f1_recent_finish_loss_ratio_last_2 (importance 2) and f2_recent_finish_loss_ratio_last_2 (4) as redundant since the diff version has importance 26. Keeping only the diff version reduces multicollinearity."
+    },
+    {
+      "iteration": 3,
+      "focus": "Remove redundant time_decayed_win_rate individual features",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics show f2_time_decayed_win_rate_adj_opp_quality has importance 2 while the diff version has 28. Remove individual F2 feature to reduce noise while keeping the differential signal."
+    },
+    {
+      "iteration": 4,
+      "focus": "Remove redundant individual recent_form_quality_adjusted features",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics show f2_recent_form_quality_adjusted (importance 3) is redundant with diff version (importance 24). Remove individual feature to streamline signal."
+    },
+    {
+      "iteration": 5,
+      "focus": "Remove performance_trend features",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics show f1_performance_trend (4) and f2_performance_trend (12) both have very low importance. These features add noise without meaningful predictive value for Top 25% predictions."
+    },
+    {
+      "iteration": 6,
+      "focus": "Remove redundant lifetime striking metrics",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics identify f1_sig_strikes_landed_per_min_lifetime (10) and f2_sig_strikes_landed_per_min_lifetime (4) as redundant. Recent versions are more predictive (importance 20 each). Keep recent, remove lifetime."
+    },
+    {
+      "iteration": 7,
+      "focus": "Remove f2_height_cm (reach captures signal better)",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics show f2_height_cm has importance 6 while reach_advantage has 24. Height signal is captured in reach advantage. Remove redundant height feature."
+    },
+    {
+      "iteration": 8,
+      "focus": "Remove f2_round_3_win_rate",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics show f2_round_3_win_rate has importance 4. Round-specific metrics have low value and add noise. Remove to reduce overfitting."
+    },
+    {
+      "iteration": 9,
+      "focus": "Remove f2_age_x_fights_since_last_win",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics show f2_age_x_fights_since_last_win has importance 5. Very low importance interaction feature adding noise to the model."
+    },
+    {
+      "iteration": 10,
+      "focus": "Remove style_volatility_mismatch_diff",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics show style_volatility_mismatch_diff has importance 6 despite being a diff feature. Very low predictive value for Top 25% confidence predictions."
+    },
+    {
+      "iteration": 11,
+      "focus": "Increase regularization (lambda and min_child_weight)",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics show 8% train-validation gap indicating overfitting. After pruning low-importance features in iterations 1-10, increase regularization to further reduce overfitting and improve Top 25% validation performance."
+    },
+    {
+      "iteration": 12,
+      "focus": "Add underdog momentum feature for mid-range odds",
+      "target": "underdog",
+      "rationale": "Diagnostics show underdog accuracy drops to 44.4% in +150 to +250 odds band. Add a feature capturing fighter momentum when fighting as slight/medium underdog to improve predictions in this range."
+    },
+    {
+      "iteration": 13,
+      "focus": "Add close matchup differential features",
+      "target": "underdog",
+      "rationale": "Diagnostics identify mid-range underdogs (+150 to +250) as problematic. These are likely more competitive fights. Add interaction features that amplify signal when skill differentials are small (close matchups)."
+    },
+    {
+      "iteration": 14,
+      "focus": "Recalibrate model after feature pruning",
+      "target": "top_25_pct",
+      "rationale": "After removing 13+ low-importance features in iterations 1-10, recalibrate the model to improve probability estimates. Current Top 25% shows 79.19% accuracy - recalibration should push this higher by improving confidence calibration."
+    },
+    {
+      "iteration": 15,
+      "focus": "Reduce max_depth to prevent overfitting",
+      "target": "top_25_pct",
+      "rationale": "Diagnostics show overfitting with 8% accuracy gap. After feature pruning and regularization increase, reducing max_depth will further constrain model complexity and improve Top 25% generalization."
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "status": "pass",
+  "errors": [
+    {
+      "check": "schema_consistency",
+      "file": "schema/feature_schema.json",
+      "message": "3 features are listed in schema but excluded from training: southpaw_vs_southpaw, orthodox_vs_orthodox, num_common_opponents. The model will be trained on 130 features, not 133. This is a valid approach (exclusions via EXCLUDED_COLUMNS), but the num_features count is slightly misleading.",
+      "severity": "warning"
+    }
+  ],
+  "checks_performed": {
+    "json_syntax": "pass",
+    "python_syntax": "pass",
+    "schema_consistency": "pass",
+    "feature_naming": "pass",
+    "constraints_consistency": "pass"
+  },
+  "can_proceed": true,
+  "summary": "All validation checks passed. JSON files have valid syntax. All Python files compile successfully. All 133 features in the schema have implementations. Feature naming follows snake_case convention. All monotone constraints are valid (-1, 0, or 1) and match the schema. Note: 3 features (southpaw_vs_southpaw, orthodox_vs_orthodox, num_common_opponents) are in the schema but will be excluded during training via EXCLUDED_COLUMNS, resulting in 130 actual training features. The build should succeed."
+}

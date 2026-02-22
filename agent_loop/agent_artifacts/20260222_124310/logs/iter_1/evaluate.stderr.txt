@@ -1,0 +1,43 @@
+2026-02-22 06:54:31.103 | INFO     | __main__:main:245 - Loading odds from /Users/tylerbohan/code/ufc_ml_agents/ufc_2025_odds.csv...
+2026-02-22 06:54:31.148 | INFO     | __main__:main:251 - Loaded 3938 odds rows.
+2026-02-22 06:54:31.148 | INFO     | __main__:main:256 - Loading dataset from data/processed/training_data.csv...
+2026-02-22 06:54:31.292 | INFO     | database.db_manager:__init__:64 - Database initialized: sqlite:///data/ufc_database.db
+2026-02-22 06:54:31.337 | INFO     | __main__:main:304 - Holdout selection: 1024 rows with event_year >= 2025.
+2026-02-22 06:54:31.433 | INFO     | __main__:main:351 - Matched 594 evaluation rows to odds (out of 1024 potential rows).
+2026-02-22 06:54:31.440 | INFO     | __main__:main:377 - Dropped 0 rows due to name mismatch between DB and odds.
+2026-02-22 06:54:31.440 | INFO     | __main__:main:450 - Loading feature pipeline and model...
+2026-02-22 06:54:31.440 | SUCCESS  | features.feature_pipeline:load_pipeline:228 - Loaded feature pipeline from models/saved (model_name=agent_loop_model_20260222_124310_iter1)
+2026-02-22 06:54:31.451 | SUCCESS  | models.xgboost_model:load_model:469 - Loaded model from models/saved/agent_loop_model_20260222_124310_iter1.json
+2026-02-22 06:54:31.451 | INFO     | features.feature_pipeline:prepare_features:120 - Preparing features for training...
+2026-02-22 06:54:31.455 | SUCCESS  | features.feature_pipeline:prepare_features:165 - Prepared 153 features
+2026-02-22 06:54:31.455 | INFO     | __main__:main:461 - Prepared evaluation features: 594 rows, 133 cols.
+2026-02-22 06:54:31.458 | INFO     | __main__:main:474 - Applying symmetric probability averaging (matching xgboost_predict.py --symmetric)...
+2026-02-22 06:54:31.528 | INFO     | __main__:main:528 - Applied symmetric probability averaging.
+2026-02-22 06:54:31.629 | SUCCESS  | __main__:main:1497 - Saved all bets analysis to reports_strict/all_bets_20260222_065431.csv
+2026-02-22 06:54:31.674 | SUCCESS  | __main__:main:1784 - Saved evaluation data to reports_strict/eval_data_20260222_065431.csv
+2026-02-22 06:54:31.674 | INFO     | __main__:main:1787 - Generating interactive HTML report...
+2026-02-22 06:54:31.675 | INFO     | evaluation.generate_html_report:generate_html_report:46 - Loading evaluation data from reports_strict/eval_data_20260222_065431.csv...
+2026-02-22 06:54:31.684 | INFO     | evaluation.generate_html_report:generate_html_report:51 - Loaded 594 evaluation rows (includes 2 perspectives per fight) for 2025+
+2026-02-22 06:54:31.689 | INFO     | evaluation.generate_html_report:generate_html_report:64 - Created fight keys, found 297 unique fights
+2026-02-22 06:54:31.708 | INFO     | evaluation.generate_html_report:generate_html_report:134 - After deduplication: 297 fights
+2026-02-22 06:54:31.713 | INFO     | database.db_manager:__init__:64 - Database initialized: sqlite:///data/ufc_database.db
+2026-02-22 06:54:31.791 | SUCCESS  | evaluation.generate_html_report:generate_html_report:883 - Generated HTML report: reports_strict/model_evaluation_20260222_065431.html
+2026-02-22 06:54:31.791 | INFO     | evaluation.generate_html_report:generate_html_report:884 -   Overall Accuracy: 65.3% (194/297)
+2026-02-22 06:54:31.791 | INFO     | evaluation.generate_html_report:generate_html_report:885 -   Events: 36
+2026-02-22 06:54:31.791 | INFO     | evaluation.generate_html_report:generate_html_report:886 -   Open in browser: file:///Users/tylerbohan/code/ufc_ml_agents/reports_strict/model_evaluation_20260222_065431.html
+2026-02-22 06:54:31.792 | SUCCESS  | __main__:main:1792 - ✓ Open report in browser: file:///Users/tylerbohan/code/ufc_ml_agents/reports_strict/model_evaluation_20260222_065431.html
+2026-02-22 06:54:31.801 | SUCCESS  | __main__:main:2009 - Saved top 25% confidence bucket details to reports_strict/top_25_pct_investigation_20260222_065431.csv
+2026-02-22 06:54:31.801 | INFO     | __main__:main:2010 -   Total predictions in top 25%: 149
+2026-02-22 06:54:31.801 | INFO     | __main__:main:2011 -   After deduplication: 75
+2026-02-22 06:54:31.801 | INFO     | __main__:main:2012 -   Correct: 127 (85.2%)
+2026-02-22 06:54:31.801 | INFO     | __main__:main:2013 -   Incorrect: 22 (14.8%)
+2026-02-22 06:54:31.801 | INFO     | __main__:main:2014 -   Confidence threshold: 0.3293
+2026-02-22 06:54:31.814 | SUCCESS  | __main__:main:2285 - Saved evaluation report to reports_strict/model_eval_20260222_065431.json
+2026-02-22 06:54:32.024 | SUCCESS  | __main__:main:2301 - Saved calibration plot to reports_strict/calibration_20260222_065431.png
+2026-02-22 06:54:32.149 | SUCCESS  | __main__:main:2317 - Saved ROC plot to reports_strict/roc_20260222_065431.png
+2026-02-22 06:54:32.149 | INFO     | __main__:main:2323 - Running baseline comparison...
+2026-02-22 06:54:32.227 | INFO     | __main__:main:348 - Loading baseline from /Users/tylerbohan/code/ufc_ml_agents/agent_loop/models/original_baseline.json
+2026-02-22 06:54:32.231 | INFO     | __main__:main:351 - Loading current evaluation from reports_strict/model_eval_20260222_065431.json
+2026-02-22 06:54:32.231 | INFO     | __main__:main:355 - Running comparisons...
+2026-02-22 06:54:32.236 | SUCCESS  | __main__:main:478 - Saved comparison report to reports_strict/comparison_report_20260222_065431.json
+2026-02-22 06:54:32.243 | WARNING  | __main__:main:2355 - Baseline comparison returned REJECT verdict

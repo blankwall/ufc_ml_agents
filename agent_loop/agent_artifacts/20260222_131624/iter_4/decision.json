@@ -1,0 +1,28 @@
+{
+  "decision": "revert",
+  "reasoning": "Iteration 4 failed completely - it was supposed to restore baseline performance by adding back the 3 removed features with 0 constraints, but the results are IDENTICAL to iteration 3 (which had those constraints removed). The model shows catastrophic underdog collapse (-3.52% accuracy, -0.30 ROI), +250_plus odds band implosion (47.1% to 22.2% accuracy), and overall degradation (-3.03% accuracy). While Top 25% improved (+5.48%), underdog performance is the top priority and this degradation is unacceptable. The fix did not work.",
+  "key_considerations": [
+    "The restore-constraints fix completely failed - results are identical to iteration 3",
+    "Underdog ROI collapsed from 0.33 to 0.03 (-0.30 or -91% degradation)",
+    "Underdog accuracy degraded 3.52% (exceeds 2% threshold)",
+    "+250_plus odds band catastrophic collapse: accuracy 47.1% to 22.2%, ROI 0.92 to -0.16",
+    "All underdog confidence buckets regressed (bottom 75%: -0.041 accuracy, -0.30 ROI)",
+    "Overall accuracy degraded 3.03%, AUC degraded 2.56%, Brier score degraded",
+    "Top 25% and Top 10% accuracy improved significantly but at unacceptable cost",
+    "The model became extremely polarized: excellent high-confidence predictions but catastrophic broad performance"
+  ],
+  "metrics_considered": {
+    "underdog_accuracy_delta": -0.0352,
+    "underdog_roi_bottom_75_delta": -0.30,
+    "underdog_roi_top_25_delta": -0.13,
+    "top_25_accuracy_delta": 0.0548,
+    "top_10_accuracy_delta": 0.0334,
+    "overall_accuracy_delta": -0.0303,
+    "favorites_accuracy_delta": -0.0258,
+    "auc_delta": -0.0256,
+    "brier_delta": 0.0023
+  },
+  "tradeoffs": "The change completely failed to achieve its intended effect. Adding back the 3 features with 0 constraints did NOT restore baseline performance - the model shows identical catastrophic underdog collapse as when those constraints were removed. Top 25% improvement is meaningless given underdog priority collapse.",
+  "next_steps": "Abandon constraint manipulation entirely. The relationship between these 3 features, constraints, and model behavior is not well understood. Iteration 4 proved that adding back constraints at 0 does NOT restore previous behavior. Focus exclusively on regularization hyperparameters (lambda, min_child_weight, max_depth, subsample, colsample_bytree) to improve Top 25% while preserving underdog performance from the TRUE baseline (before iteration 3).",
+  "lessons_learned": "Adding back features with 0 constraints does NOT restore previous model behavior - this approach is not reversible. The 3 features (num_common_opponents, orthodox_vs_orthodox, southpaw_vs_southpaw) appear to interact with the model in ways that are not well understood. Once constraints are removed, adding them back at 0 does not undo the damage. Future iterations must avoid constraint manipulation and focus on regularization hyperparameters instead. We need to revert to the pre-iteration 3 baseline and proceed with a different approach."
+}

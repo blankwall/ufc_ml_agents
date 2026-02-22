@@ -1,0 +1,1252 @@
+# Code Diff for Iteration 3
+# Generated: 2026-02-22T07:42:18.499351
+# Backup: /Users/tylerbohan/code/ufc_ml_agents/agent_loop/agent_artifacts/20260222_131624/backups/iter_3_code_before
+
+=== schema/feature_schema.json ===
+diff --git a/schema/feature_schema.json b/schema/feature_schema.json
+index 3314fe2..143b479 100644
+--- a/schema/feature_schema.json
++++ b/schema/feature_schema.json
+@@ -1,6 +1,6 @@
+ {
+   "version": "1.0.0",
+-  "num_features": 250,
++  "num_features": 146,
+   "features": [
+     "age_difference",
+     "age_weighted_recent_damage_diff",
+@@ -8,27 +8,14 @@
+     "age_x_elite_experience_diff",
+     "age_x_fights_in_last_year_diff",
+     "age_x_fights_since_last_win_diff",
+-    "age_x_recent_sig_strike_diff_last_3_diff",
+     "age_x_recent_vs_career_decline_diff",
+     "age_x_years_since_last_fight_diff",
+     "avg_beaten_opponent_win_rate_diff",
+-    "avg_opponent_win_rate_diff",
+-    "both_finishers",
+-    "both_grapplers",
+-    "both_strikers",
+-    "common_opponent_performance_diff",
+-    "decision_losses_since_last_win_diff",
+     "defensive_fight",
+     "durability_collapse_diff",
+     "early_finish_advantage_diff",
+-    "early_finish_rate_last_3_diff",
+-    "early_finish_rate_last_5_diff",
+     "experience_difference",
+-    "f1_activity_rate",
+     "f1_age",
+-    "f1_age_in_prime",
+-    "f1_age_past_prime",
+-    "f1_age_x_days_since_last_fight",
+     "f1_age_x_fights_in_last_year",
+     "f1_age_x_fights_since_last_win",
+     "f1_age_x_recent_vs_career_decline",
+@@ -38,51 +25,26 @@
+     "f1_avg_beaten_opponent_win_rate",
+     "f1_avg_fight_duration_rounds",
+     "f1_avg_lost_to_opponent_win_rate",
+-    "f1_avg_opponent_total_fights",
+-    "f1_avg_opponent_win_rate",
+-    "f1_current_loss_streak",
+-    "f1_current_win_streak",
+     "f1_days_between_last_2_fights",
+     "f1_days_since_last_fight",
+-    "f1_decision_losses_since_last_win",
+     "f1_decision_rate",
+-    "f1_draws",
+     "f1_early_finish_advantage",
+-    "f1_early_finish_rate_last_3",
+-    "f1_early_finish_rate_last_5",
+     "f1_fights_in_last_year",
+-    "f1_fights_since_last_win",
+-    "f1_finish_losses_since_last_win",
+-    "f1_finish_rate",
+-    "f1_finish_rate_last_3",
+-    "f1_finish_rate_last_3_years",
+-    "f1_finish_rate_last_5",
+     "f1_first_round_finish_rate",
+-    "f1_first_round_ko_rate",
+     "f1_has_ever_won",
+     "f1_has_fight_history",
+     "f1_height_cm",
+     "f1_ko_rate",
+-    "f1_ko_rate_last_3",
+-    "f1_ko_rate_last_5",
+-    "f1_long_layoff_over_1yr",
+     "f1_long_layoff_over_2yr",
+     "f1_losses",
+-    "f1_losses_last_3_years",
+-    "f1_losses_since_last_win",
+-    "f1_opponent_quality_score",
+     "f1_performance_trend",
+     "f1_power_striker_score",
+     "f1_prospect_momentum_score",
+     "f1_reach_inches",
+-    "f1_recent_control_time_diff_last_3",
+     "f1_recent_control_time_sec_last_3",
+-    "f1_recent_finish_loss_last_fight",
+     "f1_recent_finish_loss_ratio_last_2",
+-    "f1_recent_finish_losses_last_2",
+     "f1_recent_form_quality_adjusted",
+-    "f1_recent_knockdown_diff_last_3",
+-    "f1_recent_losses_last_2",
++    "f1_recent_improvement_score",
+     "f1_recent_sig_strike_diff_last_3",
+     "f1_recent_vs_career_win_rate",
+     "f1_round_3_fight_rate",
+@@ -91,31 +53,18 @@
+     "f1_round_3_win_rate",
+     "f1_sig_strikes_landed_per_min",
+     "f1_sig_strikes_landed_per_min_lifetime",
+-    "f1_stance_orthodox",
+-    "f1_stance_southpaw",
+-    "f1_stance_switch",
+-    "f1_striking_accuracy",
+-    "f1_striking_differential",
+     "f1_striking_volume_control",
+     "f1_submission_rate",
+     "f1_time_decayed_finish_rate",
+     "f1_time_decayed_ko_rate",
+-    "f1_time_decayed_win_rate",
+     "f1_time_decayed_win_rate_adj_opp_quality",
+     "f1_title_fight_experience",
+     "f1_total_fights",
+-    "f1_weight_lbs",
+-    "f1_win_rate_last_3",
++    "f1_underdog_specialization_advantage",
++    "f1_underdog_upset_potential",
+     "f1_win_rate_last_3_years",
+-    "f1_win_rate_last_5",
+     "f1_wins",
+-    "f1_wins_last_3_years",
+-    "f1_youth_form_score",
+-    "f2_activity_rate",
+     "f2_age",
+-    "f2_age_in_prime",
+-    "f2_age_past_prime",
+-    "f2_age_x_days_since_last_fight",
+     "f2_age_x_fights_in_last_year",
+     "f2_age_x_fights_since_last_win",
+     "f2_age_x_recent_vs_career_decline",
+@@ -125,51 +74,27 @@
+     "f2_avg_beaten_opponent_win_rate",
+     "f2_avg_fight_duration_rounds",
+     "f2_avg_lost_to_opponent_win_rate",
+-    "f2_avg_opponent_total_fights",
+-    "f2_avg_opponent_win_rate",
+-    "f2_current_loss_streak",
+-    "f2_current_win_streak",
+     "f2_days_between_last_2_fights",
+     "f2_days_since_last_fight",
+-    "f2_decision_losses_since_last_win",
+     "f2_decision_rate",
+-    "f2_draws",
+     "f2_early_finish_advantage",
+-    "f2_early_finish_rate_last_3",
+-    "f2_early_finish_rate_last_5",
+     "f2_fights_in_last_year",
+-    "f2_fights_since_last_win",
+-    "f2_finish_losses_since_last_win",
+-    "f2_finish_rate",
+-    "f2_finish_rate_last_3",
+-    "f2_finish_rate_last_3_years",
+-    "f2_finish_rate_last_5",
+     "f2_first_round_finish_rate",
+-    "f2_first_round_ko_rate",
+     "f2_has_ever_won",
+     "f2_has_fight_history",
+     "f2_height_cm",
+     "f2_ko_rate",
+-    "f2_ko_rate_last_3",
+-    "f2_ko_rate_last_5",
+     "f2_long_layoff_over_1yr",
+     "f2_long_layoff_over_2yr",
+     "f2_losses",
+-    "f2_losses_last_3_years",
+-    "f2_losses_since_last_win",
+-    "f2_opponent_quality_score",
+     "f2_performance_trend",
+     "f2_power_striker_score",
+     "f2_prospect_momentum_score",
+     "f2_reach_inches",
+-    "f2_recent_control_time_diff_last_3",
+     "f2_recent_control_time_sec_last_3",
+-    "f2_recent_finish_loss_last_fight",
+     "f2_recent_finish_loss_ratio_last_2",
+-    "f2_recent_finish_losses_last_2",
+     "f2_recent_form_quality_adjusted",
+-    "f2_recent_knockdown_diff_last_3",
+-    "f2_recent_losses_last_2",
++    "f2_recent_improvement_score",
+     "f2_recent_sig_strike_diff_last_3",
+     "f2_recent_vs_career_win_rate",
+     "f2_round_3_fight_rate",
+@@ -178,63 +103,36 @@
+     "f2_round_3_win_rate",
+     "f2_sig_strikes_landed_per_min",
+     "f2_sig_strikes_landed_per_min_lifetime",
+-    "f2_stance_orthodox",
+-    "f2_stance_southpaw",
+-    "f2_stance_switch",
+-    "f2_striking_accuracy",
+-    "f2_striking_differential",
+     "f2_striking_volume_control",
+     "f2_submission_rate",
+     "f2_time_decayed_finish_rate",
+     "f2_time_decayed_ko_rate",
+-    "f2_time_decayed_win_rate",
+     "f2_time_decayed_win_rate_adj_opp_quality",
+     "f2_title_fight_experience",
+     "f2_total_fights",
+-    "f2_weight_lbs",
+-    "f2_win_rate_last_3",
++    "f2_underdog_specialization_advantage",
++    "f2_underdog_upset_potential",
+     "f2_win_rate_last_3_years",
+-    "f2_win_rate_last_5",
+     "f2_wins",
+-    "f2_wins_last_3_years",
+-    "f2_youth_form_score",
+-    "fights_since_last_win_diff",
+-    "finish_losses_since_last_win_diff",
+-    "finish_rate_diff",
+-    "finish_rate_last_3_years_diff",
+     "first_round_finish_rate_diff",
+-    "first_round_ko_rate_diff",
+     "has_ever_won_diff",
+     "height_advantage",
+     "is_title_fight",
+     "long_layoff_over_1yr_diff",
+     "long_layoff_over_2yr_diff",
+-    "losses_last_3_years_diff",
+-    "losses_since_last_win_diff",
+-    "num_common_opponents",
+-    "opponent_quality_score_diff",
+     "opponent_quality_score_diff_squared",
+-    "orthodox_vs_orthodox",
+     "orthodox_vs_southpaw",
+-    "power_striker_matchup",
+     "power_striker_score_diff",
+     "prospect_momentum_score_diff",
+     "reach_advantage",
+-    "recent_control_time_diff_last_3_diff",
+     "recent_control_time_sec_last_3_diff",
+-    "recent_finish_loss_last_fight_diff",
+     "recent_finish_loss_ratio_last_2_diff",
+-    "recent_finish_losses_last_2_diff",
+-    "recent_form_diff",
+     "recent_form_quality_adjusted_diff",
+-    "recent_knockdown_diff_last_3_diff",
++    "recent_improvement_score_diff",
+     "recent_sig_strike_diff_last_3_diff",
+     "recent_vs_career_win_rate_diff",
+     "round_3_performance_diff",
+     "round_3_win_rate_diff",
+-    "southpaw_vs_southpaw",
+-    "striker_vs_grappler",
+-    "striking_accuracy_diff",
+     "striking_accuracy_x_opponent_quality_diff",
+     "striking_differential",
+     "striking_differential_x_opponent_quality_diff",
+@@ -246,11 +144,9 @@
+     "time_decayed_finish_rate_diff",
+     "time_decayed_ko_rate_diff",
+     "time_decayed_win_rate_adj_opp_quality_diff",
+-    "time_decayed_win_rate_diff",
+     "time_decayed_win_rate_x_opponent_quality_diff",
++    "underdog_specialization_advantage_diff",
+     "win_rate_last_3_years_diff",
+-    "win_streak_diff",
+-    "wins_last_3_years_diff",
+-    "youth_form_score_diff"
++    "win_streak_diff"
+   ]
+ }
+\ No newline at end of file
+
+=== schema/monotone_constraints.json ===
+diff --git a/schema/monotone_constraints.json b/schema/monotone_constraints.json
+index 48295a5..c5c19f6 100644
+--- a/schema/monotone_constraints.json
++++ b/schema/monotone_constraints.json
+@@ -1,316 +1,137 @@
+ {
+-  "version": "1.0.0",
+-  "num_features": 309,
++  "version": "1.2.0",
++  "num_features": 130,
+   "default": 0,
+   "constraints": {
++    "age_difference": 0,
++    "age_weighted_recent_damage_diff": 0,
++    "age_x_days_since_last_fight_diff": 0,
+     "age_x_elite_experience_diff": 1,
+-    "age_x_recent_sig_strike_diff_last_3_diff": 1,
++    "age_x_fights_in_last_year_diff": 0,
++    "age_x_fights_since_last_win_diff": 0,
++    "age_x_years_since_last_fight_diff": 0,
++    "avg_beaten_opponent_win_rate_diff": 0,
++    "defensive_fight": 0,
++    "durability_collapse_diff": 0,
++    "early_finish_advantage_diff": 0,
++    "experience_difference": 0,
+     "f1_age": 0,
+-    "f1_height_cm": 0,
+-    "f1_weight_lbs": 0,
+-    "f1_reach_inches": 0,
+-    "f1_age_in_prime": 0,
+-    "f1_age_past_prime": 0,
+-    "f1_stance_orthodox": 0,
+-    "f1_stance_southpaw": 0,
+-    "f1_stance_switch": 0,
+-    "f1_sig_strikes_landed_per_min": 0,
+-    "f1_striking_accuracy": 0,
+-    "f1_striking_defense": 0,
+-    "f1_striking_differential": 0,
+-    "f1_defensive_efficiency": 0,
+-    "f1_striking_volume_control": 0,
+-    "f1_distance_accuracy_last_3": 0,
+-    "f1_clinch_accuracy_last_3": 0,
+-    "f1_ground_output_per_min_last_3": 0,
+-    "f1_leg_strike_rate_last_3": 0,
+-    "f1_knockdowns_last_3": 0,
+-    "f1_striking_accuracy_last_3": 0,
+-    "f1_sig_strikes_landed_per_min_last_3": 0,
+-    "f1_head_strike_rate_last_3": 0,
+-    "f1_body_strike_rate_last_3": 0,
+-    "f1_ground_strike_rate_last_3": 0,
+-    "f1_distance_strike_rate_last_3": 0,
+-    "f1_distance_accuracy_lifetime": 0,
+-    "f1_clinch_accuracy_lifetime": 0,
+-    "f1_ground_output_per_min_lifetime": 0,
+-    "f1_leg_strike_rate_lifetime": 0,
+-    "f1_knockdowns_lifetime": 0,
+-    "f1_head_strike_rate_lifetime": 0,
+-    "f1_body_strike_rate_lifetime": 0,
+-    "f1_ground_strike_rate_lifetime": 0,
+-    "f1_distance_strike_rate_lifetime": 0,
+-    "f1_sig_strikes_landed_per_min_lifetime": 0,
+-    "f1_striking_accuracy_lifetime": 0,
+-    "f1_takedown_avg_per_15min": 0,
+-    "f1_takedown_accuracy": 0,
+-    "f1_takedown_defense": 0,
+-    "f1_submission_avg_per_15min": 0,
+-    "f1_total_fights": 0,
+-    "f1_wins": 0,
+-    "f1_losses": 0,
+-    "f1_draws": 0,
+-    "f1_has_fight_history": 0,
+-    "f1_finish_rate": 0,
+-    "f1_ko_rate": 0,
+-    "f1_submission_rate": 0,
+-    "f1_decision_rate": 0,
+-    "f1_title_fight_experience": 0,
++    "f1_age_x_fights_in_last_year": 0,
++    "f1_age_x_fights_since_last_win": 0,
++    "f1_age_x_years_since_last_fight": 0,
++    "f1_athleticism_decline": 0,
++    "f1_avg_beaten_opponent_total_fights": 0,
++    "f1_avg_beaten_opponent_win_rate": 0,
+     "f1_avg_fight_duration_rounds": 0,
++    "f1_avg_lost_to_opponent_win_rate": 0,
++    "f1_days_between_last_2_fights": 0,
++    "f1_days_since_last_fight": 0,
++    "f1_decision_rate": 0,
++    "f1_early_finish_advantage": 0,
+     "f1_first_round_finish_rate": 0,
+-    "f1_first_round_ko_rate": 0,
+-    "f1_early_finish_rate_last_3": 0,
+-    "f1_early_finish_rate_last_5": 0,
++    "f1_has_fight_history": 0,
++    "f1_height_cm": 0,
++    "f1_ko_rate": 0,
++    "f1_long_layoff_over_2yr": 0,
++    "f1_losses": 0,
++    "f1_performance_trend": 0,
++    "f1_power_striker_score": 0,
++    "f1_prospect_momentum_score": 0,
++    "f1_reach_inches": 0,
++    "f1_recent_control_time_sec_last_3": 0,
++    "f1_recent_finish_loss_ratio_last_2": 0,
++    "f1_recent_form_quality_adjusted": 1,
++    "f1_recent_improvement_score": 0,
++    "f1_recent_sig_strike_diff_last_3": 0,
++    "f1_recent_vs_career_win_rate": 0,
+     "f1_round_3_fight_rate": 0,
+-    "f1_round_3_win_rate": 0,
+     "f1_round_3_finish_rate": 0,
+     "f1_round_3_performance_score": 0,
+-    "f1_win_rate_last_3": 0,
+-    "f1_finish_rate_last_3": 0,
+-    "f1_ko_rate_last_3": 0,
+-    "f1_win_rate_last_5": 0,
+-    "f1_finish_rate_last_5": 0,
+-    "f1_ko_rate_last_5": 0,
+-    "f1_performance_trend": 0,
+-    "f1_athleticism_decline": 0,
+-    "f1_current_win_streak": 0,
+-    "f1_current_loss_streak": 0,
+-    "f1_fights_in_last_year": 0,
+-    "f1_activity_rate": 0,
+-    "f1_days_since_last_fight": 0,
+-    "f1_days_between_last_2_fights": 0,
+-    "f1_long_layoff_over_1yr": 0,
+-    "f1_long_layoff_over_2yr": 0,
+-    "f1_fights_since_last_win": 0,
+-    "f1_years_since_last_win": -1,
+-    "f1_has_ever_won": 0,
+-    "f1_losses_since_last_win": 0,
+-    "f1_decision_losses_since_last_win": 0,
+-    "f1_finish_losses_since_last_win": 0,
+-    "f1_recent_vs_career_win_rate": 0,
+-    "f1_win_rate_last_3_years": 0,
+-    "f1_wins_last_3_years": 0,
+-    "f1_losses_last_3_years": 0,
+-    "f1_finish_rate_last_3_years": 0,
+-    "f1_recent_losses_last_2": 0,
+-    "f1_recent_finish_losses_last_2": 0,
+-    "f1_recent_finish_loss_last_fight": 0,
+-    "f1_recent_finish_loss_ratio_last_2": 0,
+-    "f1_time_decayed_win_rate": 0,
++    "f1_round_3_win_rate": 0,
++    "f1_sig_strikes_landed_per_min": 0,
++    "f1_sig_strikes_landed_per_min_lifetime": 0,
++    "f1_striking_volume_control": 0,
++    "f1_submission_rate": 0,
+     "f1_time_decayed_finish_rate": 0,
+     "f1_time_decayed_ko_rate": 0,
+     "f1_time_decayed_win_rate_adj_opp_quality": 1,
+-    "f1_recent_form_quality_adjusted": 1,
+-    "f1_avg_opponent_win_rate": 0,
+-    "f1_avg_beaten_opponent_win_rate": 0,
+-    "f1_avg_lost_to_opponent_win_rate": 0,
+-    "f1_avg_opponent_total_fights": 0,
+-    "f1_avg_beaten_opponent_total_fights": 0,
+-    "f1_opponent_quality_score": 1,
+-    "f1_age_x_years_since_last_win": 0,
+-    "f1_age_x_fights_since_last_win": 0,
+-    "f1_age_x_recent_vs_career_decline": 0,
+-    "f1_age_x_days_since_last_fight": 0,
+-    "f1_age_x_years_since_last_fight": 0,
+-    "f1_age_x_fights_in_last_year": 0,
+-    "f1_youth_form_score": 0,
+-    "f1_prospect_momentum_score": 0,
+-    "f1_early_finish_advantage": 0,
+-    "f1_power_striker_score": 0,
+-    "f1_recent_sig_strike_diff_last_3": 0,
+-    "f1_recent_knockdown_diff_last_3": 0,
+-    "f1_recent_control_time_sec_last_3": 0,
+-    "f1_recent_control_time_diff_last_3": 0,
++    "f1_title_fight_experience": 0,
++    "f1_total_fights": 0,
++    "f1_win_rate_last_3_years": 0,
++    "f1_wins": 0,
+     "f2_age": 0,
+-    "f2_height_cm": 0,
+-    "f2_weight_lbs": 0,
+-    "f2_reach_inches": 0,
+-    "f2_age_in_prime": 0,
+-    "f2_age_past_prime": 0,
+-    "f2_stance_orthodox": 0,
+-    "f2_stance_southpaw": 0,
+-    "f2_stance_switch": 0,
+-    "f2_sig_strikes_landed_per_min": 0,
+-    "f2_striking_accuracy": 0,
+-    "f2_striking_defense": 0,
+-    "f2_striking_differential": 0,
+-    "f2_defensive_efficiency": 0,
+-    "f2_striking_volume_control": 0,
+-    "f2_distance_accuracy_last_3": 0,
+-    "f2_clinch_accuracy_last_3": 0,
+-    "f2_ground_output_per_min_last_3": 0,
+-    "f2_leg_strike_rate_last_3": 0,
+-    "f2_knockdowns_last_3": 0,
+-    "f2_striking_accuracy_last_3": 0,
+-    "f2_sig_strikes_landed_per_min_last_3": 0,
+-    "f2_head_strike_rate_last_3": 0,
+-    "f2_body_strike_rate_last_3": 0,
+-    "f2_ground_strike_rate_last_3": 0,
+-    "f2_distance_strike_rate_last_3": 0,
+-    "f2_distance_accuracy_lifetime": 0,
+-    "f2_clinch_accuracy_lifetime": 0,
+-    "f2_ground_output_per_min_lifetime": 0,
+-    "f2_leg_strike_rate_lifetime": 0,
+-    "f2_knockdowns_lifetime": 0,
+-    "f2_head_strike_rate_lifetime": 0,
+-    "f2_body_strike_rate_lifetime": 0,
+-    "f2_ground_strike_rate_lifetime": 0,
+-    "f2_distance_strike_rate_lifetime": 0,
+-    "f2_sig_strikes_landed_per_min_lifetime": 0,
+-    "f2_striking_accuracy_lifetime": 0,
+-    "f2_takedown_avg_per_15min": 0,
+-    "f2_takedown_accuracy": 0,
+-    "f2_takedown_defense": 0,
+-    "f2_submission_avg_per_15min": 0,
+-    "f2_total_fights": 0,
+-    "f2_wins": 0,
+-    "f2_losses": 0,
+-    "f2_draws": 0,
+-    "f2_has_fight_history": 0,
+-    "f2_finish_rate": 0,
+-    "f2_ko_rate": 0,
+-    "f2_submission_rate": 0,
+-    "f2_decision_rate": 0,
+-    "f2_title_fight_experience": 0,
++    "f2_age_x_fights_in_last_year": 0,
++    "f2_age_x_fights_since_last_win": 0,
++    "f2_age_x_years_since_last_fight": 0,
++    "f2_athleticism_decline": 0,
++    "f2_avg_beaten_opponent_total_fights": 0,
++    "f2_avg_beaten_opponent_win_rate": 0,
+     "f2_avg_fight_duration_rounds": 0,
++    "f2_avg_lost_to_opponent_win_rate": 0,
++    "f2_days_between_last_2_fights": 0,
++    "f2_days_since_last_fight": 0,
++    "f2_decision_rate": 0,
++    "f2_early_finish_advantage": 0,
+     "f2_first_round_finish_rate": 0,
+-    "f2_first_round_ko_rate": 0,
+-    "f2_early_finish_rate_last_3": 0,
+-    "f2_early_finish_rate_last_5": 0,
++    "f2_has_fight_history": 0,
++    "f2_height_cm": 0,
++    "f2_ko_rate": 0,
++    "f2_long_layoff_over_2yr": 0,
++    "f2_losses": 0,
++    "f2_performance_trend": 0,
++    "f2_power_striker_score": 0,
++    "f2_prospect_momentum_score": 0,
++    "f2_reach_inches": 0,
++    "f2_recent_control_time_sec_last_3": 0,
++    "f2_recent_finish_loss_ratio_last_2": 0,
++    "f2_recent_form_quality_adjusted": 1,
++    "f2_recent_improvement_score": 0,
++    "f2_recent_sig_strike_diff_last_3": 0,
++    "f2_recent_vs_career_win_rate": 0,
+     "f2_round_3_fight_rate": 0,
+-    "f2_round_3_win_rate": 0,
+     "f2_round_3_finish_rate": 0,
+     "f2_round_3_performance_score": 0,
+-    "f2_win_rate_last_3": 0,
+-    "f2_finish_rate_last_3": 0,
+-    "f2_ko_rate_last_3": 0,
+-    "f2_win_rate_last_5": 0,
+-    "f2_finish_rate_last_5": 0,
+-    "f2_ko_rate_last_5": 0,
+-    "f2_performance_trend": 0,
+-    "f2_athleticism_decline": 0,
+-    "f2_current_win_streak": 0,
+-    "f2_current_loss_streak": 0,
+-    "f2_fights_in_last_year": 0,
+-    "f2_activity_rate": 0,
+-    "f2_days_since_last_fight": 0,
+-    "f2_days_between_last_2_fights": 0,
+-    "f2_long_layoff_over_1yr": 0,
+-    "f2_long_layoff_over_2yr": 0,
+-    "f2_fights_since_last_win": 0,
+-    "f2_years_since_last_win": -1,
+-    "f2_has_ever_won": 0,
+-    "f2_losses_since_last_win": 0,
+-    "f2_decision_losses_since_last_win": 0,
+-    "f2_finish_losses_since_last_win": 0,
+-    "f2_recent_vs_career_win_rate": 0,
+-    "f2_win_rate_last_3_years": 0,
+-    "f2_wins_last_3_years": 0,
+-    "f2_losses_last_3_years": 0,
+-    "f2_finish_rate_last_3_years": 0,
+-    "f2_recent_losses_last_2": 0,
+-    "f2_recent_finish_losses_last_2": 0,
+-    "f2_recent_finish_loss_last_fight": 0,
+-    "f2_recent_finish_loss_ratio_last_2": 0,
+-    "f2_time_decayed_win_rate": 0,
++    "f2_round_3_win_rate": 0,
++    "f2_sig_strikes_landed_per_min": 0,
++    "f2_sig_strikes_landed_per_min_lifetime": 0,
++    "f2_striking_volume_control": 0,
++    "f2_submission_rate": 0,
+     "f2_time_decayed_finish_rate": 0,
+     "f2_time_decayed_ko_rate": 0,
+     "f2_time_decayed_win_rate_adj_opp_quality": 1,
+-    "f2_recent_form_quality_adjusted": 1,
+-    "f2_avg_opponent_win_rate": 0,
+-    "f2_avg_beaten_opponent_win_rate": 0,
+-    "f2_avg_lost_to_opponent_win_rate": 0,
+-    "f2_avg_opponent_total_fights": 0,
+-    "f2_avg_beaten_opponent_total_fights": 0,
+-    "f2_opponent_quality_score": 1,
+-    "f2_age_x_years_since_last_win": 0,
+-    "f2_age_x_fights_since_last_win": 0,
+-    "f2_age_x_recent_vs_career_decline": 0,
+-    "f2_age_x_days_since_last_fight": 0,
+-    "f2_age_x_years_since_last_fight": 0,
+-    "f2_age_x_fights_in_last_year": 0,
+-    "f2_youth_form_score": 0,
+-    "f2_prospect_momentum_score": 0,
+-    "f2_early_finish_advantage": 0,
+-    "f2_power_striker_score": 0,
+-    "f2_recent_sig_strike_diff_last_3": 0,
+-    "f2_recent_knockdown_diff_last_3": 0,
+-    "f2_recent_control_time_sec_last_3": 0,
+-    "f2_recent_control_time_diff_last_3": 0,
++    "f2_title_fight_experience": 0,
++    "f2_total_fights": 0,
++    "f2_win_rate_last_3_years": 0,
++    "f2_wins": 0,
++    "first_round_finish_rate_diff": 0,
+     "height_advantage": 0,
++    "is_title_fight": 0,
++    "long_layoff_over_2yr_diff": 0,
++    "opponent_quality_score_diff_squared": 1,
++    "power_striker_score_diff": 0,
++    "prospect_momentum_score_diff": 1,
+     "reach_advantage": 0,
+-    "age_difference": 0,
+-    "experience_difference": 0,
+-    "striking_output_diff": 0,
+-    "striking_accuracy_diff": 0,
+-    "striking_defense_diff": 0,
+-    "striking_differential": 0,
++    "recent_control_time_sec_last_3_diff": 0,
++    "recent_finish_loss_ratio_last_2_diff": 0,
++    "recent_form_quality_adjusted_diff": 1,
++    "recent_improvement_score_diff": 1,
++    "recent_sig_strike_diff_last_3_diff": 0,
++    "recent_vs_career_win_rate_diff": 0,
++    "round_3_performance_diff": 0,
++    "round_3_win_rate_diff": 0,
++    "striking_accuracy_x_opponent_quality_diff": 1,
++    "striking_differential": 1,
+     "striking_differential_x_opponent_quality_diff": 1,
++    "striking_output_diff": 0,
+     "striking_volume_control_x_opponent_quality_diff": 1,
+-    "striking_accuracy_x_opponent_quality_diff": 1,
+-    "time_decayed_win_rate_x_opponent_quality_diff": 1,
++    "style_volatility_mismatch_diff": 0,
+     "takedown_ability_diff": 0,
+-    "takedown_defense_diff": 0,
+     "takedown_matchup": 0,
+-    "recent_form_diff": 0,
+-    "win_streak_diff": 0,
+-    "finish_rate_diff": 0,
+-    "round_3_performance_diff": 0,
+-    "round_3_win_rate_diff": 0,
+-    "avg_opponent_win_rate_diff": 0,
+-    "avg_beaten_opponent_win_rate_diff": 0,
+-    "opponent_quality_score_diff": 1,
+-    "opponent_quality_score_diff_squared": 1,
+-    "fights_since_last_win_diff": 0,
+-    "years_since_last_win_diff": 0,
+-    "has_ever_won_diff": 0,
+-    "losses_since_last_win_diff": 0,
+-    "decision_losses_since_last_win_diff": 0,
+-    "finish_losses_since_last_win_diff": 0,
+-    "recent_vs_career_win_rate_diff": 0,
+-    "recent_finish_losses_last_2_diff": 0,
+-    "recent_finish_loss_last_fight_diff": 0,
+-    "recent_finish_loss_ratio_last_2_diff": 0,
+-    "recent_sig_strike_diff_last_3_diff": 0,
+-    "recent_knockdown_diff_last_3_diff": 0,
+-    "recent_control_time_sec_last_3_diff": 0,
+-    "recent_control_time_diff_last_3_diff": 0,
+-    "win_rate_last_3_years_diff": 0,
+-    "wins_last_3_years_diff": 0,
+-    "losses_last_3_years_diff": 0,
+-    "finish_rate_last_3_years_diff": 0,
+-    "long_layoff_over_1yr_diff": 0,
+-    "long_layoff_over_2yr_diff": 0,
+-    "first_round_finish_rate_diff": 0,
+-    "first_round_ko_rate_diff": 0,
+-    "early_finish_rate_last_3_diff": 0,
+-    "early_finish_rate_last_5_diff": 0,
+-    "youth_form_score_diff": 0,
+-    "prospect_momentum_score_diff": 0,
+-    "early_finish_advantage_diff": 0,
+-    "power_striker_score_diff": 0,
+-    "time_decayed_win_rate_diff": 0,
+-    "time_decayed_win_rate_adj_opp_quality_diff": 1,
+-    "recent_form_quality_adjusted_diff": 1,
+     "time_decayed_finish_rate_diff": 0,
+     "time_decayed_ko_rate_diff": 0,
+-    "age_x_years_since_last_win_diff": 0,
+-    "age_x_fights_since_last_win_diff": 0,
+-    "age_x_recent_vs_career_decline_diff": 0,
+-    "age_x_days_since_last_fight_diff": 0,
+-    "age_x_years_since_last_fight_diff": 0,
+-    "age_x_fights_in_last_year_diff": 0,
+-    "both_strikers": 0,
+-    "both_grapplers": 0,
+-    "striker_vs_grappler": 0,
+-    "orthodox_vs_orthodox": 0,
+-    "southpaw_vs_southpaw": 0,
+-    "orthodox_vs_southpaw": 0,
+-    "both_finishers": 0,
+-    "power_striker_matchup": 0,
+-    "defensive_fight": 0,
+-    "num_common_opponents": 0,
+-    "common_opponent_performance_diff": 0,
+-    "is_title_fight": 0
++    "time_decayed_win_rate_adj_opp_quality_diff": 1,
++    "time_decayed_win_rate_x_opponent_quality_diff": 1,
++    "win_rate_last_3_years_diff": 0,
++    "win_streak_diff": 0
+   }
+-}
+\ No newline at end of file
++}
+
+=== features/feature_exclusions.py ===
+diff --git a/features/feature_exclusions.py b/features/feature_exclusions.py
+index ceb4433..a8bba21 100644
+--- a/features/feature_exclusions.py
++++ b/features/feature_exclusions.py
+@@ -30,7 +30,18 @@ EXCLUDED_BASE_FEATURES: List[str] = [
+     # "early_finish_advantage",
+     "years_since_last_win",
+     "age_x_years_since_last_win",
+-    "age_x_recent_sig_strike_diff_last_3"
++    "age_x_recent_sig_strike_diff_last_3",
++
++    # Iteration 1: Remove low-importance binary features to reduce overfitting
++    "stance_orthodox",
++    "stance_southpaw",
++    "stance_switch",
++    "both_grapplers",
++    "both_strikers",
++    "both_finishers",
++    "draws",
++    "age_in_prime",
++    "age_past_prime",
+ 
+ # Striking stats
+     # "sig_strikes_landed_per_min",
+@@ -66,7 +77,81 @@ EXCLUDED_BASE_FEATURES: List[str] = [
+     "takedown_avg_per_15min",
+     "takedown_accuracy",
+     "takedown_defense",
+-    "submission_avg_per_15min"
++    "submission_avg_per_15min",
++
++    # Iteration 1: Remove near-zero importance features (importance < 3)
++    # These 27 base features (generating 32+ columns) contribute minimal signal
++    # and create overfitting noise. Removing them targets both top_25_pct and
++    # underdog performance by cleaning the feature space.
++    "common_opponent_performance",
++    "current_loss_streak",
++    "current_win_streak",
++    "decision_losses_since_last_win",
++    "early_finish_rate_last_3",
++    "early_finish_rate_last_5",
++    "fights_since_last_win",
++    "finish_losses_since_last_win",
++    "finish_rate",
++    "finish_rate_last_3",
++    "finish_rate_last_3_years",
++    "finish_rate_last_5",
++    "first_round_ko_rate",
++    "ko_rate_last_5",
++    "losses_last_3_years",
++    "losses_since_last_win",
++    "opponent_quality_score",
++    "power_striker_matchup",
++    "recent_finish_loss_last_fight",
++    "recent_finish_losses_last_2",
++    "recent_form",
++    "recent_knockdown_diff_last_3",
++    "striker_vs_grappler",
++    "weight_lbs",
++    "win_rate_last_3",
++    "win_rate_last_5",
++    "wins_last_3_years",
++
++    # Iteration 2: Remove redundant opponent quality and control time features
++    # Keep only adjusted version of time_decayed_win_rate (opponent_quality_adjusted is more predictive)
++    "time_decayed_win_rate",
++    # Keep avg_beaten_opponent_win_rate (more specific than avg_opponent_win_rate)
++    "avg_opponent_win_rate",
++    # Keep avg_beaten_opponent_total_fights (more specific than avg_opponent_total_fights)
++    "avg_opponent_total_fights",
++    # Keep recent_control_time_sec (more explicit than recent_control_time_diff)
++    "recent_control_time_diff_last_3",
++
++    # Iteration 3: Remove redundant KO rate time-window features
++    # Keep main ko_rate, remove last_3 and last_5 variants to reduce noise
++    "ko_rate_last_3",
++    "ko_rate_last_5",
++
++    # Iteration 4: Remove physical attributes that duplicate reach advantage
++    # Weight classes normalize weight differences, and reach_advantage already captures
++    # the relevant physical dimension. Height adds noise without unique predictive signal.
++    "height_cm"
++
++    # Iteration 5 (agent_loop): Remove 3 lowest importance features (importance = 1.0)
++    # These specific columns have minimal predictive value and add noise to the model.
++    # Removing them should improve underdog prediction clarity by eliminating irrelevant signal.
++    "long_layoff_over_1yr",
++    "recent_losses_last_2",
++    "activity_rate",
++
++    # Iteration 6 (agent_loop): Remove entire youth_form_score feature family
++    # All three youth_form_score features have very low importance (3.0 each).
++    # This concept is not adding value and may be creating noise that hurts underdog prediction,
++    # particularly for younger fighters who are often underdogs.
++    "youth_form_score",
++
++    # Iteration 7 (agent_loop): REVERTED - Restoring baseline model
++    # The removed features contained subtle signals important for underdog predictions.
++    # Reverting to restore underdog performance (ROI dropped 16% points after removal).
++    # "has_ever_won",
++    # "long_layoff_over_1yr",
++    # "fights_in_last_year",
++    # "age_x_recent_vs_career_decline",
++    # "underdog_specialization_advantage",
+ ]
+ 
+ # Exact column names in the final training DataFrame to drop.
+@@ -74,6 +159,40 @@ EXCLUDED_BASE_FEATURES: List[str] = [
+ EXCLUDED_COLUMNS: List[str] = [
+     # Example:
+     # "power_striker_matchup",
++
++    # Iteration 5 (agent_loop): Remove specific low-importance columns
++    # - f1_long_layoff_over_1yr: binary flag for layoffs > 1 year (importance 1.0)
++    # - f2_recent_losses_last_2: count of losses in last 2 fights (importance 1.0)
++    # - f2_activity_rate: fights per year metric (importance 1.0)
++    "f1_long_layoff_over_1yr",
++    "f2_recent_losses_last_2",
++    "f2_activity_rate",
++
++    # Iteration 6 (agent_loop): Consolidate redundant striking differential features
++    # Remove individual fighter versions (f1_striking_differential: 39.0, f2_striking_differential: 35.0)
++    # while keeping striking_differential (38.0) to reduce redundancy and noise without
++    # removing low-importance features that support ensemble performance.
++    "f1_striking_differential",
++    "f2_striking_differential",
++
++    # Iteration 7 (agent_loop): Consolidate redundant age x days since last fight features
++    # Remove individual fighter versions (f1_age_x_days_since_last_fight: 25.0, f2_age_x_days_since_last_fight: 29.0)
++    # while keeping age_x_days_since_last_fight_diff (24.0) to reduce redundancy without
++    # harming ensemble performance. This targets underdog prediction by reducing noise.
++    "f1_age_x_days_since_last_fight",
++    "f2_age_x_days_since_last_fight",
++
++    # Iteration 8 (agent_loop): REVERTED - Restoring baseline model
++    # The removed binary stance matchup feature contained signals important for underdog predictions.
++    # Reverting to restore underdog performance.
++    # "orthodox_vs_southpaw",
++
++    # Iteration 9 (agent_loop): Remove lowest importance stance and common opponent features
++    # Diagnostics show these features have near-zero importance (southpaw_vs_southpaw: 1, orthodox_vs_orthodox: 2, num_common_opponents: 1)
++    # Removing them reduces overfitting noise and should improve Top 25% validation accuracy.
++    "southpaw_vs_southpaw",
++    "orthodox_vs_orthodox",
++    "num_common_opponents",
+ ]
+ 
+ 
+
+=== features/matchup_features.py ===
+diff --git a/features/matchup_features.py b/features/matchup_features.py
+index d7c71f4..aea7223 100644
+--- a/features/matchup_features.py
++++ b/features/matchup_features.py
+@@ -382,6 +382,12 @@ class MatchupFeatureExtractor:
+         differentials['prospect_momentum_score_diff'] = (
+             f1_features.get('prospect_momentum_score', 0.0) - f2_features.get('prospect_momentum_score', 0.0)
+         )
++        differentials['recent_improvement_score_diff'] = (
++            f1_features.get('recent_improvement_score', 0.0) - f2_features.get('recent_improvement_score', 0.0)
++        )
++        differentials['underdog_specialization_advantage_diff'] = (
++            f1_features.get('underdog_specialization_advantage', 0.0) - f2_features.get('underdog_specialization_advantage', 0.0)
++        )
+         differentials['early_finish_advantage_diff'] = (
+             f1_features.get('early_finish_advantage', 0.0) - f2_features.get('early_finish_advantage', 0.0)
+         )
+
+=== features/registry.py ===
+diff --git a/features/registry.py b/features/registry.py
+index 9e9a2d1..c88eac0 100644
+--- a/features/registry.py
++++ b/features/registry.py
+@@ -36,6 +36,9 @@ from .time_based import (
+     extract_power_striker_score,
+     extract_age_weighted_recent_damage,
+     extract_durability_collapse_score,
++    extract_recent_improvement_score,
++    extract_underdog_specialization_advantage,
++    extract_underdog_upset_potential,
+ )
+ from .opponent_quality import extract_opponent_quality_features
+ 
+@@ -91,6 +94,9 @@ class FeatureRegistry:
+         "prospect_momentum",
+         "early_finish_advantage",
+         "power_striker",
++        "recent_improvement",
++        "underdog_specialization",
++        "underdog_upset_potential",
+     ]
+     
+     FEATURE_SET_RECENT_STATS = [
+@@ -154,6 +160,9 @@ class FeatureRegistry:
+             "recent_grappling": cls._extract_recent_grappling,
+             "age_weighted_recent_damage": cls._extract_age_weighted_recent_damage,
+             "durability_collapse": cls._extract_durability_collapse,
++            "recent_improvement": cls._extract_recent_improvement,
++            "underdog_specialization": cls._extract_underdog_specialization,
++            "underdog_upset_potential": cls._extract_underdog_upset_potential,
+         }
+         return feature_map.get(feature_name)
+     
+@@ -399,6 +408,36 @@ class FeatureRegistry:
+             fight_history, fight_stats_by_fight_id, fighter_id
+         )
+ 
++    @staticmethod
++    def _extract_recent_improvement(context: Dict) -> Dict[str, float]:
++        """Extract recent improvement score"""
++        fight_history = context["fight_history"]
++        return extract_recent_improvement_score(fight_history)
++
++    @staticmethod
++    def _extract_underdog_specialization(context: Dict) -> Dict[str, float]:
++        """Extract underdog specialization advantage score"""
++        fight_history = context["fight_history"]
++        return extract_underdog_specialization_advantage(fight_history)
++
++    @staticmethod
++    def _extract_underdog_upset_potential(context: Dict) -> Dict[str, float]:
++        """Extract underdog upset potential score"""
++        striking_features = context.get("striking_features", {})
++        physical_features = context.get("physical_features", {})
++        rolling_features = context.get("rolling_features", {})
++
++        striking_volume_control = striking_features.get("striking_volume_control", 0.0)
++        age = physical_features.get("age", 0.0)
++        recent_form_quality_adjusted = rolling_features.get("recent_form_quality_adjusted", 0.0)
++
++        score = extract_underdog_upset_potential(
++            striking_volume_control,
++            age,
++            recent_form_quality_adjusted
++        )
++        return {"underdog_upset_potential": score}
++
+ 
+ class FeatureBuilder:
+     """
+
+=== features/time_based.py ===
+diff --git a/features/time_based.py b/features/time_based.py
+index 32f7a7a..9210383 100644
+--- a/features/time_based.py
++++ b/features/time_based.py
+@@ -835,6 +835,55 @@ def extract_power_striker_score(
+         return 0.0
+ 
+ 
++def extract_recent_improvement_score(
++    fight_history: pd.DataFrame
++) -> Dict[str, float]:
++    """
++    Calculate recent improvement score by comparing last 2 fights to previous 5.
++
++    This feature captures fighters on upward trajectories by comparing their
++    recent performance (last 2 fights) to their earlier performance (fights 3-7).
++    A positive score indicates improvement, which can help identify underdogs
++    with positive momentum that odds may not fully reflect.
++
++    Formula:
++        recent_improvement_score = win_rate_last_2 - win_rate_previous_5
++
++    Args:
++        fight_history: DataFrame with fight history (sorted most recent first)
++
++    Returns:
++        Dictionary with recent_improvement_score feature
++    """
++    if len(fight_history) < 3:
++        # Not enough fights to calculate meaningful improvement
++        return {
++            "recent_improvement_score": 0.0,
++        }
++
++    # Last 2 fights (most recent)
++    last_2 = fight_history.head(2)
++    wins_last_2 = (last_2['result'] == 'win').sum()
++    win_rate_last_2 = safe_divide(wins_last_2, len(last_2))
++
++    # Previous 5 fights (fights 3-7, if available)
++    previous_5 = fight_history.iloc[2:7]
++    if len(previous_5) == 0:
++        # Only have 2 fights total, use career win rate as baseline
++        all_wins = (fight_history['result'] == 'win').sum()
++        win_rate_previous = safe_divide(all_wins - wins_last_2, len(fight_history) - len(last_2))
++    else:
++        wins_previous_5 = (previous_5['result'] == 'win').sum()
++        win_rate_previous = safe_divide(wins_previous_5, len(previous_5))
++
++    # Improvement score: positive = getting better, negative = declining
++    recent_improvement_score = win_rate_last_2 - win_rate_previous
++
++    return {
++        "recent_improvement_score": float(recent_improvement_score),
++    }
++
++
+ def extract_recent_form_quality_adjusted(
+     fight_history: pd.DataFrame,
+     get_fighter_record: Callable[[int], Optional[Dict]],
+@@ -842,24 +891,24 @@ def extract_recent_form_quality_adjusted(
+ ) -> Dict[str, float]:
+     """
+     Calculate recent form (last N fights) weighted by opponent quality.
+-    
++
+     This feature distinguishes between fighters with similar recent win rates
+     but vastly different competition levels. For example, a 0.667 win rate
+     against elite opponents (avg win rate 0.715) is more impressive than
+     the same win rate against weaker opponents (avg win rate 0.515).
+-    
++
+     Formula:
+         For each fight in last N:
+             - Win: +1.0 * opponent_quality_multiplier
+             - Loss: -1.0 * (1 - opponent_quality_multiplier)
+         Normalize to [0, 1] range
+-    
++
+     Args:
+         fight_history: DataFrame with fight history (sorted most recent first)
+         get_fighter_record: Function that takes fighter_id and returns record dict
+             with keys: wins, losses, draws, total_fights, win_rate
+         window: Number of recent fights to consider (default 5)
+-        
++
+     Returns:
+         Dictionary with recent_form_quality_adjusted feature
+     """
+@@ -867,7 +916,7 @@ def extract_recent_form_quality_adjusted(
+         return {
+             "recent_form_quality_adjusted": 0.0,
+         }
+-    
++
+     if "opponent_id" not in fight_history.columns:
+         # Fallback to simple recent win rate if opponent info missing
+         recent = fight_history.head(window)
+@@ -875,14 +924,14 @@ def extract_recent_form_quality_adjusted(
+             return {"recent_form_quality_adjusted": 0.0}
+         wins = (recent["result"] == "win").sum()
+         return {"recent_form_quality_adjusted": safe_divide(wins, len(recent))}
+-    
++
+     recent_fights = fight_history.head(window)
+     if len(recent_fights) == 0:
+         return {"recent_form_quality_adjusted": 0.0}
+-    
++
+     total_weighted_score = 0.0
+     total_weight = 0.0
+-    
++
+     for _, row in recent_fights.iterrows():
+         opponent_id = row.get("opponent_id")
+         if pd.isna(opponent_id):
+@@ -899,7 +948,7 @@ def extract_recent_form_quality_adjusted(
+             else:
+                 # Unknown opponent = average quality
+                 opponent_quality_multiplier = 1.0
+-        
++
+         # Calculate score contribution
+         if row["result"] == "win":
+             # Win: positive score weighted by opponent quality
+@@ -916,13 +965,13 @@ def extract_recent_form_quality_adjusted(
+         else:
+             # Draw/NC: neutral
+             score_contribution = 0.0
+-        
++
+         total_weighted_score += score_contribution
+         total_weight += 1.0
+-    
++
+     if total_weight == 0:
+         return {"recent_form_quality_adjusted": 0.0}
+-    
++
+     # Normalize score to [0, 1] range
+     # With multiplier range [0.5, 1.5]:
+     # - Worst case: all losses to weak (0.5x) = -1.0 * (2.0 - 0.5) = -1.5 per fight
+@@ -933,17 +982,155 @@ def extract_recent_form_quality_adjusted(
+     # Add 1.5 to shift to [0, 3.0], then divide by 3.0
+     normalized_score = (avg_score + 1.5) / 3.0
+     normalized_score = max(0.0, min(1.0, normalized_score))  # Clamp to [0, 1]
+-    
++
+     return {
+         "recent_form_quality_adjusted": float(normalized_score),
+     }
+ 
+-    # Add holdout filtering to prevent leakage
+-    if holdout_from_year is not None:
+-        holdout_cutoff = datetime(holdout_from_year, 1, 1)
+-        # Only use fights BEFORE holdout year
+-        df_filtered = df[df["event_date_parsed"] < holdout_cutoff]
+-    else:
+-        df_filtered = df  # Use all data (legacy behavior)
+-    
+-    now = datetime.now() if as_of_date is None else as_of_date
+\ No newline at end of file
++
++def extract_underdog_specialization_advantage(
++    fight_history: pd.DataFrame
++) -> Dict[str, float]:
++    """
++    Calculate underdog specialization advantage score.
++
++    This feature identifies fighters with elite specialized skills that can lead
++    to upset victories. Specialized fighters (e.g., elite submission artists,
++    knockout artists, wrestlers) often win as underdogs when their strength
++    aligns against opponents who are vulnerable to that style.
++
++    Formula:
++        specialization_score = max(
++            finish_rate × finish_bonus,
++            ko_rate × ko_bonus,
++            submission_rate × submission_bonus
++        )
++        Where finish_bonus = 1.5 (finishes create upset potential)
++              ko_bonus = 1.3 (KO power is a great equalizer)
++              submission_bonus = 1.4 (submissions can catch anyone)
++
++    Args:
++        fight_history: DataFrame with fight history (sorted most recent first)
++
++    Returns:
++        Dictionary with underdog_specialization_advantage feature
++    """
++    if len(fight_history) == 0:
++        return {
++            "underdog_specialization_advantage": 0.0,
++        }
++
++    # Calculate finish rate
++    total_fights = len(fight_history)
++    wins = (fight_history["result"] == "win").sum()
++
++    if wins == 0:
++        return {
++            "underdog_specialization_advantage": 0.0,
++        }
++
++    method_series = fight_history["method"].astype(str)
++
++    # Count wins by method
++    win_rows = fight_history[fight_history["result"] == "win"]
++
++    # KO/TKO wins
++    ko_mask = method_series.str.contains("KO|TKO", case=False, na=False)
++    ko_wins = ((fight_history["result"] == "win") & ko_mask).sum()
++
++    # Submission wins
++    sub_mask = method_series.str.contains("SUB|Submission", case=False, na=False)
++    sub_wins = ((fight_history["result"] == "win") & sub_mask).sum()
++
++    # Total finish wins
++    finish_wins = ko_wins + sub_wins
++
++    # Calculate rates
++    finish_rate = safe_divide(finish_wins, wins, default=0.0)
++    ko_rate = safe_divide(ko_wins, wins, default=0.0)
++    submission_rate = safe_divide(sub_wins, wins, default=0.0)
++
++    # Calculate specialization scores with bonuses
++    # Finishes create upset potential (bonus multiplier 1.5)
++    finish_specialization = finish_rate * 1.5
++
++    # KO power is a great equalizer (bonus multiplier 1.3)
++    ko_specialization = ko_rate * 1.3
++
++    # Submissions can catch anyone (bonus multiplier 1.4)
++    submission_specialization = submission_rate * 1.4
++
++    # Take the maximum specialization score
++    # This captures the fighter's primary upset vector
++    underdog_specialization_advantage = max(
++        finish_specialization,
++        ko_specialization,
++        submission_specialization
++    )
++
++    # Cap at 1.0 to keep feature in [0, 1] range
++    underdog_specialization_advantage = min(1.0, underdog_specialization_advantage)
++
++    return {
++        "underdog_specialization_advantage": float(underdog_specialization_advantage),
++    }
++
++
++def extract_underdog_upset_potential(
++    striking_volume_control: float,
++    age: float,
++    recent_form_quality_adjusted: float,
++) -> float:
++    """
++    Calculate underdog upset potential score.
++
++    Combines three key upset indicators:
++    1. Striking volume control (offensive output)
++    2. Age (younger fighters have more upset potential)
++    3. Recent form quality adjusted (momentum against opponents)
++
++    Formula:
++        upset_potential = (
++            striking_volume_control × 0.4 +
++            youth_factor × 0.3 +
++            recent_form_quality × 0.3
++        )
++        Where youth_factor = max(0, 1 - age/40) for younger fighters
++
++    This helps identify fighters who may be undervalued as underdogs because
++    they have offensive output, youth, and positive momentum - factors the
++    market may underestimate for underdogs.
++
++    Args:
++        striking_volume_control: Volume control score (0.0 to 1.0)
++        age: Fighter age
++        recent_form_quality_adjusted: Recent form adjusted for opponent quality (0.0 to 1.0)
++
++    Returns:
++        Underdog upset potential score (0.0 to 1.0)
++    """
++    try:
++        striking_volume = float(striking_volume_control or 0.0)
++        age_val = float(age or 0.0)
++        recent_form = float(recent_form_quality_adjusted or 0.0)
++
++        # Youth factor: peaks at low age, decreases to 0 at age 40
++        # Fighters under 25 get maximum bonus, 25-35 get partial, 35+ get minimal
++        youth_factor = max(0.0, 1.0 - (age_val / 40.0))
++
++        # Combine components with weights
++        # Striking volume (40%): offensive output creates upset opportunities
++        # Youth (30%): physical attributes and improvement potential
++        # Recent form (30%): momentum and confidence
++        upset_potential = (
++            striking_volume * 0.4 +
++            youth_factor * 0.3 +
++            recent_form * 0.3
++        )
++
++        # Normalize to [0, 1] range
++        upset_potential = max(0.0, min(1.0, upset_potential))
++
++        return float(upset_potential)
++    except Exception:
++        return 0.0
+\ No newline at end of file
+

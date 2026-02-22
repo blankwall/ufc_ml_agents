@@ -1,0 +1,23 @@
+{
+  "iteration": 3,
+  "summary": "Remove stale monotonic constraints for features removed in iteration 1 to fix validation error",
+  "files_changed": [
+    "schema/monotone_constraints.json"
+  ],
+  "rationale": "Iteration 2 failed validation because monotone_constraints.json contained constraints for three features (num_common_opponents, orthodox_vs_orthodox, southpaw_vs_southpaw) that were removed from feature_schema.json in iteration 1. The validation rule requires that any feature in constraints must also exist in the schema. This change removes those orphaned constraint entries to restore consistency between the schema and constraints files, allowing the model training to proceed with valid configuration.\n\nThis is a necessary cleanup fix before making further meaningful improvements. The three removed features had importance values of 1-2 (near-zero) and their removal in iteration 1 was intended to reduce overfitting. However, iteration 1 was ultimately reverted because removing features degraded underdog performance. The current state has these features excluded from training but still referenced in constraints, causing the validation failure.\n\nThis change:\n- Removes 'num_common_opponents': 0 from constraints\n- Removes 'orthodox_vs_orthodox': 0 from constraints\n- Removes 'southpaw_vs_southpaw': 0 from constraints\n- Updates version from 1.1.0 to 1.2.0\n- Updates num_features from 133 to 130",
+  "expected_effect": "This change will fix the validation error that blocked iteration 2, allowing the orchestrator to proceed with model training and evaluation. It restores consistency between feature_schema.json and monotone_constraints.json. The model will train with the current feature set (146 features in schema, 130 with constraints specified), and the evaluation will provide new metrics to inform the next improvement iteration.",
+  "constraints_changed": {
+    "num_common_opponents": 0,
+    "orthodox_vs_orthodox": 0,
+    "southpaw_vs_southpaw": 0
+  },
+  "constraints_removed": [
+    "num_common_opponents",
+    "orthodox_vs_orthodox",
+    "southpaw_vs_southpaw"
+  ],
+  "features_added": [],
+  "features_removed": [],
+  "target": "validation_fix",
+  "approach": "cleanup_stale_constraints"
+}
