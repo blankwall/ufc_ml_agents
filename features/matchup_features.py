@@ -274,6 +274,13 @@ class MatchupFeatureExtractor:
         elite_experience_diff = f1_elite - f2_elite
         differentials['age_x_elite_experience_diff'] = age_diff * elite_experience_diff
 
+        # POWER VETERAN FEATURE v2: Continuous quality × age interaction
+        # Uses continuous opponent_quality_score instead of binary elite flag
+        # This gives partial credit for "good" competition, not just "elite"
+        # Formula: age_diff × quality_diff × scaling_factor
+        quality_diff = f1_opp_quality_score - f2_opp_quality_score
+        differentials['age_x_quality_continuous_diff'] = age_diff * quality_diff * 2.0
+
         # Longer-horizon decline / slump differentials
         differentials['fights_since_last_win_diff'] = (
             f1_features.get('fights_since_last_win', 0) - f2_features.get('fights_since_last_win', 0)
@@ -508,6 +515,8 @@ class MatchupFeatureExtractor:
         # Helper function to calculate finish_reliance for a fighter
         def calculate_finish_reliance(fight_history: pd.DataFrame) -> float:
             """Calculate finish_reliance = (KO_wins + SUB_wins) / total_wins"""
+            if len(fight_history) == 0 or 'result' not in fight_history.columns:
+                return 0.0
             wins = fight_history[fight_history['result'] == 'win']
             if len(wins) == 0:
                 return 0.0
@@ -538,6 +547,8 @@ class MatchupFeatureExtractor:
         # Helper function to calculate finish_loss_rate for a fighter
         def calculate_finish_loss_rate(fight_history: pd.DataFrame) -> float:
             """Calculate finish_loss_rate = (KO_losses + SUB_losses) / total_losses"""
+            if len(fight_history) == 0 or 'result' not in fight_history.columns:
+                return 0.0
             losses = fight_history[fight_history['result'] == 'loss']
             if len(losses) == 0:
                 return 0.0
@@ -563,10 +574,16 @@ class MatchupFeatureExtractor:
         finish_loss_rate_f2 = calculate_finish_loss_rate(f2_history)
         
         # Get total wins and losses for guardrails
-        f1_wins = len(f1_history[f1_history['result'] == 'win'])
-        f2_wins = len(f2_history[f2_history['result'] == 'win'])
-        f1_losses = len(f1_history[f1_history['result'] == 'loss'])
-        f2_losses = len(f2_history[f2_history['result'] == 'loss'])
+        if len(f1_history) == 0 or 'result' not in f1_history.columns:
+            f1_wins, f1_losses = 0, 0
+        else:
+            f1_wins = len(f1_history[f1_history['result'] == 'win'])
+            f1_losses = len(f1_history[f1_history['result'] == 'loss'])
+        if len(f2_history) == 0 or 'result' not in f2_history.columns:
+            f2_wins, f2_losses = 0, 0
+        else:
+            f2_wins = len(f2_history[f2_history['result'] == 'win'])
+            f2_losses = len(f2_history[f2_history['result'] == 'loss'])
         
         # Guardrails: Minimum sample thresholds
         # Apply only if: total_wins >= 5 AND opponent_total_losses >= 5

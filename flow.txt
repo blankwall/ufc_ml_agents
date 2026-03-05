@@ -1,0 +1,29 @@
+python -m features.feature_pipeline --create 
+
+python -m models.xgboost_model \                                                                                     
+  --train \
+  --evaluate \
+  --check-calibration \
+  --save-plots \
+  --export-schema \
+  --data-path data/processed/training_data.csv \
+  --n-estimators 200 \
+  --max-depth 4 \
+  --holdout-from-year 2025 \
+  --learning-rate 0.05 \
+  --subsample 0.8 \
+  --colsample-bytree 0.8 \
+  --model-name jan_29
+
+
+  python -m evaluation.evaluate_model \                                                                                
+  --data-path data/processed/training_data.csv \
+  --odds-path ufc_2025_odds.csv \
+  --min-year 2025 \
+  --output-dir reports_strict \
+  --odds-date-tolerance-days 5 \
+  --model-name jan_29 \
+  --symmetric \
+  --compare-to-baseline
+
+➜  ufc_ml_agents git:(main) ✗ cat models/baseline.json  

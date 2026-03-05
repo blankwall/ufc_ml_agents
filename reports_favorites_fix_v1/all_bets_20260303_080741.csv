@@ -1,0 +1,145 @@
+Date,Predicted Winner,Opponent,Is Underdog,Market Prob %,Model Prob %,Edge %,Confidence,Odds,Won?,Correct?,Profit/Loss
+2025-11-22,Ian Machado Garry,Belal Muhammad,No,74.4,76.5,2.2,0.5308,-290,Yes,Yes,0.34
+2025-11-22,Bogdan Grad,Luke Riley,No,71.4,55.2,22.4,0.1039,-250,No,No,-1.0
+2025-11-22,Aleksandre Topuria,Bekzat Almakhan,No,58.0,62.7,4.7,0.2534,-138,Yes,Yes,0.72
+2025-11-22,Ismail Naurdiev,Ryan Loder,No,55.4,65.7,10.4,0.3147,-124,Yes,Yes,0.81
+2025-11-22,Nurullo Aliev,Shem Rock,No,76.2,81.2,5.1,0.6249,-320,Yes,Yes,0.31
+2025-11-22,Marek Bujlo,Denzel Freeman,No,69.7,65.5,31.1,0.3107,-230,No,No,-1.0
+2025-11-15,Zhang Weili,Valentina Shevchenko,No,58.7,59.4,13.9,0.1871,-142,No,No,-1.0
+2025-11-15,Michael Morales,Sean Brady,Yes,43.9,65.0,21.2,0.3002,128,Yes,Yes,1.28
+2025-11-15,Carlos Prates,Leon Edwards,No,60.6,62.5,1.8,0.2492,-154,Yes,Yes,0.65
+2025-11-08,Muslim Salikhov,Uros Medic,No,56.5,52.1,4.5,0.0416,-130,No,No,-1.0
+2025-11-08,Christian Leroy Duncan,Marco Tulio,Yes,41.7,61.8,20.2,0.2367,140,Yes,Yes,1.4
+2025-11-01,Steve Garcia,David Onama,No,58.0,70.7,12.7,0.4145,-138,Yes,Yes,0.72
+2025-11-01,Themba Gorimbo,Jeremiah Wells,Yes,43.1,72.7,10.3,0.4545,132,No,No,-1.0
+2025-11-01,Yadier del Valle,Isaac Dulgarian,Yes,44.6,54.6,9.9,0.0913,124,Yes,Yes,1.24
+2025-11-01,Norma Dumont,Ketlen Vieira,No,63.5,68.6,5.1,0.3715,-174,Yes,Yes,0.57
+2025-11-01,Seokhyeon Ko,Phil Rowe,No,64.3,78.6,14.3,0.5714,-180,Yes,Yes,0.56
+2025-11-01,Ariane Carnelossi,Talita Alencar,No,69.2,50.1,15.3,0.0014,-225,No,No,-1.0
+2025-10-25,Virna Jandiroba,Mackenzie Dern,No,57.3,59.5,12.7,0.1892,-134,No,No,-1.0
+2025-10-25,Azamat Murzakanov,Aleksandar Rakic,Yes,50.0,65.5,15.5,0.3109,100,Yes,Yes,1.0
+2025-10-25,Quillan Salkilld,Nasrat Haqparast,No,54.5,77.8,23.2,0.5555,-120,Yes,Yes,0.83
+2025-10-25,JunYong Park,Ikram Aliskerov,No,69.7,55.0,20.6,0.101,-230,No,No,-1.0
+2025-10-25,Mateusz Rebecki,Ludovit Klein,No,55.8,50.6,2.5,0.0125,-126,No,No,-1.0
+2025-10-18,Kevin Holland,Mike Malott,Yes,51.5,53.0,0.6,0.0599,-106,No,No,-1.0
+2025-10-18,Marlon Vera,Aiemann Zahabi,No,56.9,50.3,3.1,0.0055,-132,No,No,-1.0
+2025-10-18,Yousri Belgaroui,Azamat Bekoev,Yes,29.4,50.7,21.3,0.0135,240,Yes,Yes,2.4
+2025-10-18,Melissa Croden,Tainara Lisboa,No,56.9,61.5,4.6,0.2302,-132,Yes,Yes,0.76
+2025-10-11,Mateusz Gamrot,Charles Oliveira,No,51.9,56.9,5.0,0.1386,-108,No,No,-1.0
+2025-10-11,Montel Jackson,Deiveson Figueiredo,Yes,27.4,77.1,0.3,0.5413,265,No,No,-1.0
+2025-10-04,Alex Pereira,Magomed Ankalaev,Yes,32.8,55.2,22.5,0.1049,205,Yes,Yes,2.05
+2025-10-04,Jiri Prochazka,Khalil Rountree Jr.,No,66.0,70.6,4.6,0.4114,-194,Yes,Yes,0.52
+2025-10-04,Youssef Zalal,Josh Emmett,No,82.1,84.3,2.1,0.6857,-460,Yes,Yes,0.22
+2025-10-04,Jakub Wiklacz,Patchy Mix,Yes,26.3,66.8,40.5,0.3363,280,Yes,Yes,2.8
+2025-09-27,Neil Magny,Jake Matthews,Yes,27.8,52.9,25.1,0.058,260,Yes,Yes,2.6
+2025-09-27,Charlie Campbell,Tom Nolan,No,61.2,63.1,20.4,0.2628,-158,No,No,-1.0
+2025-09-27,Navajo Stirling,Rodolfo Bellato,No,73.0,73.8,0.8,0.4756,-270,Yes,Yes,0.37
+2025-09-27,Cam Rowston,Andre Petroski,Yes,40.7,58.4,17.7,0.1677,146,Yes,Yes,1.46
+2025-09-27,Colby Thicknesse,Josias Musasa,Yes,42.7,56.4,13.7,0.1281,134,Yes,Yes,1.34
+2025-09-27,Luana Carolina,Michelle Montague,No,67.7,62.1,25.9,0.2422,-210,No,No,-1.0
+2025-09-13,David Martinez,Rob Font,Yes,48.1,66.5,18.4,0.3302,108,Yes,Yes,1.08
+2025-09-13,Jared Gordon,Rafa Garcia,No,56.5,57.0,13.5,0.1393,-130,No,No,-1.0
+2025-09-13,Kelvin Gastelum,Dustin Stoltzfus,No,56.5,57.6,1.1,0.1521,-130,Yes,Yes,0.77
+2025-09-06,Bolaji Oki,Mason Jones,No,59.7,53.5,9.2,0.0697,-148,No,No,-1.0
+2025-09-06,Axel Sola,Rhys McKee,No,57.6,66.5,8.9,0.3303,-136,Yes,Yes,0.74
+2025-09-06,William Gomis,Robert Ruchala,No,73.0,78.8,5.8,0.5764,-270,Yes,Yes,0.37
+2025-09-06,Ante Delija,Marcin Tybura,Yes,50.5,53.7,3.2,0.0739,-102,Yes,Yes,0.98
+2025-09-06,Kaue Fernandes,Harry Hardwick,No,67.7,89.5,21.8,0.7909,-210,Yes,Yes,0.48
+2025-09-06,Trey Waters,Sam Patterson,No,66.0,58.1,19.9,0.162,-194,No,No,-1.0
+2025-09-06,Brad Tavares,Robert Bryczek,Yes,37.3,70.0,3.3,0.3991,168,No,No,-1.0
+2025-09-06,Andreas Gustafsson,Rinat Fakhretdinov,Yes,47.2,73.5,16.6,0.4697,112,No,No,-1.0
+2025-08-16,Carlos Prates,Geoff Neal,No,66.7,73.1,6.4,0.4616,-200,Yes,Yes,0.5
+2025-08-16,Drakkar Klose,Edson Barboza,Yes,51.0,52.3,1.3,0.0465,-104,Yes,Yes,0.96
+2025-08-09,Iasmin Lucindo,Angela Hill,No,63.2,72.6,9.4,0.4525,-172,Yes,Yes,0.58
+2025-08-09,Christian Rodriguez,Andre Fili,Yes,32.8,73.3,1.8,0.4655,205,No,No,-1.0
+2025-08-02,Danny Silva,Kevin Vallejos,No,78.9,52.5,27.5,0.0496,-375,No,No,-1.0
+2025-08-02,Nick Klein,Andrey Pulyaev,No,55.8,64.7,16.7,0.2948,-126,No,No,-1.0
+2025-07-19,Max Holloway,Dustin Poirier,No,55.0,66.0,11.0,0.319,-122,Yes,Yes,0.82
+2025-06-28,Joshua Van,Brandon Royval,No,54.5,57.8,3.3,0.1569,-120,Yes,Yes,0.83
+2025-06-28,Renato Moicano,Beneil Dariush,No,52.8,65.3,14.4,0.3069,-112,No,No,-1.0
+2025-06-28,Felipe Lima,Payton Talbott,Yes,40.7,66.0,2.5,0.3193,146,No,No,-1.0
+2025-06-28,Jose Delgado,Hyder Amil,No,57.6,58.9,1.3,0.1776,-136,Yes,Yes,0.74
+2025-06-21,Ignacio Bahamondes,Rafael Fiziev,Yes,44.6,72.5,13.5,0.4502,124,No,No,-1.0
+2025-06-21,Myktybek Orolbai,Tofiq Musayev,No,65.0,82.5,17.5,0.6506,-186,Yes,Yes,0.54
+2025-06-21,Bogdan Grad,Muhammad Naimov,No,71.4,70.0,37.3,0.4008,-250,No,No,-1.0
+2025-06-21,Daria Zhelezniakova,Melissa Mullins,Yes,32.8,63.5,30.7,0.2693,205,Yes,Yes,2.05
+2025-06-14,Miranda Maverick,Rose Namajunas,No,71.0,58.4,25.0,0.1676,-245,No,No,-1.0
+2025-06-14,Andre Petroski,Edmen Shahbazyan,No,62.7,52.4,11.1,0.0483,-168,No,No,-1.0
+2025-06-14,Cody Durden,Jose Ochoa,No,67.2,54.3,17.5,0.0862,-205,No,No,-1.0
+2025-06-07,MarQuel Mederos,Mark Choinski,No,60.6,83.2,22.6,0.6646,-154,Yes,Yes,0.65
+2025-05-17,Michael Morales,Gilbert Burns,No,82.8,86.3,3.5,0.7255,-480,Yes,Yes,0.21
+2025-05-17,Mairon Santos,Sodiq Yusuff,No,59.7,66.0,6.3,0.3205,-148,Yes,Yes,0.68
+2025-05-10,Jack Della Maddalena,Belal Muhammad,Yes,37.6,56.5,18.9,0.1299,166,Yes,Yes,1.66
+2025-05-10,Valentina Shevchenko,Manon Fiorot,Yes,46.3,57.1,10.8,0.1424,116,Yes,Yes,1.16
+2025-05-10,Aiemann Zahabi,Jose Aldo,Yes,38.5,56.1,17.7,0.1228,160,Yes,Yes,1.6
+2025-05-10,Natalia Silva,Alexa Grasso,No,70.1,71.4,1.2,0.4272,-235,Yes,Yes,0.43
+2025-05-10,Mike Malott,Charles Radtke,No,66.7,73.4,6.7,0.4682,-200,Yes,Yes,0.5
+2025-05-10,Jessica Andrade,Jasmine Jasudavicius,No,73.3,54.8,24.1,0.0965,-275,No,No,-1.0
+2025-05-10,Ion Cutelaba,Modestas Bukauskas,Yes,51.5,61.0,8.6,0.2191,-106,No,No,-1.0
+2025-05-10,Bruno Silva,Marc-Andre Barriault,No,61.8,57.2,14.9,0.1446,-162,No,No,-1.0
+2025-05-10,Brad Katona,Bekzat Almakhan,No,58.7,60.8,15.4,0.2165,-142,No,No,-1.0
+2025-05-03,Reinier de Ridder,Bo Nickal,Yes,25.3,55.6,30.3,0.1125,295,Yes,Yes,2.95
+2025-05-03,Daniel Rodriguez,Santiago Ponzinibbio,Yes,45.9,57.2,11.3,0.1441,118,Yes,Yes,1.18
+2025-05-03,Montel Jackson,Daniel Marcos,No,69.2,76.4,7.2,0.5285,-225,Yes,Yes,0.44
+2025-05-03,Cameron Smotherman,Serhiy Sidey,No,58.0,68.9,23.0,0.3781,-138,No,No,-1.0
+2025-05-03,Gaston Bolanos,Quang Le,Yes,48.1,60.9,5.2,0.2184,108,No,No,-1.0
+2025-04-26,Zhang Mingyang,Anthony Smith,No,78.7,79.5,0.8,0.5898,-370,Yes,Yes,0.27
+2025-04-26,Giga Chikadze,David Onama,No,66.4,51.4,13.8,0.0275,-198,No,No,-1.0
+2025-04-26,Abus Magomedov,Michel Pereira,Yes,45.5,54.5,9.1,0.0907,120,Yes,Yes,1.2
+2025-04-26,Andre Muniz,Ikram Aliskerov,No,81.1,51.3,28.6,0.0262,-430,No,No,-1.0
+2025-04-26,Jimmy Flick,Matt Schnell,No,62.1,51.7,9.7,0.0342,-164,No,No,-1.0
+2025-04-26,John Castaneda,Chris Gutierrez,No,59.7,53.5,9.2,0.0693,-148,No,No,-1.0
+2025-04-05,Lerone Murphy,Josh Emmett,No,76.2,78.8,2.6,0.5764,-320,Yes,Yes,0.31
+2025-04-05,Gerald Meerschaert,Brad Tavares,No,62.4,54.7,13.0,0.0931,-166,No,No,-1.0
+2025-04-05,Rhys McKee,Daniel Frunza,Yes,49.0,68.0,18.9,0.3593,104,Yes,Yes,1.04
+2025-03-29,Manuel Torres,Drew Dober,No,55.4,70.2,14.9,0.4044,-124,Yes,Yes,0.81
+2025-03-29,CJ Vergara,Edgar Chairez,No,73.0,56.0,24.8,0.1203,-270,No,No,-1.0
+2025-03-29,Raul Rosas Jr.,Vince Morales,No,82.8,83.1,0.4,0.6625,-480,Yes,Yes,0.21
+2025-03-22,Carlos Ulberg,Jan Blachowicz,No,76.7,81.6,4.8,0.6316,-330,Yes,Yes,0.3
+2025-03-22,Kevin Holland,Gunnar Nelson,Yes,48.1,65.6,17.5,0.3124,108,Yes,Yes,1.08
+2025-03-22,Chris Duncan,Jordan Vucenic,Yes,27.4,60.1,32.7,0.202,265,Yes,Yes,2.65
+2025-03-22,Nathaniel Wood,Morgan Charriere,Yes,50.5,55.4,4.9,0.1074,-102,Yes,Yes,0.98
+2025-03-22,Chris Padilla,Jai Herbert,Yes,47.6,70.9,23.3,0.4175,110,Yes,Yes,1.1
+2025-03-22,Felipe dos Santos,Lone'er Kavanagh,No,71.8,51.7,19.4,0.0331,-255,No,No,-1.0
+2025-03-22,Mick Parkin,Marcin Tybura,Yes,41.3,72.7,10.0,0.4532,142,No,No,-1.0
+2025-03-22,Puja Tomar,Shauna Bannon,No,67.7,53.7,17.5,0.0743,-210,No,No,-1.0
+2025-03-22,Nathan Fletcher,Caolan Loughran,Yes,43.1,86.0,25.1,0.7199,132,No,No,-1.0
+2025-03-15,Chidi Njokuani,Elizeu Zaleski dos Santos,Yes,37.9,53.1,15.2,0.0616,164,Yes,Yes,1.64
+2025-03-08,Justin Gaethje,Rafael Fiziev,Yes,42.6,57.4,14.9,0.1487,135,Yes,Yes,1.35
+2025-03-01,Cody Brundage,Julian Marquez,No,53.7,65.5,11.8,0.3091,-116,Yes,Yes,0.86
+2025-02-22,Julius Walker,Alonzo Menifield,No,70.1,66.9,32.9,0.3387,-235,No,No,-1.0
+2025-02-22,Ibo Aslan,Ion Cutelaba,Yes,35.7,70.2,2.0,0.4048,180,No,No,-1.0
+2025-02-22,Melquizael Costa,Andre Fili,No,58.7,63.4,4.7,0.2684,-142,Yes,Yes,0.7
+2025-02-22,Austin Vanderford,Nikolay Veretennikov,Yes,49.5,57.9,8.3,0.157,102,Yes,Yes,1.02
+2025-02-15,Gregory Rodrigues,Jared Cannonier,Yes,34.0,78.1,7.5,0.5614,194,No,No,-1.0
+2025-02-15,Andre Petroski,Rodolfo Vieira,Yes,31.2,58.3,27.0,0.1651,220,Yes,Yes,2.2
+2025-02-08,Dricus Du Plessis,Sean Strickland,No,68.8,73.9,5.1,0.4771,-220,Yes,Yes,0.45
+2025-02-08,Tatiana Suarez,Zhang Weili,Yes,44.6,63.0,3.6,0.2599,124,No,No,-1.0
+2025-02-08,Tallison Teixeira,Justin Tafa,No,60.9,70.0,9.0,0.3997,-156,Yes,Yes,0.64
+2025-02-08,Jack Jenkins,Gabriel Santos,No,69.2,58.8,24.1,0.1758,-225,No,No,-1.0
+2025-02-08,Tom Nolan,Viacheslav Borshchev,Yes,50.5,68.3,17.8,0.3657,-102,Yes,Yes,0.98
+2025-02-08,Rongzhu,Kody Steele,Yes,26.3,72.5,46.1,0.4493,280,Yes,Yes,2.8
+2025-02-08,Jonathan Micallef,Kevin Jousset,Yes,35.7,54.8,19.1,0.0964,180,Yes,Yes,1.8
+2025-02-01,Nassourdine Imavov,Israel Adesanya,Yes,42.7,56.7,13.9,0.1336,134,Yes,Yes,1.34
+2025-02-01,Jairzinho Rozenstruik,Sergei Pavlovich,No,76.2,52.3,24.5,0.0463,-320,No,No,-1.0
+2025-02-01,Vinicius Oliveira,Said Nurmagomedov,Yes,34.7,55.9,21.2,0.1185,188,Yes,Yes,1.88
+2025-02-01,Fares Ziam,Mike Davis,Yes,45.0,73.8,28.7,0.4758,122,Yes,Yes,1.22
+2025-02-01,Bogdan Grad,Lucas Alexander,Yes,48.1,50.1,2.0,0.0018,108,Yes,Yes,1.08
+2025-02-01,Jamal Pogues,Hamdy Abdelwahab,No,59.7,51.0,6.8,0.0203,-148,No,No,-1.0
+2025-01-18,Merab Dvalishvili,Umar Nurmagomedov,Yes,31.2,61.0,29.8,0.2204,220,Yes,Yes,2.2
+2025-01-18,Reinier de Ridder,Kevin Holland,No,57.6,67.0,9.3,0.3395,-136,Yes,Yes,0.74
+2025-01-18,Grant Dawson,Diego Ferreira,No,71.0,73.6,2.6,0.4715,-245,Yes,Yes,0.41
+2025-01-18,Ailin Perez,Karol Rosa,Yes,32.8,64.1,31.3,0.2824,205,Yes,Yes,2.05
+2025-01-18,Clayton Carpenter,Tagir Ulanbekov,No,79.6,58.2,33.8,0.1639,-390,No,No,-1.0
+2025-01-11,Amanda Ribas,Mackenzie Dern,Yes,38.2,66.4,0.4,0.3273,162,No,No,-1.0
+2025-01-11,Carlston Harris,Santiago Ponzinibbio,No,60.6,61.2,17.7,0.2233,-154,No,No,-1.0
+2025-01-11,Christian Rodriguez,Austin Bashi,Yes,31.7,69.5,37.7,0.3894,215,Yes,Yes,2.15
+2025-12-06,Joshua Van,Alexandre Pantoja,Yes,36.2,58.8,22.6,0.1769,176,Yes,Yes,1.76
+2025-12-06,Tatsuro Taira,Brandon Moreno,No,53.7,64.1,10.4,0.2821,-116,Yes,Yes,0.86
+2025-12-06,Payton Talbott,Henry Cejudo,No,71.4,77.5,6.1,0.5508,-250,Yes,Yes,0.4
+2025-12-06,Terrance McKinney,Chris Duncan,No,55.8,57.6,9.5,0.1518,-126,No,No,-1.0
+2025-12-06,Maycee Barber,Karine Silva,No,68.8,74.0,5.2,0.4794,-220,Yes,Yes,0.45
+2025-12-06,Fares Ziam,Nazim Sadykhov,No,65.3,76.8,11.5,0.5358,-188,Yes,Yes,0.53
+2025-12-06,Marvin Vettori,Brunno Ferreira,Yes,48.1,62.0,5.5,0.2397,108,No,No,-1.0
+2025-12-06,Edson Barboza,Jalin Turner,No,82.1,51.4,29.6,0.0271,-460,No,No,-1.0
+2025-12-06,Ibo Aslan,Iwo Baraniewski,No,68.3,63.2,27.5,0.2641,-215,No,No,-1.0

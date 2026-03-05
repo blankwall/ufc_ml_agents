@@ -1,0 +1,22 @@
+flowchart LR
+    Start([Start]) --> Plan[Planning Agent<br/>📋 Create optimization plan]
+
+    Plan --> Iteration[Iteration Loop]
+
+    subgraph Iteration["Iteration N times"]
+        Creator[Feature Creator Agent<br/>🔧 Make ONE change] --> Builder[Feature Builder<br/>🏗️ Rebuild + Train + Evaluate]
+
+        Builder --> Decision[Decision Agent<br/>⚖️ Keep or Revert?]
+
+        Decision -->|Revert| Creator
+        Decision -->|Keep| Summarizer
+    end
+
+    Summarizer[Summarizer Agent<br/>📊 Final report] --> End([End])
+
+    style Plan fill:#e8f5e9
+    style Creator fill:#fff3e0
+    style Builder fill:#f3e5f5
+    style Decision fill:#fce4ec
+    style Summarizer fill:#e1f5fe
+    style Iteration fill:#fff9c4

@@ -1,0 +1,78 @@
+{
+  "model_name": "jan_29",
+  "holdout_from_year": 2025,
+  "timestamp": "20260303",
+  "overall": {
+    "accuracy": 0.6633,
+    "n_correct": 394,
+    "n_total": 594,
+    "brier": 0.2196,
+    "auc": 0.7223,
+    "log_loss": 0.6304
+  },
+  "by_bucket": {
+    "favorites": {
+      "accuracy": 0.6613,
+      "n": 310
+    },
+    "underdogs": {
+      "accuracy": 0.6655,
+      "n": 284
+    }
+  },
+  "by_confidence": {
+    "top_10_pct": {
+      "min_p": 0.3909,
+      "accuracy": 0.8333,
+      "n": 60
+    },
+    "top_25_pct": {
+      "min_p": 0.2522,
+      "accuracy": 0.8121,
+      "n": 149
+    }
+  },
+  "n_eval_rows": 594,
+  "n_odds_rows": 3938,
+  "n_bets_edge_gt_0": 12,
+  "roi_flat_edge_gt_0": 0.0024,
+  "underdog_odds_bands": {
+    "+100_to_+150": {
+      "n_bets": 42,
+      "accuracy": 0.476,
+      "roi": 0.05
+    },
+    "+150_to_+250": {
+      "n_bets": 27,
+      "accuracy": 0.481,
+      "roi": 0.42
+    },
+    "+250_plus": {
+      "n_bets": 12,
+      "accuracy": 0.5,
+      "roi": 0.97
+    }
+  },
+  "underdog_confidence_breakdown": {
+    "top_10_pct": {
+      "confidence_min": 0.23,
+      "n_bets": 9,
+      "accuracy": 0.778,
+      "profit_units": 10.3,
+      "roi": 1.15
+    },
+    "top_25_pct": {
+      "confidence_min": 0.16,
+      "n_bets": 22,
+      "accuracy": 0.591,
+      "profit_units": 11.0,
+      "roi": 0.5
+    },
+    "bottom_75_pct": {
+      "n_bets": 64,
+      "accuracy": 0.469,
+      "profit_units": 17.2,
+      "roi": 0.27
+    }
+  }
+}

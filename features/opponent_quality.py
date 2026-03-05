@@ -13,7 +13,8 @@ from .utils import safe_mean, safe_divide
 
 def extract_opponent_quality_features(
     fight_history: pd.DataFrame,
-    get_fighter_record: Callable[[int], Optional[Dict]]
+    get_fighter_record: Callable[[int], Optional[Dict]],
+    as_of_date: Optional[datetime] = None,
 ) -> Dict[str, float]:
     """
     Estimate the quality of opposition this fighter has faced and beaten.
@@ -23,9 +24,13 @@ def extract_opponent_quality_features(
     old wins, we restrict to fights in the last ~3 years when computing aggregates.
     
     Args:
-        fight_history: DataFrame with fight history (sorted most recent first)
+        fight_history: DataFrame with fight history (sorted most recent first,
+            already filtered to as_of_date by the caller)
         get_fighter_record: Function that takes fighter_id and returns record dict
             with keys: wins, losses, draws, total_fights, win_rate
+        as_of_date: Point-in-time reference date. The 3-year recency window is
+            computed relative to this date (NOT datetime.now()) to prevent
+            temporal data leakage in historical training samples.
         
     Returns:
         Dictionary of opponent quality features
@@ -42,10 +47,14 @@ def extract_opponent_quality_features(
     
     df = fight_history
     
-    # Restrict to recent window (last 3 years) so very old wins don't dominate
+    # Restrict to recent window (last 3 years) so very old wins don't dominate.
+    # IMPORTANT: use as_of_date (the fight date) as the reference, NOT datetime.now().
+    # Using datetime.now() here would corrupt historical training samples because
+    # "3 years ago" from 2026 excludes fights from 2017-2022 that were entirely
+    # within a fighter's active history at the time of those past bouts.
     if "event_date_parsed" in df.columns:
-        now = datetime.now()
-        three_years_ago = now - pd.DateOffset(years=3)
+        reference_date = pd.Timestamp(as_of_date) if as_of_date is not None else pd.Timestamp.now()
+        three_years_ago = reference_date - pd.DateOffset(years=3)
         df_recent = df[df["event_date_parsed"] >= three_years_ago]
         if len(df_recent) == 0:
             df_recent = df  # fall back to full history if no recent fights

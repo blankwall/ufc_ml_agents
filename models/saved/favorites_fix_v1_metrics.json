@@ -1,0 +1,11 @@
+{
+  "train_accuracy": 0.7049074818986324,
+  "train_log_loss": 0.5736541663241601,
+  "train_auc": 0.7810374169362913,
+  "n_estimators": 200,
+  "best_iteration": null,
+  "val_accuracy": 0.6338481338481339,
+  "val_log_loss": 0.6307756242198763,
+  "val_auc": 0.6933216310629438,
+  "val_brier": 0.2209386147669527
+}

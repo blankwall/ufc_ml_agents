@@ -243,8 +243,9 @@ class FeatureRegistry:
         fight_history = context["fight_history"]
         get_fighter_record = context["get_fighter_record"]
         lambda_decay = context.get("lambda_decay", 0.3)
+        as_of_date = context.get("as_of_date")
         return extract_opponent_quality_adjusted_time_decayed_features(
-            fight_history, get_fighter_record, lambda_decay
+            fight_history, get_fighter_record, lambda_decay, as_of_date=as_of_date
         )
     
     @staticmethod
@@ -262,7 +263,8 @@ class FeatureRegistry:
         """Extract opponent quality features"""
         fight_history = context["fight_history"]
         get_fighter_record = context["get_fighter_record"]
-        return extract_opponent_quality_features(fight_history, get_fighter_record)
+        as_of_date = context.get("as_of_date")
+        return extract_opponent_quality_features(fight_history, get_fighter_record, as_of_date=as_of_date)
     
     @staticmethod
     def _extract_age_interactions(context: Dict) -> Dict[str, float]:

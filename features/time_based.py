@@ -418,7 +418,8 @@ def extract_time_decayed_features(
 def extract_opponent_quality_adjusted_time_decayed_features(
     fight_history: pd.DataFrame,
     get_fighter_record: Callable[[int], Optional[Dict]],
-    lambda_decay: float = 0.3
+    lambda_decay: float = 0.3,
+    as_of_date: Optional[Union[datetime, str]] = None,
 ) -> Dict[str, float]:
     """
     Compute opponent-quality-adjusted time-decayed performance metrics.
@@ -429,10 +430,14 @@ def extract_opponent_quality_adjusted_time_decayed_features(
     - Uses exponential time decay: weight = exp(-lambda * years_ago)
     
     Args:
-        fight_history: DataFrame with fight history (sorted most recent first)
+        fight_history: DataFrame with fight history (sorted most recent first,
+            already filtered to as_of_date by the caller)
         get_fighter_record: Function that takes fighter_id and returns record dict
             with keys: wins, losses, draws, total_fights, win_rate
         lambda_decay: Decay rate (higher = faster decay, default 0.3)
+        as_of_date: Point-in-time reference date used as "now" for computing
+            years_ago in the time-decay weights. Must be the fight date for
+            historical training samples to avoid temporal distribution shift.
         
     Returns:
         Dictionary with opponent-quality-adjusted time-decayed metrics
@@ -456,7 +461,11 @@ def extract_opponent_quality_adjusted_time_decayed_features(
             "time_decayed_win_rate_adj_opp_quality": 0.0,
         }
     
-    now = datetime.now()
+    # Use as_of_date as reference point for time decay — NOT datetime.now().
+    # For historical training rows (e.g. a 2019 fight), using datetime.now() (2026)
+    # would make all prior fights appear ~7 years older than they were at the time,
+    # compressing their time-decay weights and distorting the feature distribution.
+    now = pd.to_datetime(as_of_date) if as_of_date is not None else datetime.now()
     
     total_weighted_score = 0.0
     total_weight = 0.0

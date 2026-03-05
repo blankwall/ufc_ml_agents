@@ -1,0 +1,90 @@
+flowchart TD
+    Start([User runs loop]) --> Init[Initialize AgentLoop]
+
+    Init --> CreateRun[Create run directory:<br/>agent_artifacts/<timestamp>/]
+    CreateRun --> LoadConfig[Load config:<br/>agent_loop_config.json + run_config.json]
+    LoadConfig --> BuildCtx{Build Context}
+
+    BuildCtx -->|Fight mode| Scrape[Scrape fight details from UFCStats]
+    BuildCtx -->|Goal mode| UseGoal[Use provided goal text]
+    Scrape --> Predict[Run xgboost_predict.py for context]
+    Predict --> Diag
+    UseGoal --> Diag[Run Diagnostics Agent]
+
+    Diag --> DiagPrompt[Write prompt to logs/<br/>Wait for diagnostics.json]
+    DiagPrompt --> DiagAgent[Diagnostics Agent:<br/>Analyze baseline model<br/>Identify weaknesses]
+    DiagAgent --> Plan[Planning Agent]
+
+    Plan --> PlanPrompt[Write prompt with<br/>context + diagnostics]
+    PlanPrompt --> PlanAgent[Planning Agent:<br/>Create optimization plan]
+    PlanAgent --> PlanOut[Write plan.json]
+
+    PlanOut --> LoopStart{Iteration N times}
+
+    subgraph Iteration["Iteration Loop"]
+        LoopStart --> Backup[Backup code paths:<br/>schema/, features/]
+        Backup --> Creator[Feature Creator Agent]
+
+        Creator --> CreatorPrompt[Write prompt with:<br/>plan.json + avoid_constraints]
+        CreatorPrompt --> CreatorAgent[Feature Creator Agent:<br/>Make ONE logical change]
+        CreatorAgent --> ChangeOut[Write iter_N/change.json]
+
+        ChangeOut --> Validator[Validator Agent]
+        Validator --> ValPrompt[Write validation prompt]
+        ValPrompt --> ValAgent[Validator Agent:<br/>Check code quality<br/>Schema consistency<br/>Constraints sync]
+        ValAgent --> ValOut[Write iter_N/validation.json]
+
+        ValOut --> ValPass{Validation passed?}
+
+        ValPass -->|No| Revert[Auto-revert code from backup]
+        Revert --> UpdatePlan[Update plan with avoid_constraints<br/>Learn from validation errors]
+        UpdatePlan --> HistFail[Record failure in history.json]
+        HistFail --> LoopNext
+
+        ValPass -->|Yes| GenDiff[Generate code diff]
+        GenDiff --> Builder[Feature Builder Python]
+
+        Builder --> BackupData[Backup data/processed/]
+        BackupData --> Rebuild[Rebuild feature dataset<br/>~10 minutes]
+        Rebuild --> Train[Train XGBoost model]
+        Train --> Evaluate[Evaluate vs baseline<br/>Compute metrics]
+        Evaluate --> EvalOut[Write iter_N/analysis.json]
+
+        EvalOut --> Evaluator[Evaluator Agent]
+        Evaluator --> EvalPrompt[Write eval prompt with:<br/>new metrics + baseline]
+        EvalPrompt --> EvalAgent[Evaluator Agent:<br/>Objective metrics analysis]
+        EvalAgent --> AnalysisOut[Write iter_N/analysis.json]
+
+        AnalysisOut --> Decision[Decision Agent]
+        Decision --> DecPrompt[Write decision prompt with:<br/>analysis + plan + history]
+        DecPrompt --> DecAgent[Decision Agent:<br/>Strategic keep/revert choice<br/>Update plan_next.json]
+        DecAgent --> DecisionOut[Write iter_N/decision.json<br/>Write iter_N/plan_next.json]
+
+        DecisionOut --> KeepDec{Keep or Revert?}
+
+        KeepDec -->|Revert| RevertCode[Revert code from backup]
+        RevertCode --> HistRevert[Record revert in history.json]
+        HistRevert --> LoopNext
+
+        KeepDec -->|Keep| KeepCode[Keep changes<br/>Update cumulative diff]
+        KeepCode --> HistKeep[Record keep in history.json<br/>Add to kept_changes/]
+        HistKeep --> LoopNext
+    end
+
+    LoopNext --> LoopEnd{More iterations?}
+    LoopEnd -->|Yes| LoopStart
+    LoopEnd -->|No| Summarizer[Summarizer Agent]
+
+    Summarizer --> SummPrompt[Write summarizer prompt]
+    SummPrompt --> SummAgent[Summarizer Agent:<br/>Review all iterations<br/>Generate final report]
+    SummAgent --> Report[Write report.html]
+
+    Report --> End([Loop complete])
+
+    style Diag fill:#e1f5fe
+    style Plan fill:#e8f5e9
+    style Creator fill:#fff3e0
+    style ValPass fill:#ffebee
+    style Builder fill:#f3e5f5
+    style Decision fill:#fce4ec
+    style LoopStart fill:#fff9c4

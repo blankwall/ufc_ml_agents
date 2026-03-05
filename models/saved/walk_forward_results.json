@@ -1,0 +1,190 @@
+{
+  "test_years": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "overall": {
+    "mean_accuracy": 0.6256936933079638,
+    "std_accuracy": 0.013315554996265437,
+    "mean_auc": 0.6780493822627985,
+    "mean_brier": 0.22563153778792389,
+    "mean_conf_accuracy_corr": 0.9684222724072628,
+    "beats_random_50pct": true,
+    "beats_random_52pct": true
+  },
+  "per_year": [
+    {
+      "test_year": 2020,
+      "n_test_samples": 886,
+      "accuracy": 0.6151241534988713,
+      "auc": 0.6647524318595255,
+      "brier_score": 0.23009115593980597,
+      "log_loss": 0.6539920334520365,
+      "calibration_gap": 0.04746545488171165,
+      "confidence_accuracy_correlation": 0.8667986384261898,
+      "confidence_buckets": {
+        "bins": [
+          "0.5-0.6",
+          "0.6-0.7",
+          "0.7-0.8",
+          "0.8-0.9",
+          "0.9-1.0"
+        ],
+        "accuracies": [
+          0.5104,
+          0.6656,
+          0.7405,
+          0.76,
+          0.75
+        ],
+        "counts": [
+          384,
+          311,
+          158,
+          25,
+          8
+        ]
+      },
+      "n_train_samples": 10612
+    },
+    {
+      "test_year": 2021,
+      "n_test_samples": 994,
+      "accuracy": 0.6146881287726358,
+      "auc": 0.6651660465812987,
+      "brier_score": 0.22908615358050788,
+      "log_loss": 0.6496503806636503,
+      "calibration_gap": 0.016180138915199038,
+      "confidence_accuracy_correlation": 0.9900755562525392,
+      "confidence_buckets": {
+        "bins": [
+          "0.5-0.6",
+          "0.6-0.7",
+          "0.7-0.8",
+          "0.8-0.9",
+          "0.9-1.0"
+        ],
+        "accuracies": [
+          0.5261,
+          0.6425,
+          0.7101,
+          0.8605,
+          null
+        ],
+        "counts": [
+          422,
+          358,
+          169,
+          43,
+          0
+        ]
+      },
+      "n_train_samples": 11498
+    },
+    {
+      "test_year": 2022,
+      "n_test_samples": 1012,
+      "accuracy": 0.6175889328063241,
+      "auc": 0.6713411395272539,
+      "brier_score": 0.22674919937121668,
+      "log_loss": 0.6437081367971405,
+      "calibration_gap": 0.04185002752953522,
+      "confidence_accuracy_correlation": 0.9972543440520728,
+      "confidence_buckets": {
+        "bins": [
+          "0.5-0.6",
+          "0.6-0.7",
+          "0.7-0.8",
+          "0.8-0.9",
+          "0.9-1.0"
+        ],
+        "accuracies": [
+          0.5297,
+          0.6268,
+          0.7527,
+          0.8889,
+          null
+        ],
+        "counts": [
+          438,
+          351,
+          186,
+          36,
+          0
+        ]
+      },
+      "n_train_samples": 12492
+    },
+    {
+      "test_year": 2023,
+      "n_test_samples": 1008,
+      "accuracy": 0.6319444444444444,
+      "auc": 0.6781816893424037,
+      "brier_score": 0.22603134167446948,
+      "log_loss": 0.6429053907189053,
+      "calibration_gap": 0.023132011881913668,
+      "confidence_accuracy_correlation": 0.9956299138805129,
+      "confidence_buckets": {
+        "bins": [
+          "0.5-0.6",
+          "0.6-0.7",
+          "0.7-0.8",
+          "0.8-0.9",
+          "0.9-1.0"
+        ],
+        "accuracies": [
+          0.5526,
+          0.6364,
+          0.699,
+          0.8026,
+          null
+        ],
+        "counts": [
+          371,
+          352,
+          206,
+          76,
+          0
+        ]
+      },
+      "n_train_samples": 13504
+    },
+    {
+      "test_year": 2024,
+      "n_test_samples": 1026,
+      "accuracy": 0.6491228070175439,
+      "auc": 0.710805604003511,
+      "brier_score": 0.21619983837361956,
+      "log_loss": 0.6210857114602354,
+      "calibration_gap": 0.027486553238501233,
+      "confidence_accuracy_correlation": 0.9923529094249988,
+      "confidence_buckets": {
+        "bins": [
+          "0.5-0.6",
+          "0.6-0.7",
+          "0.7-0.8",
+          "0.8-0.9",
+          "0.9-1.0"
+        ],
+        "accuracies": [
+          0.5288,
+          0.6775,
+          0.75,
+          0.8806,
+          null
+        ],
+        "counts": [
+          399,
+          338,
+          220,
+          67,
+          0
+        ]
+      },
+      "n_train_samples": 14512
+    }
+  ]
+}

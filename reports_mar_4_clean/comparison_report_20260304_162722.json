@@ -1,0 +1,36 @@
+{
+  "accuracy": {
+    "verdict": "PASS",
+    "reason": "Accuracy increased by 1.68 pp",
+    "delta": 1.6800000000000037,
+    "baseline": 0.6667,
+    "current": 0.6835
+  },
+  "auc": {
+    "verdict": "FAIL",
+    "reason": "AUC dropped by 0.0155",
+    "delta": -0.01550000000000007,
+    "baseline": 0.7355,
+    "current": 0.72
+  },
+  "brier": {
+    "verdict": "REVIEW",
+    "reason": "Brier increased by 0.0039 (marginal)",
+    "delta": 0.003899999999999987,
+    "baseline": 0.2106,
+    "current": 0.2145
+  },
+  "buckets": {
+    "verdict": "PASS",
+    "warnings": []
+  },
+  "confidence": {
+    "verdict": "FAIL",
+    "warnings": [
+      "Top 25% accuracy dropped by 7.38 pp (FAIL: drop > 5pp)"
+    ]
+  },
+  "data_consistency": [],
+  "final_verdict": "REJECT",
+  "final_reason": "Hard FAIL detected in core metrics"
+}

@@ -736,10 +736,37 @@ def main():
 
     recency_weights = _compute_recency_weights(df_train_raw)
     
-    # Split data (keep index-based alignment so we can align weights)
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
+    # Split data using fight_id grouping to prevent leakage from double-sampling.
+    # Each fight produces two rows (winner-as-f1 and loser-as-f1). A random split
+    # without fight_id grouping lets the mirror of a training row appear in the
+    # test set, artificially inflating validation accuracy by ~10-15 points.
+    if "fight_id" in df_train_raw.columns:
+        unique_fight_ids = df_train_raw["fight_id"].dropna().unique()
+        rng = np.random.default_rng(42)
+        rng.shuffle(unique_fight_ids)
+        n_test_fights = max(1, int(len(unique_fight_ids) * 0.2))
+        test_fight_ids = set(unique_fight_ids[:n_test_fights])
+        train_fight_ids = set(unique_fight_ids[n_test_fights:])
+
+        train_mask = df_train_raw["fight_id"].isin(train_fight_ids)
+        test_mask = df_train_raw["fight_id"].isin(test_fight_ids)
+
+        X_train = X.loc[df_train_raw.index[train_mask]]
+        X_test = X.loc[df_train_raw.index[test_mask]]
+        y_train = y.loc[df_train_raw.index[train_mask]]
+        y_test = y.loc[df_train_raw.index[test_mask]]
+
+        logger.info(
+            f"Fight-grouped split: {len(train_fight_ids)} train fights "
+            f"({len(X_train)} rows), {len(test_fight_ids)} test fights "
+            f"({len(X_test)} rows)"
+        )
+    else:
+        logger.warning("No fight_id column found; falling back to random split (may have leakage).")
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
+
     w_train = recency_weights.loc[X_train.index].values
     
     logger.info(f"Data loaded: {len(X_train)} train, {len(X_test)} test")

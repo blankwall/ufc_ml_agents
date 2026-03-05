@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "num_features": 250,
+  "num_features": 251,
   "features": [
     "age_difference",
     "age_weighted_recent_damage_diff",
@@ -8,6 +8,7 @@
     "age_x_elite_experience_diff",
     "age_x_fights_in_last_year_diff",
     "age_x_fights_since_last_win_diff",
+    "age_x_quality_continuous_diff",
     "age_x_recent_sig_strike_diff_last_3_diff",
     "age_x_recent_vs_career_decline_diff",
     "age_x_years_since_last_fight_diff",
