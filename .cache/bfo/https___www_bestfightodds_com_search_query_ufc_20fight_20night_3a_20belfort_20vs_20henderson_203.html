@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <meta name="description" content="UFC/MMA odds comparison service. Compare the latest UFC/MMA fight odds and betting lines from the top online sportsbooks">
+    <meta name="keywords" content="mma odds, mma betting, mma lines, ufc odds, ufc, mma, odds, betting">
+    <meta name="bfo-version" content="2024-02-15">
+    <meta property="og:image" content="https://www.bestfightodds.com/img/iconv2.jpg">
+            <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+            <link rel="preconnect" href="https://www.googletagmanager.com">
+    <link rel="preconnect" href="https://www.google-analytics.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
+    <noscript>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+    </noscript>
+    <link rel="stylesheet" type="text/css" href="/css/bfo.min.css?v=0.3.15">
+    <link rel="shortcut icon" href="https://www.bestfightodds.com/favicon.ico">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon-iphone.png">
+    <!-- Google Tag Manager -->
+    <script>
+        (function(w, d, s, l, i) {
+            w[l] = w[l] || [];
+            w[l].push({
+                'gtm.start':
+
+                    new Date().getTime(),
+                event: 'gtm.js'
+            });
+            var f = d.getElementsByTagName(s)[0],
+
+                j = d.createElement(s),
+                dl = l != 'dataLayer' ? '&l=' + l : '';
+            j.async = true;
+            j.src =
+
+                'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+            f.parentNode.insertBefore(j, f);
+
+        })(window, document, 'script', 'dataLayer', 'GTM-WGLQH4ZQ');
+    </script>
+    <!-- End Google Tag Manager -->
+        <title>Search results | Best Fight Odds</title>
+</head>
+
+<body>
+    <script async src="/js/bfo.min.js?v=0.4.9"></script>
+    <div class="flex-header">
+        <div class="flex-header-wrap">
+            <a href="/"><img src="/img/logo_3.png" class="logo" width="290" height="54" alt="Best Fight Odds logo"></a>
+            <div id="header-search-box">
+                <form method="get" action="/search"><input type="text" id="search-box1" class="search-box" name="query" placeholder="MMA Event / Fighter"> <input type="submit" class="search-button" id="search-button" value="&#128269;"></form>
+            </div>
+        </div>
+    </div>
+    <div class="flex-nav">
+        <div class="flex-nav-wrap">
+            <div class="flex-header-menu">
+                <a href="/">
+                    <div class="header-menu-item " style="margin-left: 10px">Latest<span class="item-non-mob-mini"> odds</span></div>
+                </a>
+                <a href="/archive">
+                    <div class="header-menu-item  header-menu-selected ">Archive</div>
+                </a>
+                <a href="/alerts">
+                    <div class="header-menu-item ">Alerts</div>
+                </a>
+                <a href="/links">
+                    <div class="header-menu-item  item-non-mobile">Widget</div>
+                </a>
+                <a href="https://www.proboxingodds.com" target="_blank" rel="noopener">
+                    <div class="header-menu-item  item-non-mobile">Boxing</div>
+                </a>
+                <a href="https://twitter.com/bestfightodds" target="_blank" rel="noopener">
+                    <div class="header-menu-item">&#120143;</div>
+                </a>
+            </div>
+            <div id="flex-header-menu-right">
+                <div id="parlay-mode-container"  style="visibility: hidden" >
+                    <a href="#" id="parlay-mode-box">
+                        <div class="bfo-check-box">✓</div> Parlay
+                    </a>
+                </div>
+                <div class="menu-divider"  style="display: none" ></div>
+                <div id="auto-refresh-container"  style="display: none" >
+                    <ul class="dropdown">
+                        <li><a href="#" onclick="toggleRefresh()" style="padding-left: 20px;"><img src="/img/refresh.png" class="refresh-ind" id="autoRefresh" alt="Toggle auto-refresh">&#9660;</a>
+                            <ul class="sub_menu">
+                                <li><a href="#" id="afSelectorOn" class="list-checked"><span style="display: inline-block">&#10004;</span>Auto-refresh: On</a></li>
+                                <li><a href="#" id="afSelectorOff"><span>&#10004;</span>Auto-refresh: Off</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                <div id="mob-divider" class="menu-divider"  style="display: none" ></div>
+                <div id="format-container">
+                    <ul class="dropdown">
+                        <li><a href="#" id="format-toggle-text"><span>Settings &#9660;</span></a>
+                            <ul class="sub_menu">
+                                                                <li><a href="#" id="formatSelector1" class="list-checked"><span style="display: inline-block">&#10003;</span>Moneyline</a></li>
+                                <li><a href="#" id="formatSelector2"><span>&#10003;</span>Decimal</a></li>
+                                <li><a href="#" id="formatSelector4"><span>&#10003;</span>Fractional</a></li>
+                                <li style="border-bottom: 1px solid #4a4c53"><a href="#" id="formatSelector3" style="display: inline"><span>&#10003;</span>Return on </a>$<input type="text" name="amountBox" id="format-amount-box1" maxlength="4" value="100" style="display: inline"></li>
+                                <li><a href="#" id="bookieHideSelector">Customize view</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="flex-section">
+        <div class="flex-content-wrap">
+            
+<div id="page-wrapper"  style="max-width: 700px;">
+    <div id="page-container">
+        <div id="page-inner-wrapper">
+            <div id="page-content">
+                <form name="search_fighters" style="margin-top: 10px; margin-bottom: 22px;" method="get" action="/search">
+                    <p>Search the archive for events/fighters:<input type="text" name="query" value="" style="width: 195px; margin-left: 5px;" /><input type="submit" value="&#128269;" class="archive_search_button" style="margin-left: -1px;"/></p>
+                </form>
+    
+                
+                    
+                        <p style="font-size: 12px">Showing results for search query <b><i>UFC Fight Night: Belfort vs Henderson 3</i></b>:</p>
+
+                        
+                            <div class="content-header" style="margin-top: 15px;">Fighters <span style="font-weight: normal;">(displaying 12 out of 12 matches)</span></div>
+                            <table class="content-list">
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/The-Korean-Zombie-ufc-Bantamweight-Championship-Bout-13087">The Korean Zombie *ufc Bantamweight Championship Bout</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Vitor-Belfort-755">Vitor Belfort</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Fight-Won-t-Go-3-Round-Distance-12395">Fight Won't Go 3 Round Distance</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Petnaya-Bang-Saen-Fight-Club-19051">Petnaya Bang Saen Fight Club</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Adrian-Henderson-5107">Adrian Henderson</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Arlandis-Henderson-12291">Arlandis Henderson</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Benson-Henderson-1058">Benson Henderson</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Dan-Henderson-56">Dan Henderson</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Maria-Henderson-12669">Maria Henderson</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Mikey-Henderson-19982">Mikey Henderson</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Ron-Henderson-5283">Ron Henderson</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Wade-Henderson-13399">Wade Henderson</a></td>
+                                </tr>
+
+                                                        </table>
+
+                        
+                        
+                            <div class="content-header" style="margin-top: 15px;">Events <span style="font-weight: normal;">(displaying 25 out of 890 matches)</span></div>
+                            <table class="content-list">
+                                                            <tr>
+                                    <td class="content-list-date">Nov 9th 2013</td>
+                                    <td><a href="/events/ufc-fight-night-32-belfort-vs-henderson-725">UFC Fight Night 32: Belfort vs. Henderson</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Nov 7th 2015</td>
+                                    <td><a href="/events/ufc-fight-night-77-belfort-vs-henderson-3-997">UFC Fight Night 77: Belfort vs. Henderson 3</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Mar 11th 2017</td>
+                                    <td><a href="/events/ufc-fight-night-106-belfort-vs-gastelum-1231">UFC Fight Night 106: Belfort vs. Gastelum</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Sep 19th 2009</td>
+                                    <td><a href="/events/ufc-103-franklin-vs-belfort-168">UFC 103: Franklin vs Belfort</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Feb 5th 2011</td>
+                                    <td><a href="/events/ufc-126-silva-vs-belfort-338">UFC 126: Silva vs. Belfort</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Sep 22nd 2012</td>
+                                    <td><a href="/events/ufc-152-jones-vs-belfort-561">UFC 152: Jones vs. Belfort</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Jan 19th 2013</td>
+                                    <td><a href="/events/ufc-on-fx-7-belfort-vs-bisping-612">UFC on FX 7: Belfort vs. Bisping</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">May 18th 2013</td>
+                                    <td><a href="/events/ufc-on-fx-8-belfort-vs-rockhold-648">UFC on FX 8: Belfort vs. Rockhold</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Mar 23rd 2014</td>
+                                    <td><a href="/events/ufc-fight-night-38-shogun-vs-henderson-784">UFC Fight Night 38: Shogun vs. Henderson</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Jun 7th 2014</td>
+                                    <td><a href="/events/ufc-fight-night-42-henderson-vs-khabilov-822">UFC Fight Night 42: Henderson vs. Khabilov</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Aug 23rd 2014</td>
+                                    <td><a href="/events/ufc-fight-night-49-henderson-vs-dos-anjos-846">UFC Fight Night 49: Henderson vs. Dos Anjos</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Feb 14th 2015</td>
+                                    <td><a href="/events/ufc-fight-night-60-henderson-vs-thatch-915">UFC Fight Night 60: Henderson vs. Thatch</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Jun 6th 2015</td>
+                                    <td><a href="/events/ufc-fight-night-68-henderson-vs-boetsch-947">UFC Fight Night 68: Henderson vs. Boetsch</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Nov 28th 2015</td>
+                                    <td><a href="/events/ufc-fight-night-79-henderson-vs-masvidal-1013">UFC Fight Night 79: Henderson vs. Masvidal</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Apr 16th 2022</td>
+                                    <td><a href="/events/ufc-fight-night-ufc-fight-night-206-2412">UFC Fight Night: UFC Fight Night 206</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Jan 17th 2009</td>
+                                    <td><a href="/events/ufc-93-franklin-vs-henderson-105">UFC 93: Franklin vs Henderson</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Nov 19th 2011</td>
+                                    <td><a href="/events/ufc-139-shogun-vs-henderson-424">UFC 139: Shogun vs. Henderson</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Feb 25th 2012</td>
+                                    <td><a href="/events/ufc-144-edgar-vs-henderson-477">UFC 144: Edgar vs. Henderson</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Aug 11th 2012</td>
+                                    <td><a href="/events/ufc-150-henderson-vs-edgar-ii-547">UFC 150: Henderson vs. Edgar II</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Dec 8th 2012</td>
+                                    <td><a href="/events/ufc-on-fox-5-henderson-vs-diaz-584">UFC on FOX 5: Henderson vs. Diaz</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Apr 20th 2013</td>
+                                    <td><a href="/events/ufc-on-fox-7-henderson-vs-melendez-634">UFC on FOX 7: Henderson vs. Melendez</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Jun 15th 2013</td>
+                                    <td><a href="/events/ufc-161-evans-vs-henderson-660">UFC 161: Evans vs. Henderson</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Aug 31st 2013</td>
+                                    <td><a href="/events/ufc-164-henderson-vs-pettis-ii-691">UFC 164: Henderson vs. Pettis II</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Jan 25th 2014</td>
+                                    <td><a href="/events/ufc-on-fox-10-henderson-vs-thomson-777">UFC on FOX 10: Henderson vs. Thomson</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Oct 8th 2016</td>
+                                    <td><a href="/events/ufc-204-bisping-vs-henderson-2-1168">UFC 204: Bisping vs. Henderson 2</a></td>
+                                </tr>
+                                                        </table>
+
+                        
+                    
+                
+            </div>
+        </div>
+        <div class="content-sidebar">
+            <p>
+                <img src="img/info.gif" class="img-info-box" /> Results are limited to 25 events/fighters. Refine your search criteria to narrow down specific results
+            </p>
+        </div>
+        <div class="clear"></div>
+    </div>
+</div>
+
+<div id="page-bottom"></div>
+        </div>
+    </div>
+    <div class="legend-container">
+        <img src="/img/loading.gif" class="hidden-image" alt="Loading indicator" width="0" height="0">
+        <img src="/img/expu.png" class="hidden-image" alt="Expand symbol" width="0" height="0">
+    </div>
+
+    <div id="bottom-container">
+        <a href="/">Home</a><span class="menu-seperator">|</span>
+                    <a href="#" onclick="setDesktop(true);">Desktop&nbsp;site</a><span class="menu-seperator">|</span>
+                <a href="https://www.proboxingodds.com" target="_blank" rel="noopener">Boxing&nbsp;Odds</a><span class="menu-seperator">|</span><a href="/terms">Terms&nbsp;of&nbsp;service</a><span class="menu-seperator">|</span><a href="/privacy">Privacy Policy</a><span class="menu-seperator">|</span><a href="#">21+</a><span class="menu-seperator">|</span><a href="/responsiblegaming">Responsible&nbsp;Gaming</a><span class="menu-seperator">|</span><a href="https://www.begambleaware.org/">BeGambleAware</a><span class="menu-seperator">|</span><a href="/cdn-cgi/l/email-protection#016364727567686669756e6565724171606268676862756865646c646568602f626e6c">Contact</a><span class="menu-seperator">|</span><a href="/cdn-cgi/l/email-protection#593b3c2a2d3f303e312d363d3d2a1929383a303f303a2d303d3c343c3d3038773a3634">Copyright &copy; 2026 Pacific Tide Media Inc.</a>
+        <div style="display: block; clear: both; margin-top: 10px; padding: 10px 0; font-size: 0.9em; width: 100%;">
+            Know your limits. For support with gambling issues, call 1-800-GAMBLER or visit <a href="https://www.ncpgambling.org/" target="_blank" rel="noopener" style="font-size: inherit; padding: 0;">ncpgambling.org</a>
+        </div>
+
+    </div>
+
+    <div id="chart-window" class="popup-window">
+        <div class="popup-header" id="chart-header">
+            <div></div><a href="#" class="cd-popup-close">&#10005;</a>
+        </div>
+        <div id="chart-area"></div><a href="#" target="_blank" rel="noopener">
+            <div id="chart-link" class="highlighted-button">Bet this line at bookie</div>
+        </a>
+        <div id="chart-disc" style="display: none; color: #333">*Currently this Sportsbook does not accept players that reside in the US. 18+ Gamble Responsibly</div>
+    </div>
+    <div id="parlay-window" class="popup-window">
+        <div class="popup-header" id="parlay-header">Parlay</div>
+        <div id="parlay-area">Click on a line to add it to your parlay</div>
+    </div>
+    <div id="bookie-settings-window" class="popup-window">
+        <div class="popup-header">Bookie display settings <a href="#" class="cd-popup-close">&#10005;</a></div>
+        <div id="bookie-settings-area">Drag to change order, show/hide using checkbox<ul id="bookie-order-items"></ul><input type="button" class="button" value="Reset to default settings" id="bookieResetDefault"></div>
+    </div>
+            <!-- Google Tag Manager (noscript) -->
+        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WGLQH4ZQ" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+        <!-- End Google Tag Manager (noscript) -->
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"f1f4fbe7e84f4590b968a39690e0536c","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+
+</html>

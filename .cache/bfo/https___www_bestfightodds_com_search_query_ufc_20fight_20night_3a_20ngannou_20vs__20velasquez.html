@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <meta name="description" content="UFC/MMA odds comparison service. Compare the latest UFC/MMA fight odds and betting lines from the top online sportsbooks">
+    <meta name="keywords" content="mma odds, mma betting, mma lines, ufc odds, ufc, mma, odds, betting">
+    <meta name="bfo-version" content="2024-02-15">
+    <meta property="og:image" content="https://www.bestfightodds.com/img/iconv2.jpg">
+            <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+            <link rel="preconnect" href="https://www.googletagmanager.com">
+    <link rel="preconnect" href="https://www.google-analytics.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
+    <noscript>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+    </noscript>
+    <link rel="stylesheet" type="text/css" href="/css/bfo.min.css?v=0.3.15">
+    <link rel="shortcut icon" href="https://www.bestfightodds.com/favicon.ico">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon-iphone.png">
+    <!-- Google Tag Manager -->
+    <script>
+        (function(w, d, s, l, i) {
+            w[l] = w[l] || [];
+            w[l].push({
+                'gtm.start':
+
+                    new Date().getTime(),
+                event: 'gtm.js'
+            });
+            var f = d.getElementsByTagName(s)[0],
+
+                j = d.createElement(s),
+                dl = l != 'dataLayer' ? '&l=' + l : '';
+            j.async = true;
+            j.src =
+
+                'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+            f.parentNode.insertBefore(j, f);
+
+        })(window, document, 'script', 'dataLayer', 'GTM-WGLQH4ZQ');
+    </script>
+    <!-- End Google Tag Manager -->
+        <title>Search results | Best Fight Odds</title>
+</head>
+
+<body>
+    <script async src="/js/bfo.min.js?v=0.4.9"></script>
+    <div class="flex-header">
+        <div class="flex-header-wrap">
+            <a href="/"><img src="/img/logo_3.png" class="logo" width="290" height="54" alt="Best Fight Odds logo"></a>
+            <div id="header-search-box">
+                <form method="get" action="/search"><input type="text" id="search-box1" class="search-box" name="query" placeholder="MMA Event / Fighter"> <input type="submit" class="search-button" id="search-button" value="&#128269;"></form>
+            </div>
+        </div>
+    </div>
+    <div class="flex-nav">
+        <div class="flex-nav-wrap">
+            <div class="flex-header-menu">
+                <a href="/">
+                    <div class="header-menu-item " style="margin-left: 10px">Latest<span class="item-non-mob-mini"> odds</span></div>
+                </a>
+                <a href="/archive">
+                    <div class="header-menu-item  header-menu-selected ">Archive</div>
+                </a>
+                <a href="/alerts">
+                    <div class="header-menu-item ">Alerts</div>
+                </a>
+                <a href="/links">
+                    <div class="header-menu-item  item-non-mobile">Widget</div>
+                </a>
+                <a href="https://www.proboxingodds.com" target="_blank" rel="noopener">
+                    <div class="header-menu-item  item-non-mobile">Boxing</div>
+                </a>
+                <a href="https://twitter.com/bestfightodds" target="_blank" rel="noopener">
+                    <div class="header-menu-item">&#120143;</div>
+                </a>
+            </div>
+            <div id="flex-header-menu-right">
+                <div id="parlay-mode-container"  style="visibility: hidden" >
+                    <a href="#" id="parlay-mode-box">
+                        <div class="bfo-check-box">✓</div> Parlay
+                    </a>
+                </div>
+                <div class="menu-divider"  style="display: none" ></div>
+                <div id="auto-refresh-container"  style="display: none" >
+                    <ul class="dropdown">
+                        <li><a href="#" onclick="toggleRefresh()" style="padding-left: 20px;"><img src="/img/refresh.png" class="refresh-ind" id="autoRefresh" alt="Toggle auto-refresh">&#9660;</a>
+                            <ul class="sub_menu">
+                                <li><a href="#" id="afSelectorOn" class="list-checked"><span style="display: inline-block">&#10004;</span>Auto-refresh: On</a></li>
+                                <li><a href="#" id="afSelectorOff"><span>&#10004;</span>Auto-refresh: Off</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                <div id="mob-divider" class="menu-divider"  style="display: none" ></div>
+                <div id="format-container">
+                    <ul class="dropdown">
+                        <li><a href="#" id="format-toggle-text"><span>Settings &#9660;</span></a>
+                            <ul class="sub_menu">
+                                                                <li><a href="#" id="formatSelector1" class="list-checked"><span style="display: inline-block">&#10003;</span>Moneyline</a></li>
+                                <li><a href="#" id="formatSelector2"><span>&#10003;</span>Decimal</a></li>
+                                <li><a href="#" id="formatSelector4"><span>&#10003;</span>Fractional</a></li>
+                                <li style="border-bottom: 1px solid #4a4c53"><a href="#" id="formatSelector3" style="display: inline"><span>&#10003;</span>Return on </a>$<input type="text" name="amountBox" id="format-amount-box1" maxlength="4" value="100" style="display: inline"></li>
+                                <li><a href="#" id="bookieHideSelector">Customize view</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="flex-section">
+        <div class="flex-content-wrap">
+            
+<div id="page-wrapper"  style="max-width: 700px;">
+    <div id="page-container">
+        <div id="page-inner-wrapper">
+            <div id="page-content">
+                <form name="search_fighters" style="margin-top: 10px; margin-bottom: 22px;" method="get" action="/search">
+                    <p>Search the archive for events/fighters:<input type="text" name="query" value="" style="width: 195px; margin-left: 5px;" /><input type="submit" value="&#128269;" class="archive_search_button" style="margin-left: -1px;"/></p>
+                </form>
+    
+                
+                    
+                        <p style="font-size: 12px">Showing results for search query <b><i>UFC Fight Night: Ngannou vs. Velasquez</i></b>:</p>
+
+                        
+                            <div class="content-header" style="margin-top: 15px;">Fighters <span style="font-weight: normal;">(displaying 8 out of 8 matches)</span></div>
+                            <table class="content-list">
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Francis-Ngannou-5847">Francis Ngannou</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/The-Korean-Zombie-ufc-Bantamweight-Championship-Bout-13087">The Korean Zombie *ufc Bantamweight Championship Bout</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Fight-Won-t-Go-3-Round-Distance-12395">Fight Won't Go 3 Round Distance</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Petnaya-Bang-Saen-Fight-Club-19051">Petnaya Bang Saen Fight Club</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Alberto-Velasquez-20306">Alberto Velasquez</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Cain-Velasquez-464">Cain Velasquez</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Juliana-Velasquez-7769">Juliana Velasquez</a></td>
+                                </tr>
+
+                                            
+                                <tr>
+                                    <td class="content-list-date"></td>
+                                    <td><a href="/fighters/Mardin-Velasquez-16985">Mardin Velasquez</a></td>
+                                </tr>
+
+                                                        </table>
+
+                        
+                        
+                            <div class="content-header" style="margin-top: 15px;">Events <span style="font-weight: normal;">(displaying 25 out of 880 matches)</span></div>
+                            <table class="content-list">
+                                                            <tr>
+                                    <td class="content-list-date">Feb 17th 2019</td>
+                                    <td><a href="/events/ufc-on-espn-1-ngannou-vs-velasquez-1637">UFC on ESPN 1: Ngannou vs. Velasquez</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Nov 24th 2018</td>
+                                    <td><a href="/events/ufc-fight-night-141-blaydes-vs-ngannou-2-1579">UFC Fight Night 141: Blaydes vs. Ngannou 2</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Jan 20th 2018</td>
+                                    <td><a href="/events/ufc-220-miocic-vs-ngannou-1406">UFC 220: Miocic vs. Ngannou</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Jun 29th 2019</td>
+                                    <td><a href="/events/ufc-on-espn-3-ngannou-vs-dos-santos-1687">UFC on ESPN 3: Ngannou vs. Dos Santos</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Mar 27th 2021</td>
+                                    <td><a href="/events/ufc-260-miocic-vs-ngannou-2-2055">UFC 260: Miocic vs. Ngannou 2</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Feb 21st 2010</td>
+                                    <td><a href="/events/ufc-110-nogueira-vs-velasquez-225">UFC 110: Nogueira vs. Velasquez</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Oct 23rd 2010</td>
+                                    <td><a href="/events/ufc-121-lesnar-vs-velasquez-308">UFC 121: Lesnar vs. Velasquez</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Nov 12th 2011</td>
+                                    <td><a href="/events/ufc-on-fox-1-velasquez-vs-dos-santos-442">UFC On FOX 1: Velasquez vs. Dos Santos</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Dec 29th 2012</td>
+                                    <td><a href="/events/ufc-155-dos-santos-vs-velasquez-ii-585">UFC 155: Dos Santos vs. Velasquez II</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">May 25th 2013</td>
+                                    <td><a href="/events/ufc-160-velasquez-vs-silva-ii-647">UFC 160: Velasquez vs. Silva II</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Oct 19th 2013</td>
+                                    <td><a href="/events/ufc-166-velasquez-vs-dos-santos-iii-698">UFC 166: Velasquez vs. Dos Santos III</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Jun 13th 2015</td>
+                                    <td><a href="/events/ufc-188-velasquez-vs-werdum-930">UFC 188: Velasquez vs. Werdum</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Dec 10th 2020</td>
+                                    <td><a href="/events/bellator-254-macfarlane-vs-velasquez-2018">Bellator 254: Macfarlane vs. Velasquez</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Apr 16th 2022</td>
+                                    <td><a href="/events/ufc-fight-night-ufc-fight-night-206-2412">UFC Fight Night: UFC Fight Night 206</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Dec 10th 2008</td>
+                                    <td><a href="/events/ufc-fight-night-16-fight-for-the-troops-111">UFC Fight Night 16: Fight For The Troops</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Jan 22nd 2011</td>
+                                    <td><a href="/events/ufc-fight-night-23-fight-for-the-troops-ii-342">UFC Fight Night 23: Fight For The Troops II</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Nov 6th 2013</td>
+                                    <td><a href="/events/ufc-fight-night-31-fight-for-the-troops-iii-726">UFC Fight Night 31: Fight For The Troops III</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Sep 19th 2007</td>
+                                    <td><a href="/events/ufc-fight-night-11-thomas-vs-florian-13">UFC Fight Night 11: Thomas vs Florian</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Jan 23rd 2008</td>
+                                    <td><a href="/events/ufc-fight-night-12-swick-vs-burkman-36">UFC Fight Night 12: Swick vs Burkman</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Apr 2nd 2008</td>
+                                    <td><a href="/events/ufc-fight-night-13-florian-vs-lauzon-44">UFC Fight Night 13: Florian vs Lauzon</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Jul 19th 2008</td>
+                                    <td><a href="/events/ufc-fight-night-14-silva-vs-irvin-83">UFC Fight Night 14: Silva vs Irvin</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Sep 17th 2008</td>
+                                    <td><a href="/events/ufc-fight-night-15-diaz-vs-neer-84">UFC Fight Night 15: Diaz vs Neer</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Feb 7th 2009</td>
+                                    <td><a href="/events/ufc-fight-night-17-lauzon-vs-stephens-123">UFC Fight Night 17: Lauzon vs Stephens</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Apr 1st 2009</td>
+                                    <td><a href="/events/ufc-fight-night-18-condit-vs-kampmann-129">UFC Fight Night 18: Condit vs Kampmann</a></td>
+                                </tr>
+                                                            <tr>
+                                    <td class="content-list-date">Sep 16th 2009</td>
+                                    <td><a href="/events/ufc-fight-night-19-148">UFC Fight Night 19</a></td>
+                                </tr>
+                                                        </table>
+
+                        
+                    
+                
+            </div>
+        </div>
+        <div class="content-sidebar">
+            <p>
+                <img src="img/info.gif" class="img-info-box" /> Results are limited to 25 events/fighters. Refine your search criteria to narrow down specific results
+            </p>
+        </div>
+        <div class="clear"></div>
+    </div>
+</div>
+
+<div id="page-bottom"></div>
+        </div>
+    </div>
+    <div class="legend-container">
+        <img src="/img/loading.gif" class="hidden-image" alt="Loading indicator" width="0" height="0">
+        <img src="/img/expu.png" class="hidden-image" alt="Expand symbol" width="0" height="0">
+    </div>
+
+    <div id="bottom-container">
+        <a href="/">Home</a><span class="menu-seperator">|</span>
+                    <a href="#" onclick="setDesktop(true);">Desktop&nbsp;site</a><span class="menu-seperator">|</span>
+                <a href="https://www.proboxingodds.com" target="_blank" rel="noopener">Boxing&nbsp;Odds</a><span class="menu-seperator">|</span><a href="/terms">Terms&nbsp;of&nbsp;service</a><span class="menu-seperator">|</span><a href="/privacy">Privacy Policy</a><span class="menu-seperator">|</span><a href="#">21+</a><span class="menu-seperator">|</span><a href="/responsiblegaming">Responsible&nbsp;Gaming</a><span class="menu-seperator">|</span><a href="https://www.begambleaware.org/">BeGambleAware</a><span class="menu-seperator">|</span><a href="/cdn-cgi/l/email-protection#fb999e888f9d929c938f949f9f88bb8b9a98929d92988f929f9e969e9f929ad5989496">Contact</a><span class="menu-seperator">|</span><a href="/cdn-cgi/l/email-protection#7d1f180e091b141a15091219190e3d0d1c1e141b141e09141918101819141c531e1210">Copyright &copy; 2026 Pacific Tide Media Inc.</a>
+        <div style="display: block; clear: both; margin-top: 10px; padding: 10px 0; font-size: 0.9em; width: 100%;">
+            Know your limits. For support with gambling issues, call 1-800-GAMBLER or visit <a href="https://www.ncpgambling.org/" target="_blank" rel="noopener" style="font-size: inherit; padding: 0;">ncpgambling.org</a>
+        </div>
+
+    </div>
+
+    <div id="chart-window" class="popup-window">
+        <div class="popup-header" id="chart-header">
+            <div></div><a href="#" class="cd-popup-close">&#10005;</a>
+        </div>
+        <div id="chart-area"></div><a href="#" target="_blank" rel="noopener">
+            <div id="chart-link" class="highlighted-button">Bet this line at bookie</div>
+        </a>
+        <div id="chart-disc" style="display: none; color: #333">*Currently this Sportsbook does not accept players that reside in the US. 18+ Gamble Responsibly</div>
+    </div>
+    <div id="parlay-window" class="popup-window">
+        <div class="popup-header" id="parlay-header">Parlay</div>
+        <div id="parlay-area">Click on a line to add it to your parlay</div>
+    </div>
+    <div id="bookie-settings-window" class="popup-window">
+        <div class="popup-header">Bookie display settings <a href="#" class="cd-popup-close">&#10005;</a></div>
+        <div id="bookie-settings-area">Drag to change order, show/hide using checkbox<ul id="bookie-order-items"></ul><input type="button" class="button" value="Reset to default settings" id="bookieResetDefault"></div>
+    </div>
+            <!-- Google Tag Manager (noscript) -->
+        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WGLQH4ZQ" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+        <!-- End Google Tag Manager (noscript) -->
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"f1f4fbe7e84f4590b968a39690e0536c","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+
+</html>
