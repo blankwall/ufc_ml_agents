@@ -29,6 +29,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Tuple
 
+# Project root so "database", "features", "models" resolve when run from any cwd
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _SCRIPT_DIR.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -183,6 +189,12 @@ def main() -> None:
         type=str,
         default="reports",
         help="Directory to save evaluation reports/plots",
+    )
+    parser.add_argument(
+        "--output-json",
+        type=str,
+        default=None,
+        help="Also write the report JSON to this path (e.g. models/mar_4_v2_baseline.json)",
     )
     parser.add_argument(
         "--strict-point-in-time",
@@ -2283,6 +2295,13 @@ def main() -> None:
         json.dump(report, f, indent=2, allow_nan=False)
 
     logger.success(f"Saved evaluation report to {report_path}")
+
+    if args.output_json:
+        out_path = Path(args.output_json)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("w") as f:
+            json.dump(report, f, indent=2, allow_nan=False)
+        logger.success(f"Saved copy to {out_path}")
 
     # Calibration plot
     plt.figure(figsize=(8, 6))

@@ -1,0 +1,17 @@
+date,fighter1,fighter2,fav_name,dog_name,fav_odd,fav_won,poly_pnl,book_fav_odds,book_fav_imp,book_fav_ev,prob1,prob2,ev1,ev2
+2025-11-15,Erin Blanchfield,Tracy Cortez,Blanchfield,Cortez,0.6850,True,459.8540,-330.0000,0.7674,-0.1778,0.6310,0.3690,-0.1778,0.3468
+2025-11-15,Gerald Meerschaert,Kyle Daukaus,Daukaus,Meerschaert,0.7600,True,315.7895,-480.0000,0.8276,-0.1663,0.3100,0.6900,0.4570,-0.1663
+2025-11-15,Angela Hill,Fatima Kline,Kline,Hill,0.8050,True,242.2360,-590.0000,0.8551,-0.1229,0.2500,0.7500,0.3500,-0.1229
+2025-11-22,Arman Tsarukyan,Dan Hooker,Tsarukyan,Hooker,0.8200,True,219.5122,-750.0000,0.8824,-0.0809,0.8110,0.1890,-0.0809,0.1907
+2025-11-22,Belal Muhammad,Ian Machado Garry,Machado Garry,Muhammad,0.6850,True,459.8540,-290.0000,0.7436,-0.0102,0.2640,0.7360,-0.1156,-0.0102
+2025-11-22,Jack Hermansson,Myktybek Orolbai,Orolbai,Hermansson,0.6850,True,459.8540,-198.0000,0.6644,-0.1662,0.4460,0.5540,0.1864,-0.1662
+2025-12-07,Brandon Moreno,Tatsuro Taira,Moreno,Taira,0.5000,False,-1000.0000,-116.0000,0.5370,0.2252,0.3420,0.6580,-0.3227,0.2252
+2025-12-07,Henry Cejudo,Payton Talbott,Talbott,Cejudo,0.6850,True,459.8540,-250.0000,0.7143,-0.1082,0.3630,0.6370,0.1071,-0.1082
+2025-12-07,Fares Ziam,Nazim Sadykhov,Ziam,Sadykhov,0.5600,True,785.7143,-188.0000,0.6528,0.1689,0.7630,0.2370,0.1689,-0.3885
+2025-12-07,Edson Barboza,Jalin Turner,Turner,Barboza,0.6650,True,503.7594,-460.0000,0.8214,-0.1746,0.3220,0.6780,0.4812,-0.1746
+2025-12-06,Antonio Trocoli,Mansur Abdul-Malik,Abdul-Malik,Trocoli,0.8600,True,162.7907,-1800.0000,0.9474,-0.0479,0.0980,0.9020,0.0584,-0.0479
+2025-12-07,Ibo Aslan,Iwo Baraniewski,Baraniewski,Aslan,0.6400,True,562.5000,-215.0000,0.6825,-0.0960,0.3830,0.6170,0.0724,-0.0960
+2025-12-14,Brandon Royval,Manel Kape,Kape,Royval,0.6450,True,550.3876,-310.0000,0.7561,-0.3427,0.5030,0.4970,0.6599,-0.3427
+2025-12-14,Neil Magny,Yaroslav Amosov,Amosov,Magny,0.7300,True,369.8630,-430.0000,0.8113,-0.5477,0.6330,0.3670,1.5320,-0.5477
+2025-12-14,Jamey-Lyn Horth,Tereza Bleda,Bleda,Horth,0.5800,False,-1000.0000,-156.0000,0.6094,-0.0203,0.4030,0.5970,-0.1053,-0.0203
+2025-12-14,Sean Sharaf,Steven Asplund,Asplund,Sharaf,0.6850,True,459.8540,-250.0000,0.7143,-0.4778,0.6270,0.3730,0.8183,-0.4778

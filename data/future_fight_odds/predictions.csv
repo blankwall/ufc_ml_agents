@@ -1,0 +1,9 @@
+event_name,event_date,fighter1,fighter2,fighter1_odds,fighter2_odds,market_prob_f1,model_prob_f1,edge_f1,model_source,model_pick,winner,pnl,is_underdog,bet_flag
+UFC 326: Holloway vs. Oliveira 2,March 8th,Charles Oliveira,Max Holloway,165,-210,0.3774,0.448,0.0706,blended,Max Holloway,Charles Oliveira,-100.0,True,BET
+UFC 326: Holloway vs. Oliveira 2,March 8th,Caio Borralho,Reinier de Ridder,-230,190,0.697,0.437,-0.26,blended,Reinier de Ridder,Caio Borralho,-100.0,True,
+UFC 326: Holloway vs. Oliveira 2,March 8th,Raul Rosas Jr,Rob Font,-335,250,0.7701,0.577,-0.1931,blended,Raul Rosas Jr,Raul Rosas Jr.,29.850746268656714,True,
+UFC 326: Holloway vs. Oliveira 2,March 8th,Drew Dober,Michael Johnson,-210,165,0.6774,0.605,-0.0724,blended,Drew Dober,Drew Dober,47.61904761904761,True,
+UFC 326: Holloway vs. Oliveira 2,March 8th,Brunno Ferreira,Gregory Rodrigues,132,-165,0.431,0.4,-0.031,general,Gregory Rodrigues,pending,,False,
+UFC 326: Holloway vs. Oliveira 2,March 8th,Cody Brundage,Donte Johnson,600,-900,0.1429,0.186,0.0431,blended,Donte Johnson,pending,,True,BET
+UFC 326: Holloway vs. Oliveira 2,March 8th,Alberto Montes,Ricky Turcios,-190,155,0.6552,0.592,-0.0632,blended,Alberto Montes,Alberto Montes,52.63157894736842,True,
+UFC 326: Holloway vs. Oliveira 2,March 8th,Cody Durden,Nyamjargal Tumendemberel,162,-195,0.3817,0.378,-0.0037,blended,Nyamjargal Tumendemberel,pending,,True,

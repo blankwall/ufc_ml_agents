@@ -1,0 +1,15 @@
+event_slug,event_label,fighter,opponent,opening_american,closing_american,db_event_name,db_event_id,db_event_date,delta_days
+ufc-3895,UFC Dec 7th 2025,Jalin Turner,Jalin Turner,-250.0,-400.0,UFC 323: Dvalishvili vs. Yan 2,bd92cf5da5413d2a,"December 06, 2025",1.0
+ufc-3612,UFC Mar 9th 2025,Jalin Turner,Jalin Turner,-120.0,125.0,UFC 313: Pereira vs. Ankalaev,ca936c67687789e9,"March 08, 2025",1.0
+ufc-3159,UFC Apr 13th 2024,Jalin Turner,Jalin Turner,-130.0,-225.0,UFC 300: Pereira vs. Hill,6750e338922a099d,"April 13, 2024",0.0
+ufc-3057,UFC Dec 3rd 2023,Jalin Turner,Jalin Turner,-218.0,-160.0,UFC Fight Night: Dariush vs. Tsarukyan,53e4e21f4c688801,"December 02, 2023",1.0
+ufc-2921,UFC Jul 9th 2023,Jalin Turner,Jalin Turner,-200.0,-300.0,UFC 290: Volkanovski vs. Rodriguez,6085ceb59087514b,"July 08, 2023",1.0
+ufc-285-2738,UFC 285 Mar 4th 2023,Jalin Turner,Jalin Turner,205.0,180.0,UFC 285: Jones vs. Gane,1ccff7f0cfdf85eb,"March 04, 2023",0.0
+ufc-276-adesanya-vs-cannonier-2478,UFC 276: Adesanya vs. Cannonier Jul 2nd 2022,Jalin Turner,Jalin Turner,-175.0,-150.0,UFC 276: Adesanya vs. Cannonier,4a9e305633f3ef47,"July 02, 2022",0.0
+ufc-fight-night-204-2380,UFC Fight Night 204 Mar 5th 2022,Jalin Turner,Jalin Turner,-150.0,-150.0,UFC 272: Covington vs. Masvidal,75e0d3cc2262b732,"March 05, 2022",0.0
+ufc-266-volkanovski-vs-ortega-2177,UFC 266: Volkanovski vs. Ortega Sep 25th 2021,Jalin Turner,Jalin Turner,160.0,108.0,UFC 266: Volkanovski vs. Ortega,0eec866a077889f0,"September 25, 2021",0.0
+ufc-on-espn-35-waterson-vs-hill-1945,UFC on ESPN+ 35: Waterson vs. Hill Sep 12th 2020,Jalin Turner,Jalin Turner,-450.0,-440.0,UFC Fight Night: Waterson vs. Hill,9c37681096c6f3a9,"September 12, 2020",0.0
+ufc-on-espn-26-felder-vs-hooker-1846,UFC on ESPN+ 26: Felder vs. Hooker Feb 22nd 2020,Jalin Turner,Jalin Turner,-140.0,-235.0,UFC Fight Night: Felder vs. Hooker,33b2f68ef95252e0,"February 22, 2020",0.0
+ufc-236-holloway-vs-poirier-2-1666,UFC 236: Holloway vs. Poirier 2 Apr 13th 2019,Jalin Turner,Jalin Turner,-165.0,-147.0,UFC 236: Holloway vs. Poirier 2,b0550072e5f0afa7,"April 13, 2019",0.0
+ufc-234-adesanya-vs-silva-1620,UFC 234: Adesanya vs. Silva Feb 9th 2019,Jalin Turner,Jalin Turner,-300.0,-212.0,UFC 234: Adesanya vs. Silva,b5882371e2a3900d,"February 09, 2019",0.0
+ufc-229-nurmagomedov-vs-mcgregor-1566,UFC 229: Nurmagomedov vs. McGregor Oct 6th 2018,Jalin Turner,Jalin Turner,240.0,550.0,UFC 229: Khabib vs. McGregor,1ef0eae31904e534,"October 06, 2018",0.0

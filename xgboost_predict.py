@@ -13,6 +13,8 @@ from features.matchup_features import MatchupFeatureExtractor
 from features.feature_pipeline import FeaturePipeline
 from models.xgboost_model import XGBoostModel
 import pandas as pd
+import xgboost as xgb
+import joblib
 from loguru import logger
 import argparse
 from sqlalchemy import or_, desc
@@ -184,6 +186,33 @@ def _show_fighter_recent_fights(session, fighter_id: int, fighter_name: str, num
     print("  " + "-" * 80)
 
 
+def _load_underdog_model(model_name: str = "underdog_v1"):
+    """Load underdog specialist model, scaler, and feature list."""
+    model_dir    = Path("models/saved")
+    model_path   = model_dir / f"{model_name}.json"
+    scaler_path  = model_dir / f"{model_name}_feature_scaler.pkl"
+    feature_path = model_dir / f"{model_name}_feature_names.pkl"
+
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f"Underdog model not found: {model_path}. "
+            "Run: python models/train_underdog_model.py"
+        )
+
+    ud_model = xgb.XGBClassifier()
+    ud_model.load_model(model_path)
+    ud_scaler   = joblib.load(scaler_path)
+    ud_features = joblib.load(feature_path)
+    return ud_model, ud_scaler, ud_features
+
+
+def _american_to_prob(odds: int) -> float:
+    """Convert American moneyline odds to implied probability."""
+    if odds > 0:
+        return 100 / (odds + 100)
+    return abs(odds) / (abs(odds) + 100)
+
+
 def xgboost_predict(
     fighter_1_name: str,
     fighter_2_name: str,
@@ -197,6 +226,8 @@ def xgboost_predict(
     allow_ambiguous: bool = False,
     symmetric: bool = True,
     debug_fights: int | None = None,
+    odds_f1: int | None = None,
+    odds_f2: int | None = None,
 ):
     """Make a prediction using XGBoost model"""
     
@@ -363,7 +394,79 @@ def xgboost_predict(
             print(f"  {k}: {features[k]}")
         print("")
 
-    
+    # ── Underdog specialist routing (optional, only when odds provided) ──────
+    # When --odds-f1 / --odds-f2 are given and one fighter is a big underdog,
+    # blend the underdog specialist model with the general model output.
+    # If no odds are provided, this block is skipped entirely — no behaviour change.
+    _UNDERDOG_THRESHOLD = 0.40
+    _UNDERDOG_BLEND     = 0.65   # specialist weight; general = 1 - this
+
+    if odds_f1 is not None or odds_f2 is not None:
+        if odds_f1 is not None:
+            _market_prob_f1 = _american_to_prob(odds_f1)
+        else:
+            _market_prob_f1 = 1.0 - _american_to_prob(odds_f2)
+
+        _underdog_fighter = None
+        _market_prob_under = None
+
+        if _market_prob_f1 < _UNDERDOG_THRESHOLD:
+            _underdog_fighter  = "f1"
+            _market_prob_under = _market_prob_f1
+        elif (1.0 - _market_prob_f1) < _UNDERDOG_THRESHOLD:
+            _underdog_fighter  = "f2"
+            _market_prob_under = 1.0 - _market_prob_f1
+
+        if _underdog_fighter is not None:
+            try:
+                _ud_model, _ud_scaler, _ud_features = _load_underdog_model("underdog_v1")
+
+                if _underdog_fighter == "f1":
+                    _feat_dict = dict(features)
+                    _feat_dict["market_prob_f1"] = _market_prob_under
+                    _X_ud = pd.DataFrame(
+                        [{f: _feat_dict.get(f, 0.0) for f in _ud_features}]
+                    ).fillna(0)
+                    _X_ud_s = pd.DataFrame(
+                        _ud_scaler.transform(_X_ud), columns=_ud_features
+                    )
+                    _p_ud_under = float(_ud_model.predict_proba(_X_ud_s)[0, 1])
+                    _p_ud_f1    = _p_ud_under
+                    _p_ud_f2    = 1.0 - _p_ud_under
+                else:
+                    # f2 is the underdog — use the reversed (symmetric) features
+                    # If features_2 doesn't exist (non-symmetric mode), compute it now
+                    if 'features_2' not in dir() or features_2 is None:
+                        features_2 = extractor.extract_matchup_features(fighter_2.id, fighter_1.id)
+                        features_2['is_title_fight'] = 1 if title_fight else 0
+                    _feat_dict = dict(features_2)
+                    _feat_dict["market_prob_f1"] = _market_prob_under
+                    _X_ud = pd.DataFrame(
+                        [{f: _feat_dict.get(f, 0.0) for f in _ud_features}]
+                    ).fillna(0)
+                    _X_ud_s = pd.DataFrame(
+                        _ud_scaler.transform(_X_ud), columns=_ud_features
+                    )
+                    _p_ud_under = float(_ud_model.predict_proba(_X_ud_s)[0, 1])
+                    _p_ud_f2    = _p_ud_under
+                    _p_ud_f1    = 1.0 - _p_ud_under
+
+                _p_f1_blended = _UNDERDOG_BLEND * _p_ud_f1 + (1 - _UNDERDOG_BLEND) * p_f1
+                _p_f2_blended = 1.0 - _p_f1_blended
+
+                print(f"\n[UNDERDOG SPECIALIST ACTIVE — {_underdog_fighter.upper()} is underdog]")
+                print(f"  market prob:    {_market_prob_under:.3f} (threshold {_UNDERDOG_THRESHOLD})")
+                print(f"  general model:  f1={p_f1*100:.1f}%  f2={p_f2*100:.1f}%")
+                print(f"  underdog model: f1={_p_ud_f1*100:.1f}%  f2={_p_ud_f2*100:.1f}%")
+                print(f"  blended:        f1={_p_f1_blended*100:.1f}%  f2={_p_f2_blended*100:.1f}%")
+
+                p_f1 = _p_f1_blended
+                p_f2 = _p_f2_blended
+
+            except FileNotFoundError as _e:
+                print(f"\n[NOTE] {_e} — using general model only")
+    # ── End underdog routing ──────────────────────────────────────────────────
+
     prediction = 1 if p_f1 > 0.5 else 0
     
     # Always print the main prediction (even in quiet mode)
@@ -573,7 +676,11 @@ if __name__ == '__main__':
                         help='Disable symmetric mode (use raw prediction from single fighter order).')
     parser.add_argument('--debug', type=int, default=None, metavar='N',
                         help='Show last N fights in database for each fighter (e.g., --debug 3 shows last 3 fights)')
-    
+    parser.add_argument('--odds-f1', type=int, default=None,
+                        help='American odds for fighter 1 (e.g. -260 or +215). Enables underdog routing.')
+    parser.add_argument('--odds-f2', type=int, default=None,
+                        help='American odds for fighter 2.')
+
     args = parser.parse_args()
     
     xgboost_predict(
@@ -589,5 +696,7 @@ if __name__ == '__main__':
         allow_ambiguous=args.allow_ambiguous,
         symmetric=args.symmetric,
         debug_fights=args.debug,
+        odds_f1=args.odds_f1,
+        odds_f2=args.odds_f2,
     )
 

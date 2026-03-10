@@ -24,11 +24,11 @@ The confidence-accuracy correlation of **+0.968** is critical: it means higher m
 
 ## Rule 1 — Entry Condition: Minimum Edge Required
 
-**Only place a bet when the model's probability exceeds the market-implied probability by at least 15 percentage points.**
+**Only place a bet when the model's probability exceeds the market-implied probability by at least 10 percentage points.**
 
 ```
 edge = model_probability − market_implied_probability
-REQUIRED: edge ≥ 0.15 (15%)
+REQUIRED: edge ≥ 0.10 (10%)
 ```
 
 | Edge Threshold | Bets (2025) | Accuracy | ROI |
@@ -41,7 +41,7 @@ REQUIRED: edge ≥ 0.15 (15%)
 | ≥25% | 22 | 59.1% | +75% |
 | ≥30% | 11 | 54.5% | +82% |
 
-**Recommended minimum: 15% edge.** This is the best balance of sample size and ROI. Going to 25%+ narrows to ~20 bets/year — high ROI but too few to be meaningful.
+**Recommended minimum: 10% edge.** This is the best balance of sample size and ROI. Going to 25%+ narrows to ~20 bets/year — high ROI but too few to be meaningful.
 
 ### How to compute market-implied probability from American odds
 ```

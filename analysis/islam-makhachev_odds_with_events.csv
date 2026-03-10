@@ -1,0 +1,19 @@
+event_slug,event_label,fighter,opponent,opening_american,closing_american,db_event_name,db_event_id,db_event_date,delta_days
+ufc-322-3830,UFC 322 Nov 16th 2025,Islam Makhachev,Jack Della Maddalena,-385,-282,UFC 322: Della Maddalena vs. Makhachev,8db1b36dde268ef6,"November 15, 2025",1
+ufc-3570,UFC Jan 19th 2025,Islam Makhachev,Renato Moicano,-600,-835,UFC 311: Makhachev vs. Moicano,39f68882def7a507,"January 18, 2025",1
+ufc-3269,UFC Jun 2nd 2024,Islam Makhachev,Dustin Poirier,-400,-400,UFC 302: Makhachev vs. Poirier,6e4acc2c115215b5,"June 01, 2024",1
+ufc-294-2908,UFC 294 Oct 21st 2023,Islam Makhachev,Alexander Volkanovski,-290,-230,UFC 294: Makhachev vs. Volkanovski 2,13a0fb8fbdafb54f,"October 21, 2023",0
+ufc-284-makhachev-vs-volkanovski-2710,UFC 284: Makhachev vs. Volkanovski Feb 12th 2023,Islam Makhachev,Alex Volkanovski,-490,-335,UFC 284: Makhachev vs. Volkanovski,01dd4cdc2446f665,"February 11, 2023",1
+ufc-281-2586,UFC 281 Oct 22nd 2022,Islam Makhachev,Charles Oliveira,-300,-166,UFC 280: Oliveira vs. Makhachev,885e7f70dcac0007,"October 22, 2022",0
+ufc-fight-night-203-2343,UFC Fight Night 203 Feb 26th 2022,Islam Makhachev,Bobby Green,-450,-760,UFC Fight Night: Makhachev vs. Green,f6a7b02c42e9fc5b,"February 26, 2022",0
+ufc-267-brachowicz-vs-teixeira-2217,UFC 267: Brachowicz vs. Teixeira Oct 30th 2021,Islam Makhachev,Daniel Hooker,-300,-440,UFC 267: Blachowicz vs. Teixeira,3974fa35c917af1d,"October 30, 2021",0
+ufc-on-espn-makhachev-vs-moises-2139,UFC on ESPN: Makhachev vs. Moises Jul 17th 2021,Islam Makhachev,Thiago Moises,-500,-700,UFC Fight Night: Makhachev vs. Moises,40389d39a92f5bfa,"July 17, 2021",0
+ufc-259-blachowicz-vs-adesanya-2038,UFC 259: Blachowicz vs. Adesanya Mar 6th 2021,Islam Makhachev,Drew Dober,-400,-400,UFC 259: Blachowicz vs. Adesanya,6e2b1d631832921d,"March 06, 2021",0
+ufc-242-khabib-vs-poirier-1715,UFC 242: Khabib vs. Poirier Sep 7th 2019,Islam Makhachev,Davi Ramos,-405,-380,UFC 242: Khabib vs. Poirier,a79bfbc01b2264d6,"September 07, 2019",0
+ufc-on-espn-7-overeem-vs-oleinik-1673,UFC on ESPN+ 7: Overeem vs. Oleinik Apr 20th 2019,Islam Makhachev,Arman Tsarukyan,-475,-320,UFC Fight Night: Overeem vs. Oleinik,7dcf06c1967801c1,"April 20, 2019",0
+ufc-on-fox-30-alvarez-vs-poirier-2-1502,UFC on FOX 30: Alvarez vs. Poirier 2 Jul 28th 2018,Islam Makhachev,Kajan Johnson,-420,-570,UFC Fight Night: Alvarez vs. Poirier 2,322a56923b396b4d,"July 28, 2018",0
+ufc-220-miocic-vs-ngannou-1406,UFC 220: Miocic vs. Ngannou Jan 20th 2018,Islam Makhachev,Gleison Tibau,-270,-290,UFC 220: Miocic vs. Ngannou,02177caefe7c07d4,"January 20, 2018",0
+ufc-208-holm-vs-de-randamie-1229,UFC 208: Holm vs. de Randamie Feb 11th 2017,Islam Makhachev,Nik Lentz,-160,-330,UFC 208: Holm vs. De Randamie,865aa315ea62c511,"February 11, 2017",0
+ufc-fight-night-94-johnson-vs-poirier-1160,UFC Fight Night 94: Johnson vs. Poirier Sep 17th 2016,Islam Makhachev,Chris Wade,-120,-130,UFC Fight Night: Poirier vs. Johnson,d6455cb4bee503ce,"September 17, 2016",0
+ufc-192-cormier-vs-gustafsson-990,UFC 192: Cormier vs. Gustafsson Oct 3rd 2015,Islam Makhachev,Adriano Martins,-120,-125,UFC 192: Cormier vs Gustafsson,119ebea97e914dcf,"October 03, 2015",0
+ufc-187-johnson-vs-cormier-945,UFC 187: Johnson vs. Cormier May 23rd 2015,Islam Makhachev,Leo Kuntz,-300,-475,UFC 187: Johnson vs Cormier,4f7e290e71d60f87,"May 23, 2015",0

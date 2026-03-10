@@ -1,0 +1,12 @@
+{
+  "model_name": "underdog_v1",
+  "n_train": 1648,
+  "n_test": 381,
+  "accuracy": 0.5748031496062992,
+  "auc": 0.5722222222222222,
+  "brier_score": 0.25287882946835805,
+  "upset_detection": 0.45,
+  "underdog_threshold": 0.4,
+  "upset_upsample": 3,
+  "n_features": 252
+}
