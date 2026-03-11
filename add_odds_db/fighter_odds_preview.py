@@ -120,7 +120,9 @@ def parse_fighter_odds_page(fighter_url: str, fighter_name: str) -> pd.DataFrame
                 # Drop future/unconfirmed sections entirely.
                 # BestFightOdds uses slugs like 'future-events-197' and
                 # 'unconfirmed-fights-3781' plus labels 'Future Events', 'Unconfirmed Fights'.
-                if not slug.startswith("ufc-"):
+                # Accept "ufc" or "ufc-xxx" as valid UFC event slugs
+                print("Slug: ",slug)
+                if not (slug.startswith("ufc-") or slug == "ufc"):
                     current_event_slug = None
                     current_event_label = None
                 elif "Unconfirmed Fights" in label or "Future Events" in label:
@@ -138,7 +140,8 @@ def parse_fighter_odds_page(fighter_url: str, fighter_name: str) -> pd.DataFrame
                 continue
 
             # Skip if we don't currently have a valid UFC event context
-            if not current_event_slug or not current_event_slug.startswith("ufc-"):
+            # Accept "ufc" (for unnumbered events) or "ufc-xxx" (for numbered events)
+            if not current_event_slug or not (current_event_slug.startswith("ufc-") or current_event_slug == "ufc"):
                 continue
 
             # Use first/last moneyline cells for open/close
@@ -172,33 +175,11 @@ def parse_fighter_odds_page(fighter_url: str, fighter_name: str) -> pd.DataFrame
     if df.empty:
         return df
 
-    # Deduplicate: for each (event_slug, fighter) keep the row with the
-    # most odds movement, i.e. largest |close - open| in implied probability.
-    # This drops stale/replacement/prop rows in favour of the real fight line.
-    def _implied_prob(american: str) -> float:
-        try:
-            v = int(str(american).replace("+", "").replace(" ", ""))
-            if v > 0:
-                return 100.0 / (v + 100.0)
-            else:
-                return abs(v) / (abs(v) + 100.0)
-        except (ValueError, ZeroDivisionError):
-            return 0.5
-
-    df["_open_prob"]  = df["opening_american"].apply(_implied_prob)
-    df["_close_prob"] = df["closing_american"].apply(_implied_prob)
-    df["_movement"]   = (df["_close_prob"] - df["_open_prob"]).abs()
-
-    # Keep the row with largest movement per (event_slug, fighter)
-    df = (
-        df.sort_values("_movement", ascending=False)
-          .drop_duplicates(subset=["event_slug", "fighter"])
-          .sort_index()
-          .drop(columns=["_open_prob", "_close_prob", "_movement"])
-          .reset_index(drop=True)
-    )
-
-    return df
+    # No deduplication - return all rows and let the matching logic in
+    # insert_fighter_odds.py determine which rows correspond to actual DB fights.
+    # BFO sometimes lists multiple potential matchups for the same event,
+    # and we want to match against all of them.
+    return df.reset_index(drop=True)
 
 
 def safe_slug(name: str) -> str:

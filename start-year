@@ -1,0 +1,6 @@
+usage: backfill_odds.py [-h] [--dry-run] [--ufc-only] [--limit LIMIT]
+                        [--rate-limit RATE_LIMIT] [--start-year START_YEAR]
+backfill_odds.py: error: unrecognized arguments: 2020
+usage: backfill_odds.py [-h] [--dry-run] [--ufc-only] [--limit LIMIT]
+                        [--rate-limit RATE_LIMIT] [--start-year START_YEAR]
+backfill_odds.py: error: unrecognized arguments: 2020

@@ -47,6 +47,12 @@ data/predictions/
 *.sqlite
 *.sqlite3
 
+# Scraper cache (large HTML files, re-fetched on demand)
+.cache/
+
+# Per-request cache files (regenerated automatically)
+data/future_fight_odds/predictions_cache.json
+
 # Models
 # models/saved/*.pkl
 # models/saved/*.pth

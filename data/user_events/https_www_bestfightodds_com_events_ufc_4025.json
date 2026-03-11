@@ -1,0 +1,239 @@
+{
+  "bfo_url": "https://www.bestfightodds.com/events/ufc-4025",
+  "ufc_stats_url": "http://ufcstats.com/event-details/15ec018d144710db",
+  "scraped_at": "2026-03-11T20:33:50.267402+00:00",
+  "event_name": "UFC",
+  "event_date": "March 8th",
+  "fights": [
+    {
+      "event_name": "UFC",
+      "event_date": "March 8th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-4025",
+      "fighter1": "Charles Oliveira",
+      "fighter2": "Max Holloway",
+      "fighter1_odds": 165,
+      "fighter2_odds": -210,
+      "fighter1_prob": 0.3774,
+      "fighter2_prob": 0.6774,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC",
+      "event_date": "March 8th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-4025",
+      "fighter1": "Caio Borralho",
+      "fighter2": "Reinier de Ridder",
+      "fighter1_odds": -230,
+      "fighter2_odds": 190,
+      "fighter1_prob": 0.697,
+      "fighter2_prob": 0.3448,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC",
+      "event_date": "March 8th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-4025",
+      "fighter1": "Raul Rosas Jr",
+      "fighter2": "Rob Font",
+      "fighter1_odds": -335,
+      "fighter2_odds": 250,
+      "fighter1_prob": 0.7701,
+      "fighter2_prob": 0.2857,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC",
+      "event_date": "March 8th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-4025",
+      "fighter1": "Drew Dober",
+      "fighter2": "Michael Johnson",
+      "fighter1_odds": -210,
+      "fighter2_odds": 165,
+      "fighter1_prob": 0.6774,
+      "fighter2_prob": 0.3774,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC",
+      "event_date": "March 8th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-4025",
+      "fighter1": "Brunno Ferreira",
+      "fighter2": "Gregory Rodrigues",
+      "fighter1_odds": 132,
+      "fighter2_odds": -165,
+      "fighter1_prob": 0.431,
+      "fighter2_prob": 0.6226,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC",
+      "event_date": "March 8th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-4025",
+      "fighter1": "Cody Garbrandt",
+      "fighter2": "Long Xiao",
+      "fighter1_odds": 138,
+      "fighter2_odds": -175,
+      "fighter1_prob": 0.4202,
+      "fighter2_prob": 0.6364,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC",
+      "event_date": "March 8th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-4025",
+      "fighter1": "Cody Brundage",
+      "fighter2": "Donte Johnson",
+      "fighter1_odds": 600,
+      "fighter2_odds": -900,
+      "fighter1_prob": 0.1429,
+      "fighter2_prob": 0.9,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC",
+      "event_date": "March 8th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-4025",
+      "fighter1": "Alberto Montes",
+      "fighter2": "Ricky Turcios",
+      "fighter1_odds": -190,
+      "fighter2_odds": 155,
+      "fighter1_prob": 0.6552,
+      "fighter2_prob": 0.3922,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC",
+      "event_date": "March 8th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-4025",
+      "fighter1": "Cody Durden",
+      "fighter2": "Nyamjargal Tumendemberel",
+      "fighter1_odds": 162,
+      "fighter2_odds": -195,
+      "fighter1_prob": 0.3817,
+      "fighter2_prob": 0.661,
+      "source_type": "user_added"
+    }
+  ],
+  "outcomes": [
+    {
+      "event_name": "UFC 326: Holloway vs. Oliveira 2",
+      "event_url": "http://ufcstats.com/event-details/15ec018d144710db",
+      "fighter1": "Charles Oliveira",
+      "fighter2": "Max Holloway",
+      "winner": "Charles Oliveira",
+      "method": "U-DEC",
+      "round": "5",
+      "fight_key": "charles oliveira_vs_max holloway"
+    },
+    {
+      "event_name": "UFC 326: Holloway vs. Oliveira 2",
+      "event_url": "http://ufcstats.com/event-details/15ec018d144710db",
+      "fighter1": "Caio Borralho",
+      "fighter2": "Reinier de Ridder",
+      "winner": "Caio Borralho",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "caio borralho_vs_reinier de ridder"
+    },
+    {
+      "event_name": "UFC 326: Holloway vs. Oliveira 2",
+      "event_url": "http://ufcstats.com/event-details/15ec018d144710db",
+      "fighter1": "Raul Rosas Jr.",
+      "fighter2": "Rob Font",
+      "winner": "Raul Rosas Jr.",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "raul rosas jr._vs_rob font"
+    },
+    {
+      "event_name": "UFC 326: Holloway vs. Oliveira 2",
+      "event_url": "http://ufcstats.com/event-details/15ec018d144710db",
+      "fighter1": "Drew Dober",
+      "fighter2": "Michael Johnson",
+      "winner": "Drew Dober",
+      "method": "KO/TKO",
+      "round": "2",
+      "fight_key": "drew dober_vs_michael johnson"
+    },
+    {
+      "event_name": "UFC 326: Holloway vs. Oliveira 2",
+      "event_url": "http://ufcstats.com/event-details/15ec018d144710db",
+      "fighter1": "Gregory Rodrigues",
+      "fighter2": "Brunno Ferreira",
+      "winner": "Gregory Rodrigues",
+      "method": "KO/TKO",
+      "round": "1",
+      "fight_key": "brunno ferreira_vs_gregory rodrigues"
+    },
+    {
+      "event_name": "UFC 326: Holloway vs. Oliveira 2",
+      "event_url": "http://ufcstats.com/event-details/15ec018d144710db",
+      "fighter1": "Cody Garbrandt",
+      "fighter2": "Xiao Long",
+      "winner": "Cody Garbrandt",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "cody garbrandt_vs_xiao long"
+    },
+    {
+      "event_name": "UFC 326: Holloway vs. Oliveira 2",
+      "event_url": "http://ufcstats.com/event-details/15ec018d144710db",
+      "fighter1": "Donte Johnson",
+      "fighter2": "Cody Brundage",
+      "winner": "Donte Johnson",
+      "method": "S-DEC",
+      "round": "3",
+      "fight_key": "cody brundage_vs_donte johnson"
+    },
+    {
+      "event_name": "UFC 326: Holloway vs. Oliveira 2",
+      "event_url": "http://ufcstats.com/event-details/15ec018d144710db",
+      "fighter1": "Alberto Montes",
+      "fighter2": "Ricky Turcios",
+      "winner": "Alberto Montes",
+      "method": "SUB",
+      "round": "2",
+      "fight_key": "alberto montes_vs_ricky turcios"
+    },
+    {
+      "event_name": "UFC 326: Holloway vs. Oliveira 2",
+      "event_url": "http://ufcstats.com/event-details/15ec018d144710db",
+      "fighter1": "Nyamjargal Tumendemberel",
+      "fighter2": "Cody Durden",
+      "winner": "Nyamjargal Tumendemberel",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "cody durden_vs_nyamjargal tumendemberel"
+    },
+    {
+      "event_name": "UFC 326: Holloway vs. Oliveira 2",
+      "event_url": "http://ufcstats.com/event-details/15ec018d144710db",
+      "fighter1": "Sumudaerji",
+      "fighter2": "Jesus Aguilar",
+      "winner": "Sumudaerji",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "jesus aguilar_vs_sumudaerji"
+    },
+    {
+      "event_name": "UFC 326: Holloway vs. Oliveira 2",
+      "event_url": "http://ufcstats.com/event-details/15ec018d144710db",
+      "fighter1": "Diyar Nurgozhay",
+      "fighter2": "Rafael Tobias",
+      "winner": "Diyar Nurgozhay",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "diyar nurgozhay_vs_rafael tobias"
+    },
+    {
+      "event_name": "UFC 326: Holloway vs. Oliveira 2",
+      "event_url": "http://ufcstats.com/event-details/15ec018d144710db",
+      "fighter1": "Rodolfo Bellato",
+      "fighter2": "Luke Fernandez",
+      "winner": "Rodolfo Bellato",
+      "method": "KO/TKO",
+      "round": "1",
+      "fight_key": "luke fernandez_vs_rodolfo bellato"
+    }
+  ]
+}

@@ -241,40 +241,80 @@ class FighterScraper:
     def _extract_fight_history(self, soup: BeautifulSoup) -> List[Dict]:
         """Extract complete fight history"""
         fights = []
-        
+
+        # Get the main fighter's name to identify opponent
+        name_elem = soup.select_one('span.b-content__title-highlight')
+        main_fighter_name = name_elem.text.strip().lower() if name_elem else None
+
         fight_rows = soup.select('tr.b-fight-details__table-row')
-        
+
         for row in fight_rows[1:]:  # Skip header
             try:
                 cols = row.select('td.b-fight-details__table-col')
                 if len(cols) < 9:
                     continue
-                
+
+                # Column [1] contains BOTH fighter links - find the opponent
+                fighter_links = cols[1].select('a.b-link')
+                opponent_name = None
+                opponent_url = None
+
+                for link in fighter_links:
+                    link_name = link.text.strip()
+                    link_url = link.get('href', '')
+                    # The opponent is the one whose name doesn't match the main fighter
+                    if main_fighter_name and link_name.lower() != main_fighter_name:
+                        opponent_name = link_name
+                        opponent_url = link_url
+                        break
+
+                # Determine column indices based on number of columns
+                # Completed fights have 10 cols, upcoming fights have 9 cols
+                if len(cols) == 10:
+                    # Completed fight
+                    event_col = 6
+                    method_col = 7
+                    round_col = 8
+                    time_col = 9
+                elif len(cols) == 9:
+                    # Upcoming fight (different column structure)
+                    # Cols: result(0), fighters(1), empty(2), matchup-preview(3), empty(4), event(5), method(6), round(7), time(8)
+                    event_col = 5
+                    method_col = None
+                    round_col = None
+                    time_col = None
+                else:
+                    # Unknown structure, try default
+                    event_col = 6
+                    method_col = 7
+                    round_col = 8
+                    time_col = 9
+
                 fight = {
-                    'result': cols[0].text.strip(),
-                    'opponent': cols[1].select_one('a').text.strip() if cols[1].select_one('a') else None,
-                    'opponent_url': cols[1].select_one('a')['href'] if cols[1].select_one('a') else None,
-                    'knockout': cols[2].text.strip(),
-                    'submission': cols[3].text.strip(),
-                    'method': cols[7].text.strip(),
-                    'round': self._parse_int(cols[8].text.strip()),
-                    'time': cols[9].text.strip(),
-                    'event': cols[6].select_one('a').text.strip() if cols[6].select_one('a') else None,
-                    'event_url': cols[6].select_one('a')['href'] if cols[6].select_one('a') else None,
-                    'date': cols[6].select_one('p.b-fight-details__table-text').text.strip() if cols[6].select_one('p.b-fight-details__table-text') else None,
+                    'result': cols[0].text.strip().lower() if cols[0].text.strip() else None,
+                    'opponent': opponent_name,
+                    'opponent_url': opponent_url,
+                    'knockout': cols[2].text.strip() if len(cols) > 2 else None,
+                    'submission': cols[3].text.strip() if len(cols) > 3 else None,
+                    'method': cols[method_col].text.strip() if method_col and len(cols) > method_col else None,
+                    'round': self._parse_int(cols[round_col].text.strip()) if round_col and len(cols) > round_col else None,
+                    'time': cols[time_col].text.strip() if time_col and len(cols) > time_col else None,
+                    'event': cols[event_col].select_one('a').text.strip() if len(cols) > event_col and cols[event_col].select_one('a') else None,
+                    'event_url': cols[event_col].select_one('a')['href'] if len(cols) > event_col and cols[event_col].select_one('a') else None,
+                    'date': cols[event_col].select_one('p.b-fight-details__table-text').text.strip() if len(cols) > event_col and cols[event_col].select_one('p.b-fight-details__table-text') else None,
                 }
-                
+
                 # Extract fight detail stats if available
                 fight_detail_link = row.get('data-link')
                 if fight_detail_link:
                     fight['fight_detail_url'] = fight_detail_link
-                
+
                 fights.append(fight)
-                
+
             except Exception as e:
                 logger.warning(f"Error parsing fight row: {e}")
                 continue
-        
+
         return fights
     
     # Helper methods for parsing
