@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UFC Backtest · ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <link rel="stylesheet" href="/static/css/style.css?v=4" />
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <span class="logo-text">UFC<strong>ML</strong></span>
+    </div>
+    <nav class="header-nav">
+      <a href="/" class="nav-link active">Backtest</a>
+      <a href="/events" class="nav-link">Events</a>
+    </nav>
+    <div class="header-meta" id="headerMeta">
+      <span class="badge">mar_4_v2 + underdog blend</span>
+    </div>
+  </div>
+</header>
+
+<!-- ── Main Layout ─────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- ── Params Panel ──────────────────────────────────────────────────────── -->
+  <section class="params-panel" id="paramsPanel">
+    <div class="panel-title">
+      <span>Backtest Parameters</span>
+      <button class="collapse-btn" id="collapseParams" title="Collapse">▲</button>
+    </div>
+
+    <div class="params-grid" id="paramsGrid">
+
+      <!-- Row 1: Date + Focus -->
+      <div class="param-group">
+        <label>Start Date</label>
+        <input type="date" id="startDate" />
+      </div>
+      <div class="param-group">
+        <label>End Date</label>
+        <input type="date" id="endDate" />
+      </div>
+      <div class="param-group">
+        <label>Bet Focus</label>
+        <div class="radio-group" id="focusGroup">
+          <label class="radio-option active" data-value="all">All</label>
+          <label class="radio-option" data-value="favorites">Favorites</label>
+          <label class="radio-option" data-value="underdogs">Underdogs</label>
+        </div>
+      </div>
+      <div class="param-group" id="udThresholdGroup">
+        <label>Underdog Cutoff <span class="param-hint" id="udThresholdHint">< 40%</span></label>
+        <input type="range" id="udThreshold" min="25" max="50" step="1" value="40" />
+      </div>
+
+      <!-- Row 2: Confidence + Edge -->
+      <div class="param-group">
+        <label>Min Confidence <span class="param-hint" id="minConfHint">50%</span></label>
+        <input type="range" id="minConf" min="50" max="90" step="1" value="50" />
+      </div>
+      <div class="param-group">
+        <label>Max Confidence <span class="param-hint" id="maxConfHint">100%</span></label>
+        <input type="range" id="maxConf" min="50" max="100" step="1" value="100" />
+      </div>
+      <div class="param-group">
+        <label>Min Edge <span class="param-hint" id="minEdgeHint">0%</span></label>
+        <input type="range" id="minEdge" min="0" max="25" step="1" value="0" />
+      </div>
+      <div class="param-group span-2" id="oddsRangeGroup">
+        <label>Odds Range <span class="param-hint">American</span></label>
+        <div class="odds-inputs">
+          <div>
+            <span class="odds-label">Min (skip shorter than)</span>
+            <input type="number" id="minOdds" placeholder="e.g. -300" class="odds-input" />
+          </div>
+          <div>
+            <span class="odds-label">Max (skip longer than)</span>
+            <input type="number" id="maxOdds" placeholder="e.g. +400" class="odds-input" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: Weight Classes -->
+      <div class="param-group span-full">
+        <label>Weight Classes <span class="param-hint">(all if none selected)</span></label>
+        <div class="wc-grid" id="wcGrid">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+      <!-- Row 4: Blend + Bet + Run -->
+      <div class="param-group blend-group" id="blendGroup">
+        <label>
+          <span>Underdog Blend</span>
+          <label class="toggle">
+            <input type="checkbox" id="useBlend" checked />
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+        <div id="blendWeightWrapper">
+          <span class="param-hint" id="blendHint">65% ud_v1 / 35% general</span>
+          <input type="range" id="blendWeight" min="50" max="90" step="5" value="65" />
+        </div>
+      </div>
+      <div class="param-group">
+        <label>Flat Bet <span class="param-hint">$</span></label>
+        <input type="number" id="flatBet" value="100" min="1" />
+      </div>
+      <div class="param-group run-group">
+        <button class="btn-run" id="runBtn" onclick="runBacktest()">
+          <span id="runBtnText">Run Backtest</span>
+          <span id="runSpinner" class="spinner hidden"></span>
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Error Banner ───────────────────────────────────────────────────────── -->
+  <div class="error-banner hidden" id="errorBanner"></div>
+
+  <!-- ── In-Sample Warning Banner ──────────────────────────────────────────── -->
+  <div class="insample-banner hidden" id="insampleBanner"></div>
+
+  <!-- ── Results ───────────────────────────────────────────────────────────── -->
+  <section class="results hidden" id="results">
+
+    <!-- Summary Cards -->
+    <div class="summary-cards" id="summaryCards">
+      <div class="stat-card">
+        <div class="stat-label">Bets</div>
+        <div class="stat-value" id="statBets">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Accuracy</div>
+        <div class="stat-value" id="statAccuracy">—</div>
+      </div>
+      <div class="stat-card highlight">
+        <div class="stat-label">ROI</div>
+        <div class="stat-value" id="statRoi">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total P&L</div>
+        <div class="stat-value" id="statProfit">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Max Drawdown</div>
+        <div class="stat-value" id="statDrawdown">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Edge</div>
+        <div class="stat-value" id="statEdge">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Confidence</div>
+        <div class="stat-value" id="statConf">—</div>
+      </div>
+      <div class="stat-card" id="cardUpset" style="display:none">
+        <div class="stat-label">Upset Detection</div>
+        <div class="stat-value" id="statUpset">—</div>
+      </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="charts-grid">
+      <div class="chart-card" id="chartPnl"></div>
+      <div class="chart-card" id="chartConfidence"></div>
+      <div class="chart-card" id="chartWeightClass"></div>
+      <div class="chart-card" id="chartMonthly"></div>
+      <div class="chart-card chart-card--wide" id="chartYearly"></div>
+    </div>
+
+    <!-- Coverage Funnel -->
+    <div class="coverage-bar hidden" id="coverageBar"></div>
+
+    <!-- Fight Table -->
+    <div class="table-section">
+      <div class="table-header">
+        <h3>Results</h3>
+        <div class="table-controls">
+          <!-- View tabs -->
+          <div class="tab-group" id="tableTabGroup">
+            <button class="tab-btn active" data-tab="selected">Selected Bets</button>
+            <button class="tab-btn" data-tab="events">By Event</button>
+            <button class="tab-btn" data-tab="skipped">Skipped</button>
+          </div>
+          <input type="text" id="tableSearch" placeholder="Search fighter / event…" class="table-search" />
+          <button class="btn-export" onclick="exportCSV()">Export CSV</button>
+        </div>
+      </div>
+
+      <!-- Selected Bets table -->
+      <div id="viewSelected" class="table-wrapper">
+        <table id="fightTable">
+          <thead>
+            <tr>
+              <th data-col="date" class="sortable">Date</th>
+              <th data-col="event" class="sortable">Event</th>
+              <th data-col="bet_on" class="sortable">Bet On</th>
+              <th data-col="against" class="sortable">Against</th>
+              <th data-col="class" class="sortable">Class</th>
+              <th data-col="mkt%" class="sortable">Mkt%</th>
+              <th data-col="mdl%" class="sortable">Mdl%</th>
+              <th data-col="edge%" class="sortable">Edge%</th>
+              <th data-col="odds" class="sortable">Odds</th>
+              <th data-col="result" class="sortable">Result</th>
+              <th data-col="profit" class="sortable">P&L</th>
+              <th data-col="cumulative" class="sortable">Cumul.</th>
+              <th data-col="sample" class="sortable" title="IN = in-sample, OUT = out-of-sample">Sample</th>
+            </tr>
+          </thead>
+          <tbody id="fightTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- By Event table -->
+      <div id="viewEvents" class="table-wrapper hidden">
+        <table id="eventTable">
+          <thead>
+            <tr>
+              <th data-col="date"     class="sortable ev-col">Date</th>
+              <th data-col="event"    class="sortable ev-col">Event</th>
+              <th data-col="bets"     class="sortable ev-col">Bets</th>
+              <th data-col="wins"     class="sortable ev-col">Wins</th>
+              <th data-col="accuracy" class="sortable ev-col">Acc%</th>
+              <th data-col="pnl"      class="sortable ev-col">P&L</th>
+              <th data-col="roi"      class="sortable ev-col">ROI%</th>
+            </tr>
+          </thead>
+          <tbody id="eventTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Skipped Fights table -->
+      <div id="viewSkipped" class="table-wrapper hidden">
+        <div class="skipped-note">
+          These fights had closing odds but were <strong>not bet</strong> because the model was less confident than the market (edge &lt; 0). Shown for transparency.
+        </div>
+        <table id="skippedTable">
+          <thead>
+            <tr>
+              <th data-col="date"   class="sortable sk-col">Date</th>
+              <th data-col="event"  class="sortable sk-col">Event</th>
+              <th data-col="bet_on" class="sortable sk-col">Model Pick</th>
+              <th data-col="against" class="sortable sk-col">Opponent</th>
+              <th data-col="class"  class="sortable sk-col">Class</th>
+              <th data-col="mkt%"   class="sortable sk-col">Mkt%</th>
+              <th data-col="mdl%"   class="sortable sk-col">Mdl%</th>
+              <th data-col="edge%"  class="sortable sk-col">Edge%</th>
+              <th data-col="odds"   class="sortable sk-col">Odds</th>
+              <th data-col="sample" class="sortable sk-col">Sample</th>
+            </tr>
+          </thead>
+          <tbody id="skippedTableBody"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+  </section>
+
+</main>
+
+<script src="/static/js/app.js?v=4"></script>
+</body>
+</html>

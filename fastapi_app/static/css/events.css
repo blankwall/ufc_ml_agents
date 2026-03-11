@@ -1,0 +1,695 @@
+/* ── Events Page Styles ──────────────────────────────────────────────────── */
+
+/* Loading state */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: var(--text-secondary);
+  gap: 16px;
+}
+
+.spinner-large {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Overall summary strip */
+.overall-strip {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+  padding: 18px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.overall-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 110px;
+}
+
+.overall-stat .label {
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.overall-stat .value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.overall-stat .value.pos { color: var(--accent); }
+.overall-stat .value.neg { color: var(--danger); }
+.overall-stat .value.neut { color: var(--text-secondary); }
+
+.overall-divider {
+  width: 1px;
+  background: var(--border);
+  align-self: stretch;
+  margin: 0 4px;
+}
+
+/* ── Bet filters ─────────────────────────────────────────────────────────────── */
+.ev-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.ev-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ev-filter-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ev-filter-input {
+  width: 52px;
+  padding: 4px 8px;
+  background: var(--bg, #0b0d14);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: center;
+}
+
+.ev-filter-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.ev-filter-unit {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.ev-filter-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ev-filter-checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.ev-filter-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+.ev-filter-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ev-apply-btn {
+  padding: 5px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #0a0c10;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity .15s;
+}
+
+.ev-apply-btn:hover {
+  opacity: .85;
+}
+
+.ev-reset-btn {
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+
+.ev-reset-btn:hover {
+  border-color: var(--border2, #2e3450);
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.ev-raw-btn {
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-muted, #7b85a0);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+
+.ev-raw-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Non-bet fight card — visible but de-emphasised */
+.fight-card.fc-no-bet {
+  opacity: .45;
+  border-left-color: var(--border) !important;
+}
+
+.fight-card.fc-no-bet:hover {
+  opacity: .7;
+}
+
+.no-bet-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* Event tab strip */
+.event-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.event-tab {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+
+.event-tab:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.event-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0a0c10;
+  font-weight: 600;
+}
+
+.event-tab .tab-roi {
+  font-size: 11px;
+  margin-left: 6px;
+  opacity: .8;
+}
+
+/* Event panel */
+.event-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.event-panel-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.event-panel-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.event-panel-date {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.event-stats-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.ev-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.ev-stat .ev-stat-val {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.ev-stat .ev-stat-val.pos { color: var(--accent); }
+.ev-stat .ev-stat-val.neg { color: var(--danger); }
+
+.ev-stat .ev-stat-lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-secondary);
+}
+
+/* Fight cards */
+.fights-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.fight-card {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  transition: background .12s;
+}
+
+.fight-card:last-child {
+  border-bottom: none;
+}
+
+.fight-card:hover {
+  background: var(--surface-2);
+}
+
+/* Result coloring */
+.fight-card.fc-win  { border-left: 3px solid var(--accent); }
+.fight-card.fc-loss { border-left: 3px solid var(--danger); }
+.fight-card.fc-tbd  { border-left: 3px solid var(--border); }
+.fight-card.fc-error { border-left: 3px solid #555; opacity: .7; }
+
+.fight-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.result-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.result-badge.win  { background: rgba(100,220,100,.15); color: var(--accent); }
+.result-badge.loss { background: rgba(255,80,80,.12);   color: var(--danger); }
+.result-badge.tbd  { background: var(--surface-2);       color: var(--text-secondary); }
+.result-badge.err  { background: var(--surface-2);       color: #666; }
+
+.fighters-row {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.fighter-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fighter-block.f2 {
+  text-align: right;
+}
+
+.fighter-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fighter-name.model-pick {
+  color: var(--accent);
+}
+
+.fighter-name.actual-winner {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.fighter-odds {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.vs-divider {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+
+/* Probability bar */
+.prob-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.prob-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  width: 54px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.prob-label.right {
+  text-align: left;
+}
+
+.prob-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+  position: relative;
+}
+
+.prob-fill-f1 {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width .3s ease;
+}
+
+/* Fight meta row */
+.fight-meta {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.fight-meta-item {
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fight-meta-item .meta-val {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.meta-edge.pos { color: var(--accent); }
+.meta-edge.neg { color: var(--danger); }
+
+.meta-outcome {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.meta-outcome.correct { color: var(--accent); }
+.meta-outcome.wrong   { color: var(--danger); }
+
+/* Error note */
+.fight-error {
+  font-size: 11px;
+  color: #666;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* No results note */
+.no-results-note {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* ── User-added events ──────────────────────────────────────────────────────── */
+
+/* Tab gets an amber/orange accent instead of blue */
+.event-tab.user-added {
+  border-bottom-color: #7c6fcd;
+}
+
+.event-tab.user-added.active {
+  border-bottom-color: #9b8ee0;
+  color: #9b8ee0;
+}
+
+.ua-dot {
+  font-size: 7px;
+  color: #9b8ee0;
+  vertical-align: super;
+  margin-left: 3px;
+  line-height: 1;
+}
+
+/* Fight card left-accent for user-added events (overrides win/loss colours) */
+.fight-card.fc-user-added.fc-win  { border-left-color: #9b8ee0; }
+.fight-card.fc-user-added.fc-loss { border-left-color: #6a5fb0; }
+.fight-card.fc-user-added.fc-tbd  { border-left-color: #9b8ee0; }
+
+/* ── Add Event FAB ──────────────────────────────────────────────────────────── */
+
+.add-event-fab {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  padding: 10px 18px;
+  background: #2a2545;
+  color: #9b8ee0;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #4a3f80;
+  border-radius: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(124,111,205,.2);
+  font-family: inherit;
+  transition: transform .15s, box-shadow .15s, background .15s;
+  z-index: 200;
+}
+
+.add-event-fab:hover {
+  transform: translateY(-2px);
+  background: #322d55;
+  box-shadow: 0 6px 22px rgba(124,111,205,.35);
+}
+
+/* ── Modal ──────────────────────────────────────────────────────────────────── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  backdrop-filter: blur(3px);
+}
+
+.modal-overlay.hidden { display: none; }
+
+.modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border2, #2e3450);
+  border-radius: 12px;
+  width: 480px;
+  max-width: 95vw;
+  box-shadow: 0 16px 48px rgba(0,0,0,.6);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color .15s;
+}
+
+.modal-close:hover { color: var(--text); }
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.req { color: var(--red); }
+
+.modal-optional {
+  text-transform: none;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.modal-input {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text);
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modal-error {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: rgba(255,75,110,.12);
+  border: 1px solid rgba(255,75,110,.3);
+  border-radius: 6px;
+  color: var(--red);
+  font-size: 13px;
+}
+
+.modal-error.hidden { display: none; }
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.modal-cancel {
+  padding: 7px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+
+.modal-cancel:hover { border-color: var(--border2); color: var(--text); }
+
+.modal-submit {
+  padding: 7px 18px;
+  background: var(--accent);
+  border: none;
+  border-radius: 7px;
+  color: #0a0c10;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity .15s;
+}
+
+.modal-submit:hover { opacity: .85; }
+.modal-submit:disabled { opacity: .5; cursor: not-allowed; }

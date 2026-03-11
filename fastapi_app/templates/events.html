@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UFC Events · Predictions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css?v=8" />
+  <link rel="stylesheet" href="/static/css/events.css?v=8" />
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <span class="logo-text">UFC<strong>ML</strong></span>
+    </div>
+    <nav class="header-nav">
+      <a href="/" class="nav-link">Backtest</a>
+      <a href="/events" class="nav-link active">Events</a>
+    </nav>
+    <div class="header-meta">
+      <span class="badge">mar_4_v2 + underdog blend</span>
+      <span class="badge" id="headerStats" style="margin-left:6px"></span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── Loading state ─────────────────────────────────────────────────────── -->
+  <div id="loadingState" class="loading-state">
+    <div class="spinner-large"></div>
+    <p>Running model predictions…</p>
+  </div>
+
+  <!-- ── Error ─────────────────────────────────────────────────────────────── -->
+  <div id="errorState" class="error-banner hidden"></div>
+
+  <!-- ── Events content ────────────────────────────────────────────────────── -->
+  <div id="eventsContent" class="hidden">
+
+    <!-- Overall summary strip -->
+    <div class="overall-strip" id="overallStrip"></div>
+
+    <!-- Bet filters -->
+    <div class="ev-filters" id="evFilters">
+      <div class="ev-filter-item">
+        <label class="ev-filter-label">Min edge ≥</label>
+        <input type="number" id="minEdge" class="ev-filter-input" min="-50" max="50" step="1" placeholder="off" />
+        <span class="ev-filter-unit">%</span>
+      </div>
+      <div class="ev-filter-sep"></div>
+      <div class="ev-filter-item">
+        <label class="ev-filter-label">Fav confidence ≥</label>
+        <input type="number" id="favConf" class="ev-filter-input" min="50" max="95" step="1" value="55" />
+        <span class="ev-filter-unit">%</span>
+      </div>
+      <div class="ev-filter-sep"></div>
+      <div class="ev-filter-item">
+        <label class="ev-filter-label">UD edge ≥</label>
+        <input type="number" id="udEdge" class="ev-filter-input" min="0" max="40" step="1" value="15" />
+        <span class="ev-filter-unit">%</span>
+      </div>
+      <div class="ev-filter-actions">
+        <button id="applyFilters" class="ev-apply-btn">Recalculate</button>
+        <button id="resetFilters" class="ev-reset-btn">Reset</button>
+        <button id="rawView" class="ev-raw-btn">Show Raw</button>
+      </div>
+    </div>
+
+    <!-- Event tabs -->
+    <div class="event-tabs" id="eventTabs"></div>
+
+    <!-- Active event panel -->
+    <div id="eventPanel"></div>
+
+  </div>
+
+</main>
+
+<!-- ── Add Event floating button ────────────────────────────────────────── -->
+<button class="add-event-fab" id="addEventFab" title="Add event from BFO + UFC Stats">＋ Add Event</button>
+
+<!-- ── Add Event modal ──────────────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="addEventOverlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Add Event</span>
+      <button class="modal-close" id="addEventClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="modal-label">BestFightOdds URL <span class="req">*</span></label>
+      <input type="url" id="bfoUrl" class="modal-input"
+             placeholder="https://www.bestfightodds.com/events/ufc-4025" />
+
+      <label class="modal-label" style="margin-top:14px">UFCStats URL <span class="modal-optional">(optional — adds results)</span></label>
+      <input type="url" id="ufcStatsUrl" class="modal-input"
+             placeholder="http://ufcstats.com/event-details/…" />
+
+      <div id="addEventError" class="modal-error hidden"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" id="addEventCancel">Cancel</button>
+      <button class="modal-submit" id="addEventSubmit">Scrape &amp; Add</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/events.js?v=6"></script>
+</body>
+</html>
