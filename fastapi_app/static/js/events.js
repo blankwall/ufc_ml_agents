@@ -7,6 +7,8 @@ let activeIndex = 0;
 /* ── Filter state (defaults match the controls) ────────────────────────────── */
 let filters = { minEdge: null, favConf: 55, udEdge: 15 };
 
+const THIN_DATA_MIN_FIGHTS = 3;
+
 /* ── DOM refs ──────────────────────────────────────────────────────────────── */
 const loadingEl    = document.getElementById('loadingState');
 const errorEl      = document.getElementById('errorState');
@@ -46,12 +48,13 @@ async function init() {
 
 /* ── Filter wiring ──────────────────────────────────────────────────────────── */
 function wireFilters() {
-  const minEdgeEl  = document.getElementById('minEdge');
-  const favConfEl  = document.getElementById('favConf');
-  const udEdgeEl   = document.getElementById('udEdge');
-  const applyBtn   = document.getElementById('applyFilters');
-  const resetBtn   = document.getElementById('resetFilters');
-  const rawBtn     = document.getElementById('rawView');
+  const minEdgeEl      = document.getElementById('minEdge');
+  const favConfEl      = document.getElementById('favConf');
+  const udEdgeEl       = document.getElementById('udEdge');
+  const excludeThinEl  = document.getElementById('excludeThinData');
+  const applyBtn       = document.getElementById('applyFilters');
+  const resetBtn       = document.getElementById('resetFilters');
+  const rawBtn         = document.getElementById('rawView');
 
   function readFilters() {
     const me = minEdgeEl.value.trim();
@@ -68,18 +71,22 @@ function wireFilters() {
 
   applyBtn.addEventListener('click', () => { readFilters(); refresh(); });
 
+  excludeThinEl.addEventListener('change', () => refresh());
+
   resetBtn.addEventListener('click', () => {
-    minEdgeEl.value = '';
-    favConfEl.value = 55;
-    udEdgeEl.value  = 15;
+    minEdgeEl.value        = '';
+    favConfEl.value        = 55;
+    udEdgeEl.value         = 15;
+    excludeThinEl.checked  = true;
     filters = { minEdge: null, favConf: 55, udEdge: 15 };
     refresh();
   });
 
   rawBtn.addEventListener('click', () => {
-    minEdgeEl.value = '';
-    favConfEl.value = '';
-    udEdgeEl.value  = '';
+    minEdgeEl.value        = '';
+    favConfEl.value        = '';
+    udEdgeEl.value         = '';
+    excludeThinEl.checked  = false;
     filters = { minEdge: null, favConf: null, udEdge: null };
     refresh();
   });
@@ -88,6 +95,13 @@ function wireFilters() {
 /* ── Filter predicate ───────────────────────────────────────────────────────── */
 function passesFilter(f) {
   if (!f.model_prob_f1) return true;   // no prediction → always show
+
+  // Exclude fights where either fighter has fewer than THIN_DATA_MIN_FIGHTS DB fights
+  if (document.getElementById('excludeThinData')?.checked) {
+    const c1 = f.f1_fight_count ?? 999;
+    const c2 = f.f2_fight_count ?? 999;
+    if (c1 < THIN_DATA_MIN_FIGHTS || c2 < THIN_DATA_MIN_FIGHTS) return false;
+  }
 
   const pickProb   = f.model_prob_f1 >= 50 ? f.model_prob_f1 : 100 - f.model_prob_f1;
   const mktForPick = f.model_prob_f1 >= 50 ? f.market_prob_f1 : 100 - f.market_prob_f1;
@@ -309,6 +323,17 @@ function renderFightCard(f, visible = true) {
     ? `<span class="fight-meta-item">Model: <span class="meta-val">${f.model_source}</span></span>`
     : '';
 
+  const fightsMeta = (f.f1_fight_count !== null && f.f1_fight_count !== undefined) ||
+                     (f.f2_fight_count !== null && f.f2_fight_count !== undefined)
+    ? (() => {
+        const c1 = f.f1_fight_count ?? '?';
+        const c2 = f.f2_fight_count ?? '?';
+        const warn1 = (f.f1_fight_count !== null && f.f1_fight_count < 3) ? ' fc-thin' : '';
+        const warn2 = (f.f2_fight_count !== null && f.f2_fight_count < 3) ? ' fc-thin' : '';
+        return `<span class="fight-meta-item">Fights in DB: <span class="meta-val${warn1}">${c1}</span> · <span class="meta-val${warn2}">${c2}</span></span>`;
+      })()
+    : '';
+
   const edgeMeta = edgeFmt
     ? `<span class="fight-meta-item">Edge: <span class="meta-val meta-edge ${edgeClass}">${edgeFmt}</span></span>`
     : '';
@@ -325,12 +350,12 @@ function renderFightCard(f, visible = true) {
         <div class="result-badge ${badgeClass}">${badgeText}</div>
         <div class="fighters-row">
           <div class="fighter-block f1">
-            <span class="${f1Class}">${f.fighter1}</span>
+            <span class="${f1Class} fighter-clickable" data-fighter="${f.fighter1}">${f.fighter1}</span>
             <span class="fighter-odds">${f1OddsFmt} · mkt ${f.market_prob_f1}%</span>
           </div>
           <span class="vs-divider">VS</span>
           <div class="fighter-block f2">
-            <span class="${f2Class}">${f.fighter2}</span>
+            <span class="${f2Class} fighter-clickable" data-fighter="${f.fighter2}">${f.fighter2}</span>
             <span class="fighter-odds">${f2OddsFmt} · mkt ${(100 - f.market_prob_f1).toFixed(1)}%</span>
           </div>
         </div>
@@ -351,6 +376,7 @@ function renderFightCard(f, visible = true) {
         ${pnlMeta}
         ${edgeMeta}
         ${srcMeta}
+        ${fightsMeta}
       </div>
       ${errorNote}
     </div>
@@ -445,6 +471,133 @@ async function reloadEvents() {
     console.error('reloadEvents failed:', err);
   }
 }
+
+/* ── Fighter popup ───────────────────────────────────────────────────────────── */
+
+let fighterPopupEl = null;
+let fighterPopupName = null;
+
+function ensureFighterPopup() {
+  if (fighterPopupEl) return;
+  fighterPopupEl = document.createElement('div');
+  fighterPopupEl.id = 'fighterPopup';
+  fighterPopupEl.className = 'fighter-popup hidden';
+  document.body.appendChild(fighterPopupEl);
+
+  // Close on outside click
+  document.addEventListener('click', e => {
+    if (
+      fighterPopupEl &&
+      !fighterPopupEl.classList.contains('hidden') &&
+      !fighterPopupEl.contains(e.target) &&
+      !e.target.classList.contains('fighter-clickable')
+    ) {
+      closeFighterPopup();
+    }
+  });
+}
+
+function closeFighterPopup() {
+  if (fighterPopupEl) {
+    fighterPopupEl.classList.add('hidden');
+    fighterPopupName = null;
+  }
+}
+
+async function showFighterPopup(name, anchorEl) {
+  ensureFighterPopup();
+
+  // Toggle off if same fighter clicked again
+  if (fighterPopupName === name && !fighterPopupEl.classList.contains('hidden')) {
+    closeFighterPopup();
+    return;
+  }
+
+  fighterPopupName = name;
+  fighterPopupEl.classList.remove('hidden');
+  fighterPopupEl.innerHTML = `<div class="fp-loading">Loading…</div>`;
+  positionPopup(anchorEl);
+
+  try {
+    const res = await fetch(`/api/fighter/${encodeURIComponent(name)}/recent`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    renderFighterPopup(data);
+    positionPopup(anchorEl);
+  } catch (err) {
+    fighterPopupEl.innerHTML = `<div class="fp-error">⚠ ${err.message}</div>`;
+  }
+}
+
+function positionPopup(anchor) {
+  if (!fighterPopupEl || !anchor) return;
+  const rect = anchor.getBoundingClientRect();
+  const scrollY = window.scrollY || 0;
+  const scrollX = window.scrollX || 0;
+  const popupW  = 340;
+
+  let left = rect.left + scrollX;
+  let top  = rect.bottom + scrollY + 8;
+
+  // Keep within viewport horizontally
+  const vw = document.documentElement.clientWidth;
+  if (left + popupW > vw + scrollX - 12) {
+    left = vw + scrollX - popupW - 12;
+  }
+  if (left < scrollX + 8) left = scrollX + 8;
+
+  fighterPopupEl.style.left = `${left}px`;
+  fighterPopupEl.style.top  = `${top}px`;
+}
+
+function resultBadge(result) {
+  const cls = result === 'W' ? 'fp-w' : result === 'L' ? 'fp-l' : 'fp-nc';
+  return `<span class="fp-result ${cls}">${result}</span>`;
+}
+
+function renderFighterPopup(data) {
+  const rows = data.fights.map(f => `
+    <tr>
+      <td>${resultBadge(f.result)}</td>
+      <td class="fp-opponent">${f.opponent}</td>
+      <td class="fp-event">${f.event ? f.event.replace(/^(UFC \w+:?\s*)/, m => `<strong>${m}</strong>`) : '—'}</td>
+      <td class="fp-odds">${f.open_odds ?? '—'}</td>
+      <td class="fp-odds">${f.close_odds ?? '—'}</td>
+    </tr>
+  `).join('');
+
+  fighterPopupEl.innerHTML = `
+    <div class="fp-header">
+      <span class="fp-name">${data.name}</span>
+      <span class="fp-record">${data.record}</span>
+      <button class="fp-close" onclick="closeFighterPopup()">✕</button>
+    </div>
+    <table class="fp-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Opponent</th>
+          <th>Event</th>
+          <th>Open</th>
+          <th>Close</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+// Delegated click handler for fighter names
+document.addEventListener('click', e => {
+  const el = e.target.closest('.fighter-clickable');
+  if (!el) return;
+  e.stopPropagation();
+  const name = el.dataset.fighter;
+  if (name) showFighterPopup(name, el);
+});
 
 /* ── Start ─────────────────────────────────────────────────────────────────── */
 init().then(() => wireAddEvent());

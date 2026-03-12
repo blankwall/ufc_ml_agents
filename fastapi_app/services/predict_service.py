@@ -27,6 +27,7 @@ if str(ROOT_DIR) not in sys.path:
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from features.matchup_features import MatchupFeatureExtractor
+from database.schema import Fight as _Fight
 
 ODDS_DIR         = ROOT_DIR / "data" / "future_fight_odds"
 USER_EVENTS_DIR  = ROOT_DIR / "data" / "user_events"
@@ -372,8 +373,14 @@ def _run_prediction_loop(
                 f2 = _resolve_fighter(session, f2_name)
                 if f1 and f2:
                     pred = _score_row(session, extractor, f1.id, f2.id, mkt_prob)
-                    pred["f1_db_name"] = f1.name
-                    pred["f2_db_name"] = f2.name
+                    pred["f1_db_name"]     = f1.name
+                    pred["f2_db_name"]     = f2.name
+                    pred["f1_fight_count"] = session.query(_Fight).filter(
+                        (_Fight.fighter_1_id == f1.id) | (_Fight.fighter_2_id == f1.id)
+                    ).count()
+                    pred["f2_fight_count"] = session.query(_Fight).filter(
+                        (_Fight.fighter_1_id == f2.id) | (_Fight.fighter_2_id == f2.id)
+                    ).count()
                 else:
                     missing = [n for n, f in [(f1_name, f1), (f2_name, f2)] if not f]
                     pred = {"model_prob_f1": None, "model_source": "not_found",
@@ -434,6 +441,8 @@ def _run_prediction_loop(
             "pnl":            pnl,
             "error":          pred.get("error"),
             "source_type":    source_type,
+            "f1_fight_count": pred.get("f1_fight_count"),
+            "f2_fight_count": pred.get("f2_fight_count"),
         }
 
         ev_name_real = fightkey_to_ev_name.get(fkey, ev_name)

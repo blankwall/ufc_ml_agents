@@ -30,6 +30,7 @@ wheels/
 
 # Environment
 .env
+.env.*
 .venv
 
 # IDEs
