@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/style.css?v=8" />
-  <link rel="stylesheet" href="/static/css/events.css?v=11" />
+  <link rel="stylesheet" href="/static/css/events.css?v=13" />
 </head>
 <body>
 
@@ -56,14 +56,24 @@
       <div class="ev-filter-sep"></div>
       <div class="ev-filter-item">
         <label class="ev-filter-label">Fav confidence ≥</label>
-        <input type="number" id="favConf" class="ev-filter-input" min="50" max="95" step="1" value="55" />
+        <input type="number" id="favConf" class="ev-filter-input" min="50" max="95" step="1" value="65" />
         <span class="ev-filter-unit">%</span>
       </div>
       <div class="ev-filter-sep"></div>
       <div class="ev-filter-item">
         <label class="ev-filter-label">UD edge ≥</label>
-        <input type="number" id="udEdge" class="ev-filter-input" min="0" max="40" step="1" value="15" />
+        <input type="number" id="udEdge" class="ev-filter-input" min="0" max="40" step="1" value="10" />
         <span class="ev-filter-unit">%</span>
+      </div>
+      <div class="ev-filter-sep"></div>
+      <div class="ev-filter-item">
+        <label class="ev-filter-label">Fav cap ≤</label>
+        <input type="number" id="favCap" class="ev-filter-input ev-filter-input--odds" min="-900" max="-101" step="10" value="-400" />
+      </div>
+      <div class="ev-filter-sep"></div>
+      <div class="ev-filter-item">
+        <label class="ev-filter-label">Dog cap ≥</label>
+        <input type="number" id="dogCap" class="ev-filter-input ev-filter-input--odds" min="101" max="2000" step="10" value="300" />
       </div>
       <div class="ev-filter-sep"></div>
       <label class="ev-toggle-label" title="Exclude fights where either fighter has fewer than 3 UFC fights in the DB">
@@ -115,6 +125,6 @@
   </div>
 </div>
 
-<script src="/static/js/events.js?v=10"></script>
+<script src="/static/js/events.js?v=13"></script>
 </body>
 </html>

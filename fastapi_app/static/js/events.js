@@ -5,9 +5,14 @@ let allEvents   = [];
 let activeIndex = 0;
 
 /* ── Filter state (defaults match the controls) ────────────────────────────── */
-let filters = { minEdge: null, favConf: 55, udEdge: 15 };
+let filters = { minEdge: null, favConf: 65, udEdge: 10,
+                favCap: -400, dogCap: 300 };
 
 const THIN_DATA_MIN_FIGHTS = 3;
+
+/* ── Odds cap defaults (mirrors the HTML input values) ──────────────────── */
+const ODDS_CAP_FAV_DEFAULT = -400;
+const ODDS_CAP_UD_DEFAULT  =  300;
 
 /* ── DOM refs ──────────────────────────────────────────────────────────────── */
 const loadingEl    = document.getElementById('loadingState');
@@ -51,7 +56,9 @@ function wireFilters() {
   const minEdgeEl      = document.getElementById('minEdge');
   const favConfEl      = document.getElementById('favConf');
   const udEdgeEl       = document.getElementById('udEdge');
-  const excludeThinEl  = document.getElementById('excludeThinData');
+  const excludeThinEl   = document.getElementById('excludeThinData');
+  const favCapEl        = document.getElementById('favCap');
+  const dogCapEl        = document.getElementById('dogCap');
   const applyBtn       = document.getElementById('applyFilters');
   const resetBtn       = document.getElementById('resetFilters');
   const rawBtn         = document.getElementById('rawView');
@@ -61,6 +68,8 @@ function wireFilters() {
     filters.minEdge = me !== '' ? parseFloat(me) : null;
     filters.favConf = favConfEl.value.trim() !== '' ? parseFloat(favConfEl.value) : null;
     filters.udEdge  = udEdgeEl.value.trim()  !== '' ? parseFloat(udEdgeEl.value)  : null;
+    filters.favCap  = favCapEl.value.trim()  !== '' ? parseInt(favCapEl.value)     : null;
+    filters.dogCap  = dogCapEl.value.trim()  !== '' ? parseInt(dogCapEl.value)     : null;
   }
 
   function refresh() {
@@ -72,13 +81,18 @@ function wireFilters() {
   applyBtn.addEventListener('click', () => { readFilters(); refresh(); });
 
   excludeThinEl.addEventListener('change', () => refresh());
+  favCapEl.addEventListener('change', () => { readFilters(); refresh(); });
+  dogCapEl.addEventListener('change', () => { readFilters(); refresh(); });
 
   resetBtn.addEventListener('click', () => {
     minEdgeEl.value        = '';
-    favConfEl.value        = 55;
-    udEdgeEl.value         = 15;
+    favConfEl.value        = 65;
+    udEdgeEl.value         = 10;
+    favCapEl.value         = ODDS_CAP_FAV_DEFAULT;
+    dogCapEl.value         = ODDS_CAP_UD_DEFAULT;
     excludeThinEl.checked  = true;
-    filters = { minEdge: null, favConf: 55, udEdge: 15 };
+    filters = { minEdge: null, favConf: 65, udEdge: 10,
+                favCap: ODDS_CAP_FAV_DEFAULT, dogCap: ODDS_CAP_UD_DEFAULT };
     refresh();
   });
 
@@ -86,10 +100,15 @@ function wireFilters() {
     minEdgeEl.value        = '';
     favConfEl.value        = '';
     udEdgeEl.value         = '';
+    favCapEl.value         = '';
+    dogCapEl.value         = '';
     excludeThinEl.checked  = false;
-    filters = { minEdge: null, favConf: null, udEdge: null };
+    filters = { minEdge: null, favConf: null, udEdge: null, favCap: null, dogCap: null };
     refresh();
   });
+
+  // Initialise filter state from HTML defaults
+  readFilters();
 }
 
 /* ── Filter predicate ───────────────────────────────────────────────────────── */
@@ -101,6 +120,16 @@ function passesFilter(f) {
     const c1 = f.f1_fight_count ?? 999;
     const c2 = f.f2_fight_count ?? 999;
     if (c1 < THIN_DATA_MIN_FIGHTS || c2 < THIN_DATA_MIN_FIGHTS) return false;
+  }
+
+  // Exclude fights outside the odds cap window
+  if (filters.favCap !== null || filters.dogCap !== null) {
+    const o1 = f.f1_odds, o2 = f.f2_odds;
+    for (const o of [o1, o2]) {
+      if (o === null || o === undefined) continue;
+      if (filters.favCap !== null && o <= filters.favCap) return false;
+      if (filters.dogCap !== null && o >= filters.dogCap) return false;
+    }
   }
 
   const pickProb   = f.model_prob_f1 >= 50 ? f.model_prob_f1 : 100 - f.model_prob_f1;

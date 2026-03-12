@@ -136,6 +136,10 @@
   margin: 0 4px;
 }
 
+.ev-filter-input--odds {
+  width: 58px;
+}
+
 .ev-toggle-label {
   display: flex;
   align-items: center;
