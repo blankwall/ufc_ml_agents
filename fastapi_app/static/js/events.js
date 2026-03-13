@@ -652,26 +652,28 @@ function renderMatchupPanel(f1Name, f1, f2Name, f2) {
 function renderAiResult(data) {
   if (data.error) return `<div class="ai-error">⚠ ${data.error}</div>`;
 
-  const reasons = (data.reasons || []).map((r, i) =>
+  const obs = (data.observations || data.reasons || []).map((r, i) =>
     `<li class="ai-reason"><span class="ai-reason-n">${i + 1}</span>${r}</li>`
   ).join('');
 
-  const w = data.winner_pct;
-  const l = data.loser_pct;
+  const lean     = data.lean || data.winner || '—';
+  const other    = data.other || data.loser  || '—';
+  const strength = data.lean_strength || 'slight';
+  const strengthLabel = { slight: 'Slight edge', moderate: 'Moderate edge', clear: 'Clear edge' }[strength] || 'Edge';
+  const strengthCls   = { slight: 'ai-lean-slight', moderate: 'ai-lean-moderate', clear: 'ai-lean-clear' }[strength] || '';
 
   return `
   <div class="ai-card">
-    <div class="ai-pick-row">
-      <div class="ai-pick-name">${data.winner}</div>
-      <div class="ai-pick-pct">${w}%</div>
-      <div class="ai-pick-bar">
-        <div class="ai-bar-fill" style="width:${w}%"></div>
+    <div class="ai-lean-row">
+      <div class="ai-lean-names">
+        <span class="ai-lean-fav">${lean}</span>
+        <span class="ai-lean-sep">vs</span>
+        <span class="ai-lean-other">${other}</span>
       </div>
-      <div class="ai-pick-pct loser">${l}%</div>
-      <div class="ai-pick-name loser">${data.loser}</div>
+      <span class="ai-lean-badge ${strengthCls}">${strengthLabel}</span>
     </div>
-    <ul class="ai-reasons">${reasons}</ul>
-    <div class="ai-footer">Independent AI · stats only · no odds or model data</div>
+    <ul class="ai-reasons">${obs}</ul>
+    <div class="ai-footer">Statistical observations only · career stats · not a prediction</div>
   </div>`;
 }
 

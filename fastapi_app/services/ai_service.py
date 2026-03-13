@@ -25,28 +25,39 @@ from chat_z import ZAIClient  # type: ignore
 
 # ── system prompt contract ────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """You are an expert UFC fight analyst. You will be given stats and recent fight history for two fighters.
+SYSTEM_PROMPT = """You are an expert UFC statistics analyst. You will be given career stats and recent fight history for two fighters.
 
-Your job is to predict the winner and explain your reasoning.
+Your job is to surface statistical patterns and tendencies — NOT to predict who wins. MMA outcomes are highly uncertain; your role is to describe what the numbers suggest, not to make a forecast.
 
 You MUST respond with ONLY valid JSON in exactly this structure — no markdown, no extra text:
 
 {
-  "winner": "<exact fighter name>",
-  "winner_pct": <integer 51-90>,
-  "reasons": [
-    "<one sentence reason 1>",
-    "<one sentence reason 2>",
-    "<one sentence reason 3>"
+  "lean": "<exact fighter name who holds the clearer statistical edge>",
+  "lean_strength": "<exactly one of: slight, moderate, clear>",
+  "observations": [
+    "<one sentence statistical observation 1>",
+    "<one sentence statistical observation 2>",
+    "<one sentence statistical observation 3>"
   ]
 }
 
 Rules:
-- "winner" must be exactly one of the two fighter names provided
-- "winner_pct" is your confidence the winner wins (51–90), the loser probability is 100 minus this
-- Each reason must be exactly one sentence focused on a specific stat, stylistic edge, or historical pattern
-- Do NOT mention betting odds, market lines, or any external model predictions
-- Base your analysis only on the stats and fight history provided"""
+- "lean" must be exactly one of the two fighter names
+- "lean_strength" reflects how one-sided the statistical picture is:
+    "slight"   = numbers are close, marginal edges only
+    "moderate" = noticeable advantages in key areas
+    "clear"    = significant edges across multiple dimensions
+- Each observation must describe a specific statistical pattern using hedged language
+  ("tends to", "shows", "suggests", "historically", "on average", "compared to")
+- Do NOT use prediction language: "will win", "is likely to", "should beat", "will dominate"
+- Do NOT mention betting odds, model outputs, or any external predictions
+- Where numbers are very close, say so explicitly — do not manufacture edges
+- Base analysis only on the stats and fight history provided
+
+- IMPORTANT: YOU MUST THINK DEEPLY ABOUT THE STATS AND HISTORY PROVIDED. DO NOT MAKE ASSUMPTIONS.
+
+
+"""
 
 
 # ── prompt builder ────────────────────────────────────────────────────────────
@@ -100,10 +111,10 @@ def _build_fighter_block(name: str, data: dict) -> str:
 
 def build_prompt(f1_name: str, f1_data: dict, f2_name: str, f2_data: dict) -> str:
     return (
-        f"Analyse this UFC matchup:\n"
+        f"Analyse the statistical picture for this UFC matchup:\n"
         f"{_build_fighter_block(f1_name, f1_data)}\n"
         f"{_build_fighter_block(f2_name, f2_data)}\n\n"
-        f"Who wins and why? Respond with JSON only."
+        f"What do the stats and history suggest? Respond with JSON only."
     )
 
 
@@ -158,28 +169,31 @@ def analyze_matchup(
             "raw": raw_text,
         }
 
-    winner     = parsed.get("winner", "")
-    winner_pct = int(parsed.get("winner_pct", 60))
-    winner_pct = max(51, min(90, winner_pct))   # clamp to contract range
-    loser      = f2_name if winner == f1_name else f1_name
-    loser_pct  = 100 - winner_pct
-    reasons    = parsed.get("reasons", [])
+    lean          = parsed.get("lean", "")
+    lean_strength = parsed.get("lean_strength", "slight").lower()
+    if lean_strength not in ("slight", "moderate", "clear"):
+        lean_strength = "slight"
 
-    # Validate winner is one of the two fighters
-    if winner not in (f1_name, f2_name):
-        # Try partial match
-        if f1_name.split()[-1].lower() in winner.lower():
-            winner = f1_name
-        elif f2_name.split()[-1].lower() in winner.lower():
-            winner = f2_name
+    observations = parsed.get("observations") or parsed.get("reasons", [])
+
+    # Validate lean is one of the two fighters; partial-match fallback
+    if lean not in (f1_name, f2_name):
+        if f1_name.split()[-1].lower() in lean.lower():
+            lean = f1_name
+        elif f2_name.split()[-1].lower() in lean.lower():
+            lean = f2_name
         else:
-            winner = f1_name  # fallback
+            lean = f1_name  # last resort
+
+    other = f2_name if lean == f1_name else f1_name
 
     return {
-        "winner":     winner,
-        "winner_pct": winner_pct,
-        "loser":      loser,
-        "loser_pct":  loser_pct,
-        "reasons":    reasons[:3],
-        "error":      None,
+        "lean":          lean,
+        "lean_strength": lean_strength,
+        "other":         other,
+        "observations":  observations[:3],
+        "error":         None,
+        # Legacy aliases so existing code that references winner/reasons won't hard-crash
+        "winner":        lean,
+        "reasons":       observations[:3],
     }
