@@ -74,6 +74,7 @@ FIGHTER_ALIASES: dict[str, str] = {
     "Waldo Cortes-Acosta":    "Waldo Cortes Acosta",
     "Loneer Kavanagh":        "Lone'er Kavanagh",
     "Carlos Leal Miranda":    "Carlos Leal",
+    "Long Xiao":              "Xiao Long",          # DB uses Chinese name order
 }
 
 

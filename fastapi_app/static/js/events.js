@@ -408,6 +408,11 @@ function renderFightCard(f, visible = true) {
         ${fightsMeta}
       </div>
       ${errorNote}
+      <button class="matchup-expand-btn"
+              data-f1="${f.fighter1}"
+              data-f2="${f.fighter2}"
+              onclick="toggleMatchup(this, event)">↕ Head-to-Head</button>
+      <div class="matchup-panel hidden"></div>
     </div>
   `;
 }
@@ -501,6 +506,356 @@ async function reloadEvents() {
   }
 }
 
+/* ── Head-to-head matchup panel ─────────────────────────────────────────────── */
+
+async function toggleMatchup(btn, e) {
+  e.stopPropagation();
+  const card  = btn.closest('.fight-card');
+  const panel = card.querySelector('.matchup-panel');
+  const f1    = btn.dataset.f1;
+  const f2    = btn.dataset.f2;
+
+  if (!panel.classList.contains('hidden')) {
+    panel.classList.add('hidden');
+    btn.textContent = '↕ Head-to-Head';
+    return;
+  }
+
+  btn.textContent = 'Loading…';
+  btn.disabled = true;
+
+  try {
+    const res  = await fetch(`/api/matchup/${encodeURIComponent(f1)}/${encodeURIComponent(f2)}`);
+    if (!res.ok) throw new Error(`${res.status}`);
+    const data = await res.json();
+    panel.innerHTML = renderMatchupPanel(f1, data.fighter1, f2, data.fighter2);
+    panel.classList.remove('hidden');
+    btn.textContent = '↑ Close';
+  } catch (err) {
+    panel.innerHTML = `<div class="mp-error">⚠ Could not load matchup: ${err.message}</div>`;
+    panel.classList.remove('hidden');
+    btn.textContent = '↕ Head-to-Head';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function runAiAnalysis(btn, f1, f2) {
+  const panel     = btn.closest('.matchup-panel');
+  const resultEl  = panel.querySelector('.ai-result');
+  btn.disabled    = true;
+  btn.textContent = 'Analysing…';
+  resultEl.innerHTML = '<div class="ai-thinking"><span class="ai-spinner"></span> AI is thinking…</div>';
+
+  try {
+    const res = await fetch('/api/matchup/analyze', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ fighter1: f1, fighter2: f2 }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    resultEl.innerHTML = renderAiResult(data);
+  } catch (err) {
+    resultEl.innerHTML = `<div class="ai-error">⚠ ${err.message}</div>`;
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '↺ Re-analyse';
+  }
+}
+
+function fmtStat(v, decimals = 1, suffix = '') {
+  return v == null ? '—' : `${Number(v).toFixed(decimals)}${suffix}`;
+}
+function fmtPct(v) {
+  return v == null ? '—' : `${(v * 100).toFixed(1)}%`;
+}
+
+function renderStatRow(label, v1, v2, higherIsBetter = true) {
+  const n1 = parseFloat(v1), n2 = parseFloat(v2);
+  const c1 = (!isNaN(n1) && !isNaN(n2)) ? (higherIsBetter ? (n1 > n2 ? 'mp-stat-edge' : '') : (n1 < n2 ? 'mp-stat-edge' : '')) : '';
+  const c2 = (!isNaN(n1) && !isNaN(n2)) ? (higherIsBetter ? (n2 > n1 ? 'mp-stat-edge' : '') : (n2 < n1 ? 'mp-stat-edge' : '')) : '';
+  return `<tr>
+    <td class="mp-stat-val ${c1}">${v1}</td>
+    <td class="mp-stat-label">${label}</td>
+    <td class="mp-stat-val right ${c2}">${v2}</td>
+  </tr>`;
+}
+
+function renderRecentFights(fights, fighterName = null) {
+  if (!fights || !fights.length) return '<span class="mp-no-data">No recent fights</span>';
+  return fights.map(f => {
+    const cls = f.result === 'W' ? 'mp-r-w' : f.result === 'L' ? 'mp-r-l' : 'mp-r-nc';
+    const odds = f.close_odds ? ` <span class="mp-r-odds">${f.close_odds}</span>` : '';
+    const hasFightResult = f.result && f.result !== 'N/A';
+    const statsBtn = (hasFightResult && fighterName && f.opponent)
+      ? ` <span class="fight-stats-link mp-r-stats"
+               data-fighter="${escAttr(fighterName)}"
+               data-opponent="${escAttr(f.opponent)}"
+               title="View fight stats">↗</span>`
+      : '';
+    return `<div class="mp-recent-row">
+      <span class="mp-r-badge ${cls}">${f.result}</span>
+      <span class="mp-r-opp">${f.opponent}</span>${odds}${statsBtn}
+    </div>`;
+  }).join('');
+}
+
+function renderMatchupPanel(f1Name, f1, f2Name, f2) {
+  const f1Esc = f1Name.replace(/"/g, '&quot;');
+  const f2Esc = f2Name.replace(/"/g, '&quot;');
+
+  return `
+  <div class="matchup-panel-inner">
+    <div class="mp-header">
+      <span class="mp-name">${f1.name}</span>
+      <span class="mp-vs">VS</span>
+      <span class="mp-name right">${f2.name}</span>
+    </div>
+    <div class="mp-subheader">
+      <span>${f1.record} · ${f1.age ?? '?'}yo · ${f1.stance ?? '—'} · ${fmtStat(f1.reach_inches, 1, '"')} reach</span>
+      <span>${f2.record} · ${f2.age ?? '?'}yo · ${f2.stance ?? '—'} · ${fmtStat(f2.reach_inches, 1, '"')} reach</span>
+    </div>
+
+    <table class="mp-stats-table">
+      <tbody>
+        ${renderStatRow('Sig strikes/min', fmtStat(f1.sig_strikes_landed_per_min), fmtStat(f2.sig_strikes_landed_per_min))}
+        ${renderStatRow('Striking accuracy', fmtPct(f1.striking_accuracy), fmtPct(f2.striking_accuracy))}
+        ${renderStatRow('Strikes absorbed/min', fmtStat(f1.sig_strikes_absorbed_per_min), fmtStat(f2.sig_strikes_absorbed_per_min), false)}
+        ${renderStatRow('Striking defense', fmtPct(f1.striking_defense), fmtPct(f2.striking_defense))}
+        ${renderStatRow('Takedowns/15min', fmtStat(f1.takedown_avg_per_15min), fmtStat(f2.takedown_avg_per_15min))}
+        ${renderStatRow('TD accuracy', fmtPct(f1.takedown_accuracy), fmtPct(f2.takedown_accuracy))}
+        ${renderStatRow('TD defense', fmtPct(f1.takedown_defense), fmtPct(f2.takedown_defense))}
+        ${renderStatRow('Submissions/15min', fmtStat(f1.submission_avg_per_15min), fmtStat(f2.submission_avg_per_15min))}
+      </tbody>
+    </table>
+
+    <div class="mp-recent">
+      <div class="mp-recent-col">${renderRecentFights(f1.recent_fights, f1.name)}</div>
+      <div class="mp-recent-label">Recent</div>
+      <div class="mp-recent-col right">${renderRecentFights(f2.recent_fights, f2.name)}</div>
+    </div>
+
+    <div class="mp-ai-section">
+      <button class="mp-ai-btn"
+              onclick="runAiAnalysis(this, '${f1Esc}', '${f2Esc}')">
+        ✦ AI Analysis
+      </button>
+      <div class="ai-result"></div>
+    </div>
+  </div>`;
+}
+
+function renderAiResult(data) {
+  if (data.error) return `<div class="ai-error">⚠ ${data.error}</div>`;
+
+  const reasons = (data.reasons || []).map((r, i) =>
+    `<li class="ai-reason"><span class="ai-reason-n">${i + 1}</span>${r}</li>`
+  ).join('');
+
+  const w = data.winner_pct;
+  const l = data.loser_pct;
+
+  return `
+  <div class="ai-card">
+    <div class="ai-pick-row">
+      <div class="ai-pick-name">${data.winner}</div>
+      <div class="ai-pick-pct">${w}%</div>
+      <div class="ai-pick-bar">
+        <div class="ai-bar-fill" style="width:${w}%"></div>
+      </div>
+      <div class="ai-pick-pct loser">${l}%</div>
+      <div class="ai-pick-name loser">${data.loser}</div>
+    </div>
+    <ul class="ai-reasons">${reasons}</ul>
+    <div class="ai-footer">Independent AI · stats only · no odds or model data</div>
+  </div>`;
+}
+
+/* ── Shared helpers ──────────────────────────────────────────────────────────── */
+function escAttr(s) {
+  return s ? s.replace(/"/g, '&quot;').replace(/'/g, '&#39;') : '';
+}
+
+/* ── Fight stats popup ───────────────────────────────────────────────────────── */
+
+let fightStatsPopupEl  = null;
+let fightStatsPopupKey = null;
+
+function ensureFightStatsPopup() {
+  if (fightStatsPopupEl) return;
+  fightStatsPopupEl = document.createElement('div');
+  fightStatsPopupEl.id = 'fightStatsPopup';
+  fightStatsPopupEl.className = 'fight-stats-popup hidden';
+  document.body.appendChild(fightStatsPopupEl);
+
+  document.addEventListener('click', e => {
+    if (
+      fightStatsPopupEl &&
+      !fightStatsPopupEl.classList.contains('hidden') &&
+      !fightStatsPopupEl.contains(e.target) &&
+      !e.target.classList.contains('fight-stats-link')
+    ) {
+      closeFightStatsPopup();
+    }
+  });
+}
+
+function closeFightStatsPopup() {
+  if (fightStatsPopupEl) {
+    fightStatsPopupEl.classList.add('hidden');
+    fightStatsPopupKey = null;
+  }
+}
+
+function positionFightStatsPopup(anchor) {
+  if (!fightStatsPopupEl || !anchor) return;
+  const rect   = anchor.getBoundingClientRect();
+  const scrollY = window.scrollY || 0;
+  const scrollX = window.scrollX || 0;
+  const popupW  = 480;
+
+  let left = rect.left + scrollX;
+  let top  = rect.bottom + scrollY + 8;
+
+  const vw = document.documentElement.clientWidth;
+  if (left + popupW > vw + scrollX - 12) left = vw + scrollX - popupW - 12;
+  if (left < scrollX + 8) left = scrollX + 8;
+
+  fightStatsPopupEl.style.left = `${left}px`;
+  fightStatsPopupEl.style.top  = `${top}px`;
+}
+
+async function showFightStatsPopup(fighter, opponent, anchorEl) {
+  ensureFightStatsPopup();
+
+  const key = `${fighter}::${opponent}`;
+  if (fightStatsPopupKey === key && !fightStatsPopupEl.classList.contains('hidden')) {
+    closeFightStatsPopup();
+    return;
+  }
+
+  fightStatsPopupKey = key;
+  fightStatsPopupEl.classList.remove('hidden');
+  fightStatsPopupEl.innerHTML = '<div class="fsp-loading">Loading…</div>';
+  positionFightStatsPopup(anchorEl);
+
+  try {
+    const res = await fetch(`/api/fight-stats/${encodeURIComponent(fighter)}/${encodeURIComponent(opponent)}`);
+    if (res.status === 404) {
+      fightStatsPopupEl.innerHTML = `
+        <div class="fsp-inner">
+          <div class="fsp-header">
+            <div class="fsp-names">
+              <span class="fsp-fname">${fighter}</span>
+              <span class="fsp-vs">vs</span>
+              <span class="fsp-oname">${opponent}</span>
+            </div>
+            <button class="fsp-close" onclick="closeFightStatsPopup()">✕</button>
+          </div>
+          <div class="fsp-no-stats">No fight stats available for this bout.</div>
+        </div>`;
+      positionFightStatsPopup(anchorEl);
+      return;
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    fightStatsPopupEl.innerHTML = renderFightStatsCard(data);
+    positionFightStatsPopup(anchorEl);
+  } catch (err) {
+    fightStatsPopupEl.innerHTML = `<div class="fsp-error">⚠ ${err.message}</div>`;
+  }
+}
+
+function fspTotalsRow(label, fVal, oVal, higherIsBetter = true) {
+  const n1 = parseFloat(fVal), n2 = parseFloat(oVal);
+  const c1 = (!isNaN(n1) && !isNaN(n2)) ? (higherIsBetter ? (n1 > n2 ? 'fsp-edge' : '') : (n1 < n2 ? 'fsp-edge' : '')) : '';
+  const c2 = (!isNaN(n1) && !isNaN(n2)) ? (higherIsBetter ? (n2 > n1 ? 'fsp-edge' : '') : (n2 < n1 ? 'fsp-edge' : '')) : '';
+  return `<tr>
+    <td class="fsp-val ${c1}">${fVal ?? '—'}</td>
+    <td class="fsp-label">${label}</td>
+    <td class="fsp-val right ${c2}">${oVal ?? '—'}</td>
+  </tr>`;
+}
+
+function renderFightStatsCard(d) {
+  const resultCls = d.result === 'W' ? 'fsp-w' : d.result === 'L' ? 'fsp-l' : 'fsp-nc';
+  const method = [d.method, d.method_detail].filter(Boolean).join(' · ');
+  const finish = d.round ? `Rnd ${d.round}${d.time ? ' ' + d.time : ''}` : '';
+
+  const t  = d.fighter?.totals  || {};
+  const ot = d.opponent?.totals || {};
+  const s  = d.fighter?.sig_strikes  || {};
+  const os = d.opponent?.sig_strikes || {};
+
+  const totalsRows = [
+    fspTotalsRow('Knockdowns',        t.knockdowns,         ot.knockdowns),
+    fspTotalsRow('Sig strikes',       t.sig_strikes,        ot.sig_strikes),
+    fspTotalsRow('Sig strike %',      t.sig_strike_pct,     ot.sig_strike_pct),
+    fspTotalsRow('Total strikes',     t.total_strikes,      ot.total_strikes),
+    fspTotalsRow('Takedowns',         t.takedowns,          ot.takedowns),
+    fspTotalsRow('Sub attempts',      t.submission_attempts,ot.submission_attempts),
+    fspTotalsRow('Control time',      t.control_time,       ot.control_time, false),
+  ].join('');
+
+  const sigRows = [
+    fspTotalsRow('Head',    s.head_strikes,     os.head_strikes),
+    fspTotalsRow('Body',    s.body_strikes,     os.body_strikes),
+    fspTotalsRow('Leg',     s.leg_strikes,      os.leg_strikes),
+    fspTotalsRow('Distance',s.distance_strikes, os.distance_strikes),
+    fspTotalsRow('Clinch',  s.clinch_strikes,   os.clinch_strikes),
+    fspTotalsRow('Ground',  s.ground_strikes,   os.ground_strikes),
+  ].join('');
+
+  const hasStats = Object.keys(t).length > 0;
+
+  return `
+  <div class="fsp-inner">
+    <div class="fsp-header">
+      <div class="fsp-names">
+        <span class="fsp-fname"><span class="fsp-result-badge ${resultCls}">${d.result}</span> ${d.fighter?.name ?? '—'}</span>
+        <span class="fsp-vs">vs</span>
+        <span class="fsp-oname">${d.opponent?.name ?? '—'}</span>
+      </div>
+      <button class="fsp-close" onclick="closeFightStatsPopup()">✕</button>
+    </div>
+    <div class="fsp-meta">
+      ${d.event ? `<span class="fsp-event">${d.event}</span>` : ''}
+      ${method   ? `<span class="fsp-method">${method}</span>` : ''}
+      ${finish   ? `<span class="fsp-finish">${finish}</span>` : ''}
+    </div>
+    ${hasStats ? `
+    <table class="fsp-table">
+      <thead><tr>
+        <th class="fsp-th">${d.fighter?.name ?? ''}</th>
+        <th class="fsp-th center">Totals</th>
+        <th class="fsp-th right">${d.opponent?.name ?? ''}</th>
+      </tr></thead>
+      <tbody>${totalsRows}</tbody>
+    </table>
+    <div class="fsp-sig-label">Significant Strikes</div>
+    <table class="fsp-table">
+      <tbody>${sigRows}</tbody>
+    </table>` : '<div class="fsp-no-stats">No detailed stats available for this fight.</div>'}
+  </div>`;
+}
+
+// Delegated click for fight-stats-link elements
+document.addEventListener('click', e => {
+  const el = e.target.closest('.fight-stats-link');
+  if (!el) return;
+  e.stopPropagation();
+  const fighter  = el.dataset.fighter;
+  const opponent = el.dataset.opponent;
+  if (fighter && opponent) showFightStatsPopup(fighter, opponent, el);
+});
+
 /* ── Fighter popup ───────────────────────────────────────────────────────────── */
 
 let fighterPopupEl = null;
@@ -588,15 +943,28 @@ function resultBadge(result) {
 }
 
 function renderFighterPopup(data) {
-  const rows = data.fights.map(f => `
+  const rows = data.fights.map(f => {
+    const evText = f.event
+      ? f.event.replace(/^(UFC \w+:?\s*)/, m => `<strong>${m}</strong>`)
+      : '—';
+    // Only show stats icon for completed fights
+    const hasFightResult = f.result && f.result !== 'N/A';
+    const statsCell = (hasFightResult && f.opponent)
+      ? `<td class="fp-stats-cell"><span class="fight-stats-link fp-stats-icon"
+               data-fighter="${escAttr(data.name)}"
+               data-opponent="${escAttr(f.opponent)}"
+               title="View fight stats">📊</span></td>`
+      : '<td></td>';
+    return `
     <tr>
       <td>${resultBadge(f.result)}</td>
       <td class="fp-opponent">${f.opponent}</td>
-      <td class="fp-event">${f.event ? f.event.replace(/^(UFC \w+:?\s*)/, m => `<strong>${m}</strong>`) : '—'}</td>
+      <td class="fp-event">${evText}</td>
       <td class="fp-odds">${f.open_odds ?? '—'}</td>
       <td class="fp-odds">${f.close_odds ?? '—'}</td>
-    </tr>
-  `).join('');
+      ${statsCell}
+    </tr>`;
+  }).join('');
 
   fighterPopupEl.innerHTML = `
     <div class="fp-header">
@@ -612,6 +980,7 @@ function renderFighterPopup(data) {
           <th>Event</th>
           <th>Open</th>
           <th>Close</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
