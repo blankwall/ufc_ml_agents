@@ -5,7 +5,7 @@ let allEvents   = [];
 let activeIndex = 0;
 
 /* ── Filter state (defaults match the controls) ────────────────────────────── */
-let filters = { minEdge: null, favConf: 65, udEdge: 10,
+let filters = { minEdge: null, favConf: 65, udConf: 53, udEdge: 10,
                 favCap: -400, dogCap: 300 };
 
 const THIN_DATA_MIN_FIGHTS = 3;
@@ -55,6 +55,7 @@ async function init() {
 function wireFilters() {
   const minEdgeEl      = document.getElementById('minEdge');
   const favConfEl      = document.getElementById('favConf');
+  const udConfEl       = document.getElementById('udConf');
   const udEdgeEl       = document.getElementById('udEdge');
   const excludeThinEl   = document.getElementById('excludeThinData');
   const favCapEl        = document.getElementById('favCap');
@@ -67,6 +68,7 @@ function wireFilters() {
     const me = minEdgeEl.value.trim();
     filters.minEdge = me !== '' ? parseFloat(me) : null;
     filters.favConf = favConfEl.value.trim() !== '' ? parseFloat(favConfEl.value) : null;
+    filters.udConf  = udConfEl.value.trim()  !== '' ? parseFloat(udConfEl.value)  : null;
     filters.udEdge  = udEdgeEl.value.trim()  !== '' ? parseFloat(udEdgeEl.value)  : null;
     filters.favCap  = favCapEl.value.trim()  !== '' ? parseInt(favCapEl.value)     : null;
     filters.dogCap  = dogCapEl.value.trim()  !== '' ? parseInt(dogCapEl.value)     : null;
@@ -87,11 +89,12 @@ function wireFilters() {
   resetBtn.addEventListener('click', () => {
     minEdgeEl.value        = '';
     favConfEl.value        = 65;
+    udConfEl.value         = '';
     udEdgeEl.value         = 10;
     favCapEl.value         = ODDS_CAP_FAV_DEFAULT;
     dogCapEl.value         = ODDS_CAP_UD_DEFAULT;
     excludeThinEl.checked  = true;
-    filters = { minEdge: null, favConf: 65, udEdge: 10,
+    filters = { minEdge: null, favConf: 65, udConf: 53, udEdge: 10,
                 favCap: ODDS_CAP_FAV_DEFAULT, dogCap: ODDS_CAP_UD_DEFAULT };
     refresh();
   });
@@ -99,11 +102,12 @@ function wireFilters() {
   rawBtn.addEventListener('click', () => {
     minEdgeEl.value        = '';
     favConfEl.value        = '';
+    udConfEl.value         = '';
     udEdgeEl.value         = '';
     favCapEl.value         = '';
     dogCapEl.value         = '';
     excludeThinEl.checked  = false;
-    filters = { minEdge: null, favConf: null, udEdge: null, favCap: null, dogCap: null };
+    filters = { minEdge: null, favConf: null, udConf: null, udEdge: null, favCap: null, dogCap: null };
     refresh();
   });
 
@@ -142,6 +146,7 @@ function passesFilter(f) {
 
   // Per-type filters (only apply when set)
   if (filters.favConf !== null && isFav  && pickProb < filters.favConf) return false;
+  if (filters.udConf  !== null && !isFav && pickProb < filters.udConf)  return false;
   if (filters.udEdge  !== null && !isFav && edge     < filters.udEdge)  return false;
 
   return true;
