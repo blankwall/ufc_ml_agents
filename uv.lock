@@ -50,6 +50,15 @@ wheels = [
 ]
 
 [[package]]
+name = "annotated-doc"
+version = "0.0.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/57/ba/046ceea27344560984e26a590f90bc7f4a75b06701f653222458922b558c/annotated_doc-0.0.4.tar.gz", hash = "sha256:fbcda96e87e9c92ad167c2e53839e57503ecfda18804ea28102353485033faa4", size = 7288, upload-time = "2025-11-10T22:07:42.062Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1e/d3/26bf1008eb3d2daa8ef4cacc7f3bfdc11818d111f7e2d0201bc6e3b49d45/annotated_doc-0.0.4-py3-none-any.whl", hash = "sha256:571ac1dc6991c450b25a9c2d84a3705e2ae7a53467b5d111c24fa8baabbed320", size = 5303, upload-time = "2025-11-10T22:07:40.673Z" },
+]
+
+[[package]]
 name = "annotated-types"
 version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -998,6 +1007,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e4/b7/d6e5d64e57d3eacc7d7ce1c86743974d7dcb0e7de7aa64afccfe71c01158/fastai-2.8.6.tar.gz", hash = "sha256:7995bde94a6882beaac2cea50fc797da4cb0b819935ec6c6eef69028bc31f72f", size = 217321, upload-time = "2025-12-15T18:05:33.962Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c7/7d/74dd43d58f37584b32f0d781c8dbea9a286ee73e90393394e70569d4f254/fastai-2.8.6-py3-none-any.whl", hash = "sha256:6dcaa2e0f9d1cc6a1bd462d38f907ab908e09b9070542fee7b271018c2a2e0da", size = 235119, upload-time = "2025-12-15T18:05:32.306Z" },
+]
+
+[[package]]
+name = "fastapi"
+version = "0.135.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "annotated-doc" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+    { name = "typing-inspection" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f7/e6/7adb4c5fa231e82c35b8f5741a9f2d055f520c29af5546fd70d3e8e1cd2e/fastapi-0.135.3.tar.gz", hash = "sha256:bd6d7caf1a2bdd8d676843cdcd2287729572a1ef524fc4d65c17ae002a1be654", size = 396524, upload-time = "2026-04-01T16:23:58.188Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/84/a4/5caa2de7f917a04ada20018eccf60d6cc6145b0199d55ca3711b0fc08312/fastapi-0.135.3-py3-none-any.whl", hash = "sha256:9b0f590c813acd13d0ab43dd8494138eb58e484bfac405db1f3187cfc5810d98", size = 117734, upload-time = "2026-04-01T16:23:59.328Z" },
 ]
 
 [[package]]
@@ -4844,6 +4869,7 @@ dependencies = [
     { name = "catboost" },
     { name = "category-encoders" },
     { name = "fastai" },
+    { name = "fastapi" },
     { name = "feature-engine" },
     { name = "ipykernel" },
     { name = "jupyter" },
@@ -4885,6 +4911,7 @@ requires-dist = [
     { name = "catboost", specifier = ">=1.2.0" },
     { name = "category-encoders", specifier = ">=2.6.0" },
     { name = "fastai", specifier = ">=2.8.5" },
+    { name = "fastapi", specifier = ">=0.135.3" },
     { name = "feature-engine", specifier = ">=1.6.0" },
     { name = "ipykernel", specifier = ">=6.25.0" },
     { name = "jupyter", specifier = ">=1.0.0" },

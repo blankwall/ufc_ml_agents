@@ -372,7 +372,7 @@ class BestFightOddsScraper:
             link = th.find("a", href=re.compile(r"^/fighters/"))
             if link:
                 is_start = row.get("id", "").startswith("mu-")
-                fighter_row_indices.append((idx, th.get_text(strip=True), is_start))
+                fighter_row_indices.append((idx, link.get_text(strip=True), is_start))
 
         # ── Pair fighters and extract odds from data_table ──────────────────
         fights = []
