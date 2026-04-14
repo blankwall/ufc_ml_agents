@@ -41,6 +41,7 @@ class PopulatorOptions:
     include_fight_stats: bool = False
     prefer_fight_detail_results: bool = True
     commit: bool = True
+    bust_cache: bool = False
 
 
 class EventPopulator:
@@ -112,7 +113,7 @@ class EventPopulator:
 
         event_url = self.normalize_ufcstats_url(event_url)
         logger.info(f"Scraping event {event_id} …")
-        event_data = self.event_scraper.scrape_event(event_url, event_id)
+        event_data = self.event_scraper.scrape_event(event_url, event_id, bust_cache=options.bust_cache)
         if not event_data:
             raise RuntimeError(f"Failed to scrape event: {event_url}")
 
@@ -144,6 +145,7 @@ class EventPopulator:
                     fighter_name=fighter_name,
                     fighter_url=fighter_url,
                     options=options,
+                    bust_cache=options.bust_cache,
                 )
                 fighter_objs_by_ufc_id[fighter_id] = fighter_obj
 
@@ -172,7 +174,7 @@ class EventPopulator:
 
                 # Prefer fight-details page for result/method/round/time, if available.
                 if options.prefer_fight_detail_results:
-                    self._enrich_fight_data_from_details(fight_data, fight_details_cache)
+                    self._enrich_fight_data_from_details(fight_data, fight_details_cache, bust_cache=options.bust_cache)
 
                 fight_obj = self.db.add_fight(session, fight_data, event, f1_obj, f2_obj)
                 fights_upserted += 1
@@ -191,7 +193,7 @@ class EventPopulator:
                     # Ensure fight_obj.id is available for FightStats FK
                     if fight_obj.id is None:
                         session.flush()
-                    if self._upsert_fight_stats_if_available(session, fight_obj, fight_data, fight_details_cache):
+                    if self._upsert_fight_stats_if_available(session, fight_obj, fight_data, fight_details_cache, bust_cache=options.bust_cache):
                         fight_stats_upserted += 1
 
             summary["fights_upserted"] = fights_upserted
@@ -468,6 +470,7 @@ class EventPopulator:
         fighter_name: str,
         fighter_url: str,
         options: PopulatorOptions,
+        bust_cache: bool = False,
     ) -> Tuple[Fighter, bool, bool]:
         """
         Ensure fighter exists in DB, and optionally scrape fighter page to upsert full stats.
@@ -490,7 +493,7 @@ class EventPopulator:
         try:
             url = fighter_url or f"{self.fighter_scraper.base_url}/fighter-details/{fighter_id}"
             url = self.normalize_ufcstats_url(url)
-            fighter_data = self.fighter_scraper.scrape_fighter(url, fighter_id)
+            fighter_data = self.fighter_scraper.scrape_fighter(url, fighter_id, bust_cache=bust_cache)
         except Exception as e:
             logger.warning(f"Failed scraping fighter {fighter_id} ({fighter_name}): {e}")
 
@@ -511,6 +514,7 @@ class EventPopulator:
         fight_obj: Fight,
         fight_data: Dict,
         fight_details_cache: Optional[Dict[str, Dict]] = None,
+        bust_cache: bool = False,
     ) -> bool:
         """
         Optionally scrape and upsert FightStats for a fight if we have a fight detail URL.
@@ -523,12 +527,12 @@ class EventPopulator:
         fight_detail_url = self.normalize_ufcstats_url(fight_detail_url)
 
         details = None
-        if fight_details_cache is not None:
+        if fight_details_cache is not None and not bust_cache:
             details = fight_details_cache.get(fight_detail_url)
 
         if details is None:
             try:
-                details = self.event_scraper.scrape_fight_details(fight_detail_url)
+                details = self.event_scraper.scrape_fight_details(fight_detail_url, bust_cache=bust_cache)
             except Exception as e:
                 logger.warning(f"Failed scraping fight details for {fight_detail_url}: {e}")
                 return False
@@ -558,7 +562,7 @@ class EventPopulator:
             )
         return True
 
-    def _enrich_fight_data_from_details(self, fight_data: Dict, fight_details_cache: Dict[str, Dict]) -> None:
+    def _enrich_fight_data_from_details(self, fight_data: Dict, fight_details_cache: Dict[str, Dict], bust_cache: bool = False) -> None:
         """
         Use fight-details page to set accurate result + method/round/time.
         This prevents bad event-page heuristics from writing wrong winners.
@@ -568,10 +572,10 @@ class EventPopulator:
             return
 
         fight_detail_url = self.normalize_ufcstats_url(fight_detail_url)
-        details = fight_details_cache.get(fight_detail_url)
+        details = None if bust_cache else fight_details_cache.get(fight_detail_url)
         if details is None:
             try:
-                details = self.event_scraper.scrape_fight_details(fight_detail_url)
+                details = self.event_scraper.scrape_fight_details(fight_detail_url, bust_cache=bust_cache)
             except Exception as e:
                 logger.debug(f"Fight-details fetch failed for {fight_detail_url}: {e}")
                 return

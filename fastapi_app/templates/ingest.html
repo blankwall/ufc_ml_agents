@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UFC Ingest · ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css?v=8" />
+  <link rel="stylesheet" href="/static/css/ingest.css?v=1" />
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <span class="logo-text">UFC<strong>ML</strong></span>
+    </div>
+    <nav class="header-nav">
+      <a href="/backtest" class="nav-link">Backtest</a>
+      <a href="/events" class="nav-link">Events</a>
+      <a href="/ingest" class="nav-link active">Ingest</a>
+      <a href="/fighter" class="nav-link">Fighter</a>
+    </nav>
+    <div class="header-meta">
+      <span class="badge">DB Ingest</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── Ingest Form ──────────────────────────────────────────────────────── -->
+  <section class="ingest-form-card">
+    <div class="form-title">Ingest Event into Database</div>
+    <div class="form-row">
+      <input type="url" id="ufcUrl" class="form-input"
+             placeholder="http://ufcstats.com/event-details/..." />
+      <button class="form-submit" id="ingestBtn">Ingest</button>
+    </div>
+    <div class="form-hint">Paste a UFCStats event URL. Re-ingesting the same event is safe (idempotent upsert).</div>
+  </section>
+
+  <!-- ── Loading state ────────────────────────────────────────────────────── -->
+  <div id="loadingState" class="loading-state hidden">
+    <div class="spinner-large"></div>
+    <p>Scraping event data…</p>
+  </div>
+
+  <!-- ── Error ────────────────────────────────────────────────────────────── -->
+  <div id="errorState" class="error-banner hidden"></div>
+
+  <!-- ── Results ──────────────────────────────────────────────────────────── -->
+  <div id="resultsContent" class="hidden">
+
+    <!-- Event header -->
+    <div class="event-header" id="eventHeader"></div>
+
+    <!-- Summary strip -->
+    <div class="summary-strip" id="summaryStrip"></div>
+
+    <!-- Fight card table -->
+    <div class="table-section">
+      <div class="table-header">
+        <h3>Fight Card</h3>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Fighter 1</th>
+              <th>Fighter 2</th>
+              <th>Winner</th>
+              <th>Method</th>
+              <th>Rd</th>
+              <th>Time</th>
+              <th>Weight Class</th>
+            </tr>
+          </thead>
+          <tbody id="fightTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<script src="/static/js/ingest.js?v=1"></script>
+</body>
+</html>

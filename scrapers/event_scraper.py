@@ -26,7 +26,12 @@ class EventScraper:
         self.rate_limit = self.config['data_sources']['ufcstats']['rate_limit']
         self.user_agent = self.config['scraping']['user_agent']
         self.timeout = self.config['scraping']['timeout']
-        self.cache_dir = Path(self.config['scraping']['cache_dir']) / "events"
+        # Resolve cache_dir relative to the project root (parent of config/).
+        _project_root = Path(config_path).resolve().parent.parent
+        _cache_dir = Path(self.config['scraping']['cache_dir'])
+        if not _cache_dir.is_absolute():
+            _cache_dir = _project_root / _cache_dir
+        self.cache_dir = _cache_dir / "events"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
         self.session = requests.Session()
@@ -156,19 +161,24 @@ class EventScraper:
         logger.success(f"Found total of {len(events)} events across {max_page} pages")
         return events
     
-    def scrape_event(self, event_url: str, event_id: str) -> Optional[Dict]:
+    def scrape_event(self, event_url: str, event_id: str, bust_cache: bool = False) -> Optional[Dict]:
         """
         Scrape detailed information for a single event
         
         Args:
             event_url: URL of the event page
             event_id: Unique event identifier
+            bust_cache: If True, delete cached HTML before fetching so fresh data is retrieved
             
         Returns:
             Dictionary containing event data and all fights
         """
         cache_file = self.cache_dir / f"{event_id}.html"
-        
+
+        if bust_cache and cache_file.exists():
+            cache_file.unlink()
+            logger.debug(f"Busted cache for event {event_id}")
+
         # Check cache first
         if cache_file.exists() and self.config['scraping']['cache_enabled']:
             logger.debug(f"Loading event {event_id} from cache")
@@ -421,19 +431,24 @@ class EventScraper:
         except ValueError:
             return None
     
-    def scrape_fight_details(self, fight_url: str) -> Optional[Dict]:
+    def scrape_fight_details(self, fight_url: str, bust_cache: bool = False) -> Optional[Dict]:
         """
         Scrape detailed round-by-round statistics for a specific fight
         
         Args:
             fight_url: URL of the fight details page
+            bust_cache: If True, delete cached HTML before fetching so fresh data is retrieved
             
         Returns:
             Dictionary with detailed fight statistics
         """
         fight_id = fight_url.split('/')[-1]
         cache_file = self.cache_dir / f"fight_{fight_id}.html"
-        
+
+        if bust_cache and cache_file.exists():
+            cache_file.unlink()
+            logger.debug(f"Busted cache for fight {fight_id}")
+
         # Check cache
         if cache_file.exists() and self.config['scraping']['cache_enabled']:
             with open(cache_file, 'r', encoding='utf-8') as f:

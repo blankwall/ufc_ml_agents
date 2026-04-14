@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UFC Fighter · ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css?v=8" />
+  <link rel="stylesheet" href="/static/css/fighter.css?v=1" />
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <span class="logo-text">UFC<strong>ML</strong></span>
+    </div>
+    <nav class="header-nav">
+      <a href="/backtest" class="nav-link">Backtest</a>
+      <a href="/events" class="nav-link">Events</a>
+      <a href="/ingest" class="nav-link">Ingest</a>
+      <a href="/fighter" class="nav-link active">Fighter</a>
+    </nav>
+    <div class="header-meta">
+      <span class="badge">Fighter Profiles</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── Search ───────────────────────────────────────────────────────────── -->
+  <section class="search-section">
+    <div class="search-wrapper">
+      <input type="text" id="fighterSearch" class="search-input"
+             placeholder="Search fighter…" autocomplete="off" />
+      <div id="searchDropdown" class="search-dropdown hidden"></div>
+    </div>
+  </section>
+
+  <!-- ── Loading ──────────────────────────────────────────────────────────── -->
+  <div id="loadingState" class="loading-state hidden">
+    <div class="spinner-large"></div>
+    <p>Loading fighter profile…</p>
+  </div>
+
+  <!-- ── Error ────────────────────────────────────────────────────────────── -->
+  <div id="errorState" class="error-banner hidden"></div>
+
+  <!-- ── Profile Content ──────────────────────────────────────────────────── -->
+  <div id="profileContent" class="hidden">
+
+    <!-- Header card -->
+    <div class="profile-header" id="profileHeader"></div>
+
+    <!-- Physical attributes -->
+    <div class="phys-grid" id="physGrid"></div>
+
+    <!-- Career stats grid -->
+    <div class="stats-section">
+      <div class="stats-title">Career Stats</div>
+      <div class="stats-grid" id="statsGrid"></div>
+    </div>
+
+    <!-- Fight history -->
+    <div class="table-section">
+      <div class="table-header">
+        <h3>Fight History</h3>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Event</th>
+              <th>Opponent</th>
+              <th>Result</th>
+              <th>Method</th>
+              <th>Rd</th>
+              <th>Odds</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<script src="/static/js/fighter.js?v=1"></script>
+</body>
+</html>

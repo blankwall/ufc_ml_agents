@@ -1,0 +1,235 @@
+/* ── Fighter Search ────────────────────────────────────────────────────────── */
+
+.search-section {
+  position: relative;
+}
+
+.search-wrapper {
+  position: relative;
+  max-width: 480px;
+}
+
+.search-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.search-input:focus { border-color: var(--accent); }
+
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 50;
+}
+
+.search-item {
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--text);
+  transition: background 0.1s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.search-item:hover { background: var(--surface2); }
+.search-item:first-child { padding-top: 10px; }
+.search-item:last-child { padding-bottom: 10px; }
+
+.search-item .search-record {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+/* ── Loading ───────────────────────────────────────────────────────────────── */
+.loading-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.spinner-large {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 1rem;
+  border: 3px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Profile Header ────────────────────────────────────────────────────────── */
+.profile-header {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+
+.profile-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.profile-header .nickname {
+  font-size: 0.95rem;
+  color: var(--accent);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.profile-header .record-badge {
+  display: inline-block;
+  background: rgba(79,172,254,0.12);
+  color: var(--accent);
+  border: 1px solid rgba(79,172,254,0.25);
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.profile-header .header-details {
+  margin-top: 10px;
+  display: flex;
+  gap: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.profile-header .header-details span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Physical Attributes Grid ──────────────────────────────────────────────── */
+.phys-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.phys-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  text-align: center;
+}
+
+.phys-card .phys-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.phys-card .phys-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ── Career Stats ──────────────────────────────────────────────────────────── */
+.stats-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+.stats-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.stat-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-bar-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+.stat-bar-value {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.stat-bar-track {
+  width: 100%;
+  height: 6px;
+  background: var(--border2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+/* ── Fight History Table ───────────────────────────────────────────────────── */
+.table-wrapper {
+  max-height: 600px;
+}
+
+.opponent-link {
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.opponent-link:hover { opacity: 0.8; text-decoration: underline; }
+
+.cell-draw { color: var(--yellow); font-weight: 600; }
+.cell-nc { color: var(--text-dim); font-weight: 600; }
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .phys-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 560px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .phys-grid { grid-template-columns: repeat(2, 1fr); }
+}

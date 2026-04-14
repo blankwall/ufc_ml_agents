@@ -25,7 +25,12 @@ class FighterScraper:
         self.rate_limit = self.config['data_sources']['ufcstats']['rate_limit']
         self.user_agent = self.config['scraping']['user_agent']
         self.timeout = self.config['scraping']['timeout']
-        self.cache_dir = Path(self.config['scraping']['cache_dir']) / "fighters"
+        # Resolve cache_dir relative to the project root (parent of config/).
+        _project_root = Path(config_path).resolve().parent.parent
+        _cache_dir = Path(self.config['scraping']['cache_dir'])
+        if not _cache_dir.is_absolute():
+            _cache_dir = _project_root / _cache_dir
+        self.cache_dir = _cache_dir / "fighters"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
         self.session = requests.Session()
@@ -96,19 +101,24 @@ class FighterScraper:
         logger.success(f"Found total of {len(fighters)} fighters")
         return fighters
     
-    def scrape_fighter(self, fighter_url: str, fighter_id: str) -> Optional[Dict]:
+    def scrape_fighter(self, fighter_url: str, fighter_id: str, bust_cache: bool = False) -> Optional[Dict]:
         """
         Scrape detailed statistics for a single fighter
         
         Args:
             fighter_url: URL of the fighter's page
             fighter_id: Unique fighter identifier
+            bust_cache: If True, delete cached HTML before fetching so fresh data is retrieved
             
         Returns:
             Dictionary containing all fighter data
         """
         cache_file = self.cache_dir / f"{fighter_id}.html"
-        
+
+        if bust_cache and cache_file.exists():
+            cache_file.unlink()
+            logger.debug(f"Busted cache for fighter {fighter_id}")
+
         # Check cache first
         if cache_file.exists() and self.config['scraping']['cache_enabled']:
             logger.debug(f"Loading fighter {fighter_id} from cache")
