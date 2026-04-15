@@ -1,0 +1,241 @@
+{
+  "bfo_url": "https://www.bestfightodds.com/events/ufc-327-4074",
+  "ufc_stats_url": "http://ufcstats.com/event-details/f3eb664db7fb1df3",
+  "scraped_at": "2026-04-13T13:53:59.335340+00:00",
+  "event_name": "UFC 327",
+  "event_date": "April 11th",
+  "fights": [
+    {
+      "event_name": "UFC 327",
+      "event_date": "April 11th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-327-4074",
+      "fighter1": "Carlos Ulberg",
+      "fighter2": "Jiri Prochazka",
+      "fighter1_odds": 115,
+      "fighter2_odds": -143,
+      "fighter1_prob": 0.4651,
+      "fighter2_prob": 0.5885,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 327",
+      "event_date": "April 11th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-327-4074",
+      "fighter1": "Curtis Blaydes",
+      "fighter2": "Josh Hokit",
+      "fighter1_odds": -155,
+      "fighter2_odds": 123,
+      "fighter1_prob": 0.6078,
+      "fighter2_prob": 0.4484,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 327",
+      "event_date": "April 11th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-327-4074",
+      "fighter1": "Dominick Reyes",
+      "fighter2": "Johnny Walker",
+      "fighter1_odds": -120,
+      "fighter2_odds": 102,
+      "fighter1_prob": 0.5455,
+      "fighter2_prob": 0.495,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 327",
+      "event_date": "April 11th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-327-4074",
+      "fighter1": "Azamat Murzakanov",
+      "fighter2": "Paulo Costa",
+      "fighter1_odds": -194,
+      "fighter2_odds": 155,
+      "fighter1_prob": 0.6599,
+      "fighter2_prob": 0.3922,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 327",
+      "event_date": "April 11th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-327-4074",
+      "fighter1": "Aaron Pico",
+      "fighter2": "Patricio Freire",
+      "fighter1_odds": -335,
+      "fighter2_odds": 250,
+      "fighter1_prob": 0.7701,
+      "fighter2_prob": 0.2857,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 327",
+      "event_date": "April 11th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-327-4074",
+      "fighter1": "Cub Swanson",
+      "fighter2": "Nate Landwehr",
+      "fighter1_odds": 125,
+      "fighter2_odds": -157,
+      "fighter1_prob": 0.4444,
+      "fighter2_prob": 0.6109,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 327",
+      "event_date": "April 11th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-327-4074",
+      "fighter1": "Esteban Ribovics",
+      "fighter2": "Mateusz Gamrot",
+      "fighter1_odds": 150,
+      "fighter2_odds": -186,
+      "fighter1_prob": 0.4,
+      "fighter2_prob": 0.6503,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 327",
+      "event_date": "April 11th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-327-4074",
+      "fighter1": "Kevin Holland",
+      "fighter2": "Randy Brown",
+      "fighter1_odds": 116,
+      "fighter2_odds": -140,
+      "fighter1_prob": 0.463,
+      "fighter2_prob": 0.5833,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 327",
+      "event_date": "April 11th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-327-4074",
+      "fighter1": "Lupita Godinez",
+      "fighter2": "Tatiana Suarez",
+      "fighter1_odds": 132,
+      "fighter2_odds": -165,
+      "fighter1_prob": 0.431,
+      "fighter2_prob": 0.6226,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 327",
+      "event_date": "April 11th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-327-4074",
+      "fighter1": "Kelvin Gastelum",
+      "fighter2": "Vicente Luque",
+      "fighter1_odds": -240,
+      "fighter2_odds": 188,
+      "fighter1_prob": 0.7059,
+      "fighter2_prob": 0.3472,
+      "source_type": "user_added"
+    }
+  ],
+  "outcomes": [
+    {
+      "event_name": "UFC 327: Prochazka vs. Ulberg",
+      "event_url": "http://ufcstats.com/event-details/f3eb664db7fb1df3",
+      "fighter1": "Carlos Ulberg",
+      "fighter2": "Jiri Prochazka",
+      "winner": "Carlos Ulberg",
+      "method": "KO/TKO",
+      "round": "1",
+      "fight_key": "carlos ulberg_vs_jiri prochazka"
+    },
+    {
+      "event_name": "UFC 327: Prochazka vs. Ulberg",
+      "event_url": "http://ufcstats.com/event-details/f3eb664db7fb1df3",
+      "fighter1": "Paulo Costa",
+      "fighter2": "Azamat Murzakanov",
+      "winner": "Paulo Costa",
+      "method": "KO/TKO",
+      "round": "3",
+      "fight_key": "azamat murzakanov_vs_paulo costa"
+    },
+    {
+      "event_name": "UFC 327: Prochazka vs. Ulberg",
+      "event_url": "http://ufcstats.com/event-details/f3eb664db7fb1df3",
+      "fighter1": "Josh Hokit",
+      "fighter2": "Curtis Blaydes",
+      "winner": "Josh Hokit",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "curtis blaydes_vs_josh hokit"
+    },
+    {
+      "event_name": "UFC 327: Prochazka vs. Ulberg",
+      "event_url": "http://ufcstats.com/event-details/f3eb664db7fb1df3",
+      "fighter1": "Dominick Reyes",
+      "fighter2": "Johnny Walker",
+      "winner": "Dominick Reyes",
+      "method": "S-DEC",
+      "round": "3",
+      "fight_key": "dominick reyes_vs_johnny walker"
+    },
+    {
+      "event_name": "UFC 327: Prochazka vs. Ulberg",
+      "event_url": "http://ufcstats.com/event-details/f3eb664db7fb1df3",
+      "fighter1": "Cub Swanson",
+      "fighter2": "Nate Landwehr",
+      "winner": "Cub Swanson",
+      "method": "KO/TKO",
+      "round": "1",
+      "fight_key": "cub swanson_vs_nate landwehr"
+    },
+    {
+      "event_name": "UFC 327: Prochazka vs. Ulberg",
+      "event_url": "http://ufcstats.com/event-details/f3eb664db7fb1df3",
+      "fighter1": "Aaron Pico",
+      "fighter2": "Patricio Pitbull",
+      "winner": "Aaron Pico",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "aaron pico_vs_patricio pitbull"
+    },
+    {
+      "event_name": "UFC 327: Prochazka vs. Ulberg",
+      "event_url": "http://ufcstats.com/event-details/f3eb664db7fb1df3",
+      "fighter1": "Kevin Holland",
+      "fighter2": "Randy Brown",
+      "winner": "Kevin Holland",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "kevin holland_vs_randy brown"
+    },
+    {
+      "event_name": "UFC 327: Prochazka vs. Ulberg",
+      "event_url": "http://ufcstats.com/event-details/f3eb664db7fb1df3",
+      "fighter1": "Mateusz Gamrot",
+      "fighter2": "Esteban Ribovics",
+      "winner": "Mateusz Gamrot",
+      "method": "SUB",
+      "round": "2",
+      "fight_key": "esteban ribovics_vs_mateusz gamrot"
+    },
+    {
+      "event_name": "UFC 327: Prochazka vs. Ulberg",
+      "event_url": "http://ufcstats.com/event-details/f3eb664db7fb1df3",
+      "fighter1": "Tatiana Suarez",
+      "fighter2": "Loopy Godinez",
+      "winner": "Tatiana Suarez",
+      "method": "SUB",
+      "round": "2",
+      "fight_key": "loopy godinez_vs_tatiana suarez"
+    },
+    {
+      "event_name": "UFC 327: Prochazka vs. Ulberg",
+      "event_url": "http://ufcstats.com/event-details/f3eb664db7fb1df3",
+      "fighter1": "Vicente Luque",
+      "fighter2": "Kelvin Gastelum",
+      "winner": "Vicente Luque",
+      "method": "SUB",
+      "round": "1",
+      "fight_key": "kelvin gastelum_vs_vicente luque"
+    },
+    {
+      "event_name": "UFC 327: Prochazka vs. Ulberg",
+      "event_url": "http://ufcstats.com/event-details/f3eb664db7fb1df3",
+      "fighter1": "Charles Radtke",
+      "fighter2": "Francisco Prado",
+      "winner": "Charles Radtke",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "charles radtke_vs_francisco prado"
+    }
+  ]
+}

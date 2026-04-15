@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import sys
 from datetime import datetime
@@ -17,6 +18,8 @@ from sqlalchemy.orm import sessionmaker
 
 from database.schema import BettingOdds, Event, Fight, Fighter
 from services.predict_service import FIGHTER_ALIASES, get_events_data
+
+CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 
 router = APIRouter()
 
@@ -78,6 +81,14 @@ def _fmt_odds(val: Optional[int]) -> Optional[str]:
 async def api_events():
     """Return all events with fight predictions and outcome results."""
     return get_events_data()
+
+
+@router.get("/config")
+async def api_config():
+    """Return the betting configuration."""
+    if not CONFIG_PATH.exists():
+        raise HTTPException(status_code=404, detail="Config file not found")
+    return json.loads(CONFIG_PATH.read_text())
 
 
 @router.get("/fighter/{fighter_name}/recent")

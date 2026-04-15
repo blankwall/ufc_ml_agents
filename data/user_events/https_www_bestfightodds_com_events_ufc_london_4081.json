@@ -1,7 +1,7 @@
 {
   "bfo_url": "https://www.bestfightodds.com/events/ufc-london-4081",
-  "ufc_stats_url": "",
-  "scraped_at": "2026-03-13T15:47:37.126400+00:00",
+  "ufc_stats_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+  "scraped_at": "2026-03-23T15:00:44.250734+00:00",
   "event_name": "UFC London",
   "event_date": "March 21st",
   "fights": [
@@ -11,10 +11,10 @@
       "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
       "fighter1": "Lerone Murphy",
       "fighter2": "Movsar Evloev",
-      "fighter1_odds": 210,
-      "fighter2_odds": -275,
-      "fighter1_prob": 0.3226,
-      "fighter2_prob": 0.7333,
+      "fighter1_odds": 205,
+      "fighter2_odds": -250,
+      "fighter1_prob": 0.3279,
+      "fighter2_prob": 0.7143,
       "source_type": "user_added"
     },
     {
@@ -23,10 +23,10 @@
       "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
       "fighter1": "Luke Riley",
       "fighter2": "Michael Aswell",
-      "fighter1_odds": -250,
-      "fighter2_odds": 190,
-      "fighter1_prob": 0.7143,
-      "fighter2_prob": 0.3448,
+      "fighter1_odds": -225,
+      "fighter2_odds": 175,
+      "fighter1_prob": 0.6923,
+      "fighter2_prob": 0.3636,
       "source_type": "user_added"
     },
     {
@@ -35,10 +35,10 @@
       "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
       "fighter1": "Michael Page",
       "fighter2": "Sam Patterson",
-      "fighter1_odds": -215,
-      "fighter2_odds": 170,
-      "fighter1_prob": 0.6825,
-      "fighter2_prob": 0.3704,
+      "fighter1_odds": -205,
+      "fighter2_odds": 163,
+      "fighter1_prob": 0.6721,
+      "fighter2_prob": 0.3802,
       "source_type": "user_added"
     },
     {
@@ -47,10 +47,10 @@
       "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
       "fighter1": "Austen Lane",
       "fighter2": "Iwo Baraniewski",
-      "fighter1_odds": 300,
-      "fighter2_odds": -430,
-      "fighter1_prob": 0.25,
-      "fighter2_prob": 0.8113,
+      "fighter1_odds": 510,
+      "fighter2_odds": -715,
+      "fighter1_prob": 0.1639,
+      "fighter2_prob": 0.8773,
       "source_type": "user_added"
     },
     {
@@ -59,10 +59,10 @@
       "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
       "fighter1": "Christian Leroy Duncan",
       "fighter2": "Roman Dolidze",
-      "fighter1_odds": -350,
-      "fighter2_odds": 265,
-      "fighter1_prob": 0.7778,
-      "fighter2_prob": 0.274,
+      "fighter1_odds": -385,
+      "fighter2_odds": 295,
+      "fighter1_prob": 0.7938,
+      "fighter2_prob": 0.2532,
       "source_type": "user_added"
     },
     {
@@ -71,10 +71,10 @@
       "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
       "fighter1": "Danny Silva",
       "fighter2": "Kurtis Campbell",
-      "fighter1_odds": 152,
-      "fighter2_odds": -185,
-      "fighter1_prob": 0.3968,
-      "fighter2_prob": 0.6491,
+      "fighter1_odds": 230,
+      "fighter2_odds": -295,
+      "fighter1_prob": 0.303,
+      "fighter2_prob": 0.7468,
       "source_type": "user_added"
     },
     {
@@ -83,10 +83,10 @@
       "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
       "fighter1": "Axel Sola",
       "fighter2": "Mason Jones",
-      "fighter1_odds": 112,
-      "fighter2_odds": -138,
-      "fighter1_prob": 0.4717,
-      "fighter2_prob": 0.5798,
+      "fighter1_odds": 120,
+      "fighter2_odds": -150,
+      "fighter1_prob": 0.4545,
+      "fighter2_prob": 0.6,
       "source_type": "user_added"
     },
     {
@@ -95,34 +95,10 @@
       "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
       "fighter1": "Losene Keita",
       "fighter2": "Nathaniel Wood",
-      "fighter1_odds": -188,
-      "fighter2_odds": 150,
-      "fighter1_prob": 0.6528,
-      "fighter2_prob": 0.4,
-      "source_type": "user_added"
-    },
-    {
-      "event_name": "UFC London",
-      "event_date": "March 21st",
-      "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
-      "fighter1": "Brando Pericic",
-      "fighter2": "Louie Sutherland",
-      "fighter1_odds": -295,
-      "fighter2_odds": 220,
-      "fighter1_prob": 0.7468,
-      "fighter2_prob": 0.3125,
-      "source_type": "user_added"
-    },
-    {
-      "event_name": "UFC London",
-      "event_date": "March 21st",
-      "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
-      "fighter1": "Antonio Trocoli",
-      "fighter2": "Mantas Kondratavicius",
-      "fighter1_odds": 390,
-      "fighter2_odds": -590,
-      "fighter1_prob": 0.2041,
-      "fighter2_prob": 0.8551,
+      "fighter1_odds": -265,
+      "fighter2_odds": 200,
+      "fighter1_prob": 0.726,
+      "fighter2_prob": 0.3333,
       "source_type": "user_added"
     },
     {
@@ -131,10 +107,34 @@
       "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
       "fighter1": "Felipe Franco",
       "fighter2": "Mario Pinto",
-      "fighter1_odds": 460,
-      "fighter2_odds": -549,
-      "fighter1_prob": 0.1786,
-      "fighter2_prob": 0.8459,
+      "fighter1_odds": 650,
+      "fighter2_odds": -1000,
+      "fighter1_prob": 0.1333,
+      "fighter2_prob": 0.9091,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC London",
+      "event_date": "March 21st",
+      "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
+      "fighter1": "Antonio Trocoli",
+      "fighter2": "Mantas Kondratavicius",
+      "fighter1_odds": 700,
+      "fighter2_odds": -1100,
+      "fighter1_prob": 0.125,
+      "fighter2_prob": 0.9167,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC London",
+      "event_date": "March 21st",
+      "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
+      "fighter1": "Brando Pericic",
+      "fighter2": "Louie Sutherland",
+      "fighter1_odds": -245,
+      "fighter2_odds": 190,
+      "fighter1_prob": 0.7101,
+      "fighter2_prob": 0.3448,
       "source_type": "user_added"
     },
     {
@@ -143,10 +143,10 @@
       "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
       "fighter1": "Abdul-Kareem Al-Selwady",
       "fighter2": "Shem Rock",
-      "fighter1_odds": -135,
-      "fighter2_odds": 105,
-      "fighter1_prob": 0.5745,
-      "fighter2_prob": 0.4878,
+      "fighter1_odds": 110,
+      "fighter2_odds": -136,
+      "fighter1_prob": 0.4762,
+      "fighter2_prob": 0.5763,
       "source_type": "user_added"
     },
     {
@@ -155,10 +155,10 @@
       "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
       "fighter1": "Ravena Oliveira",
       "fighter2": "Shanelle Dyer",
-      "fighter1_odds": 250,
-      "fighter2_odds": -340,
-      "fighter1_prob": 0.2857,
-      "fighter2_prob": 0.7727,
+      "fighter1_odds": 380,
+      "fighter2_odds": -530,
+      "fighter1_prob": 0.2083,
+      "fighter2_prob": 0.8413,
       "source_type": "user_added"
     },
     {
@@ -167,12 +167,143 @@
       "event_url": "https://www.bestfightodds.com/events/ufc-london-4081",
       "fighter1": "Luana Carolina",
       "fighter2": "Melissa Mullins",
-      "fighter1_odds": -125,
-      "fighter2_odds": -105,
-      "fighter1_prob": 0.5556,
-      "fighter2_prob": 0.5122,
+      "fighter1_odds": -134,
+      "fighter2_odds": 110,
+      "fighter1_prob": 0.5726,
+      "fighter2_prob": 0.4762,
       "source_type": "user_added"
     }
   ],
-  "outcomes": []
+  "outcomes": [
+    {
+      "event_name": "UFC Fight Night: Evloev vs. Murphy",
+      "event_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+      "fighter1": "Movsar Evloev",
+      "fighter2": "Lerone Murphy",
+      "winner": "Movsar Evloev",
+      "method": "M-DEC",
+      "round": "5",
+      "fight_key": "lerone murphy_vs_movsar evloev"
+    },
+    {
+      "event_name": "UFC Fight Night: Evloev vs. Murphy",
+      "event_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+      "fighter1": "Luke Riley",
+      "fighter2": "Michael Aswell Jr.",
+      "winner": "Luke Riley",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "luke riley_vs_michael aswell jr."
+    },
+    {
+      "event_name": "UFC Fight Night: Evloev vs. Murphy",
+      "event_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+      "fighter1": "Michael Page",
+      "fighter2": "Sam Patterson",
+      "winner": "Michael Page",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "michael page_vs_sam patterson"
+    },
+    {
+      "event_name": "UFC Fight Night: Evloev vs. Murphy",
+      "event_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+      "fighter1": "Iwo Baraniewski",
+      "fighter2": "Austen Lane",
+      "winner": "Iwo Baraniewski",
+      "method": "KO/TKO",
+      "round": "1",
+      "fight_key": "austen lane_vs_iwo baraniewski"
+    },
+    {
+      "event_name": "UFC Fight Night: Evloev vs. Murphy",
+      "event_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+      "fighter1": "Christian Leroy Duncan",
+      "fighter2": "Roman Dolidze",
+      "winner": "Christian Leroy Duncan",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "christian leroy duncan_vs_roman dolidze"
+    },
+    {
+      "event_name": "UFC Fight Night: Evloev vs. Murphy",
+      "event_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+      "fighter1": "Danny Silva",
+      "fighter2": "Kurtis Campbell",
+      "winner": "Danny Silva",
+      "method": "KO/TKO",
+      "round": "2",
+      "fight_key": "danny silva_vs_kurtis campbell"
+    },
+    {
+      "event_name": "UFC Fight Night: Evloev vs. Murphy",
+      "event_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+      "fighter1": "Mason Jones",
+      "fighter2": "Axel Sola",
+      "winner": "Mason Jones",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "axel sola_vs_mason jones"
+    },
+    {
+      "event_name": "UFC Fight Night: Evloev vs. Murphy",
+      "event_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+      "fighter1": "Nathaniel Wood",
+      "fighter2": "Losene Keita",
+      "winner": "Nathaniel Wood",
+      "method": "S-DEC",
+      "round": "3",
+      "fight_key": "losene keita_vs_nathaniel wood"
+    },
+    {
+      "event_name": "UFC Fight Night: Evloev vs. Murphy",
+      "event_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+      "fighter1": "Mario Pinto",
+      "fighter2": "Felipe Franco",
+      "winner": "Mario Pinto",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "felipe franco_vs_mario pinto"
+    },
+    {
+      "event_name": "UFC Fight Night: Evloev vs. Murphy",
+      "event_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+      "fighter1": "Mantas Kondratavicius",
+      "fighter2": "Antonio Trocoli",
+      "winner": "Mantas Kondratavicius",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "antonio trocoli_vs_mantas kondratavicius"
+    },
+    {
+      "event_name": "UFC Fight Night: Evloev vs. Murphy",
+      "event_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+      "fighter1": "Brando Pericic",
+      "fighter2": "Louie Sutherland",
+      "winner": "Brando Pericic",
+      "method": "KO/TKO",
+      "round": "1",
+      "fight_key": "brando pericic_vs_louie sutherland"
+    },
+    {
+      "event_name": "UFC Fight Night: Evloev vs. Murphy",
+      "event_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+      "fighter1": "Abdul-Kareem Al-Selwady",
+      "fighter2": "Shem Rock",
+      "winner": "Abdul-Kareem Al-Selwady",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "abdul-kareem al-selwady_vs_shem rock"
+    },
+    {
+      "event_name": "UFC Fight Night: Evloev vs. Murphy",
+      "event_url": "http://ufcstats.com/event-details/69108cb8b32efe04",
+      "fighter1": "Shanelle Dyer",
+      "fighter2": "Ravena Oliveira",
+      "winner": "Shanelle Dyer",
+      "method": "KO/TKO",
+      "round": "2",
+      "fight_key": "ravena oliveira_vs_shanelle dyer"
+    }
+  ]
 }

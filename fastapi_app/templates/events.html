@@ -25,7 +25,7 @@
       <a href="/fighter" class="nav-link">Fighter</a>
     </nav>
     <div class="header-meta">
-      <span class="badge">mar_4_v2 + underdog blend</span>
+      <span class="badge">mar_4_v2</span>
       <span class="badge" id="headerStats" style="margin-left:6px"></span>
     </div>
   </div>
@@ -52,13 +52,13 @@
     <div class="ev-filters" id="evFilters">
       <div class="ev-filter-item">
         <label class="ev-filter-label">Min edge ≥</label>
-        <input type="number" id="minEdge" class="ev-filter-input" min="-50" max="50" step="1" placeholder="off" />
+        <input type="number" id="minEdge" class="ev-filter-input" min="-50" max="50" step="1" value="5" />
         <span class="ev-filter-unit">%</span>
       </div>
       <div class="ev-filter-sep"></div>
       <div class="ev-filter-item">
         <label class="ev-filter-label">Fav confidence ≥</label>
-        <input type="number" id="favConf" class="ev-filter-input" min="50" max="95" step="1" value="65" />
+        <input type="number" id="favConf" class="ev-filter-input" min="50" max="95" step="1" value="70" />
         <span class="ev-filter-unit">%</span>
       </div>
       <div class="ev-filter-sep"></div>
@@ -76,7 +76,7 @@
       <div class="ev-filter-sep"></div>
       <div class="ev-filter-item">
         <label class="ev-filter-label">Fav cap ≤</label>
-        <input type="number" id="favCap" class="ev-filter-input ev-filter-input--odds" min="-900" max="-101" step="10" value="-400" />
+        <input type="number" id="favCap" class="ev-filter-input ev-filter-input--odds" min="-900" max="-101" step="10" value="-300" />
       </div>
       <div class="ev-filter-sep"></div>
       <div class="ev-filter-item">
@@ -133,6 +133,6 @@
   </div>
 </div>
 
-<script src="/static/js/events.js?v=19"></script>
+<script src="/static/js/events.js?v=21"></script>
 </body>
 </html>

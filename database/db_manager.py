@@ -41,9 +41,16 @@ class DatabaseManager:
             self.config = yaml.safe_load(f)
         
         db_config = self.config['database']
-        
+
+        # Resolve relative paths in config against the project root.
+        # The config lives at <project_root>/config/config.yaml, so the project
+        # root is two levels up from the config file.
+        _project_root = Path(config_path).resolve().parent.parent
+
         if db_config['type'] == 'sqlite':
             db_path = Path(db_config['sqlite_path'])
+            if not db_path.is_absolute():
+                db_path = _project_root / db_path
             db_path.parent.mkdir(parents=True, exist_ok=True)
             connection_string = f"sqlite:///{db_path}"
         elif db_config['type'] == 'postgresql':
@@ -592,6 +599,140 @@ class DatabaseManager:
         finally:
             session.close()
     
+    def get_event_results(self, event_query: str) -> List[Dict]:
+        """
+        Query an event by name (case-insensitive partial match) and return
+        each fight with fighter names, winner, method, and closing odds.
+
+        Args:
+            event_query: Partial event name (e.g. "UFC 300", "Moicano")
+
+        Returns:
+            List of dicts with keys:
+                event_name, date, fight_number, fighter1, fighter2,
+                winner, result, method, round_finished, time,
+                fighter1_odds, fighter2_odds, bookmaker
+        """
+        from sqlalchemy.orm import aliased
+
+        F1 = aliased(Fighter)
+        F2 = aliased(Fighter)
+        W = aliased(Fighter)
+
+        session = self.get_session()
+        try:
+            rows = (
+                session.query(
+                    Event.name.label("event_name"),
+                    Event.date.label("date"),
+                    Fight.fight_number,
+                    F1.name.label("fighter1"),
+                    F2.name.label("fighter2"),
+                    W.name.label("winner"),
+                    Fight.result,
+                    Fight.method,
+                    Fight.round_finished,
+                    Fight.time,
+                    BettingOdds.fighter_1_odds,
+                    BettingOdds.fighter_2_odds,
+                    BettingOdds.bookmaker,
+                    BettingOdds.is_closing_line,
+                )
+                .select_from(Fight)
+                .join(Event, Fight.event_id == Event.id)
+                .join(F1, Fight.fighter_1_id == F1.id)
+                .join(F2, Fight.fighter_2_id == F2.id)
+                .outerjoin(W, Fight.winner_id == W.id)
+                .outerjoin(BettingOdds, Fight.id == BettingOdds.fight_id)
+                .filter(Event.name.ilike(f"%{event_query}%"))
+                .order_by(Event.date, Fight.fight_number.desc())
+                .all()
+            )
+
+            if not rows:
+                return []
+
+            # Deduplicate: one row per fight, prefer closing line odds
+            fights_map: Dict[tuple, Dict] = {}
+            for r in rows:
+                key = (r.event_name, r.fighter1, r.fighter2)
+                if key not in fights_map:
+                    fights_map[key] = {
+                        "event_name": r.event_name,
+                        "date": r.date,
+                        "fight_number": r.fight_number,
+                        "fighter1": r.fighter1,
+                        "fighter2": r.fighter2,
+                        "winner": r.winner,
+                        "result": r.result,
+                        "method": r.method,
+                        "round_finished": r.round_finished,
+                        "time": r.time,
+                        "fighter1_odds": r.fighter_1_odds,
+                        "fighter2_odds": r.fighter_2_odds,
+                        "bookmaker": r.bookmaker,
+                    }
+                elif r.is_closing_line and not fights_map[key].get("bookmaker"):
+                    fights_map[key]["fighter1_odds"] = r.fighter_1_odds
+                    fights_map[key]["fighter2_odds"] = r.fighter_2_odds
+                    fights_map[key]["bookmaker"] = r.bookmaker
+
+            return list(fights_map.values())
+        finally:
+            session.close()
+
+    def get_fight_results_lookup(self) -> Dict[tuple, list]:
+        """
+        Load all completed fights with winners into a dict keyed by
+        frozenset of lowercased fighter names.
+
+        Each key maps to a **list** of result dicts so that rematches are
+        handled correctly — callers should match on the 'date' field.
+
+        Returns:
+            Dict mapping frozenset({f1_lower, f2_lower}) to:
+                [{"winner": str, "result": str, "method": str, "date": str}, ...]
+        """
+        from sqlalchemy.orm import aliased
+
+        F1 = aliased(Fighter)
+        F2 = aliased(Fighter)
+        W = aliased(Fighter)
+
+        session = self.get_session()
+        try:
+            rows = (
+                session.query(
+                    F1.name.label("fighter1"),
+                    F2.name.label("fighter2"),
+                    W.name.label("winner"),
+                    Fight.result,
+                    Fight.method,
+                    Event.date.label("event_date"),
+                )
+                .select_from(Fight)
+                .join(F1, Fight.fighter_1_id == F1.id)
+                .join(F2, Fight.fighter_2_id == F2.id)
+                .join(Event, Fight.event_id == Event.id)
+                .outerjoin(W, Fight.winner_id == W.id)
+                .filter(Fight.winner_id.isnot(None))
+                .all()
+            )
+
+            lookup: Dict[frozenset, list] = {}
+            for r in rows:
+                key = frozenset([r.fighter1.lower(), r.fighter2.lower()])
+                entry = {
+                    "winner": r.winner,
+                    "result": r.result,
+                    "method": r.method,
+                    "date": str(r.event_date) if r.event_date else None,
+                }
+                lookup.setdefault(key, []).append(entry)
+            return lookup
+        finally:
+            session.close()
+
     def get_upcoming_fights(self) -> List[Fight]:
         """Get fights that haven't happened yet (no result)"""
         session = self.get_session()

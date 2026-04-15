@@ -1,0 +1,297 @@
+{
+  "bfo_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+  "ufc_stats_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+  "scraped_at": "2026-04-13T13:53:24.613398+00:00",
+  "event_name": "UFC Vegas 115",
+  "event_date": "April 4th",
+  "fights": [
+    {
+      "event_name": "UFC Vegas 115",
+      "event_date": "April 4th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+      "fighter1": "Charles Radtke",
+      "fighter2": "Jose Henrique",
+      "fighter1_odds": -250,
+      "fighter2_odds": 175,
+      "fighter1_prob": 0.7143,
+      "fighter2_prob": 0.3636,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Vegas 115",
+      "event_date": "April 4th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+      "fighter1": "Tabatha Ricci",
+      "fighter2": "Virna Jandiroba",
+      "fighter1_odds": -105,
+      "fighter2_odds": -125,
+      "fighter1_prob": 0.5122,
+      "fighter2_prob": 0.5556,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Vegas 115",
+      "event_date": "April 4th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+      "fighter1": "Abdul Rakhman Yakhyaev",
+      "fighter2": "Brendson Ribeiro",
+      "fighter1_odds": -1000,
+      "fighter2_odds": 500,
+      "fighter1_prob": 0.9091,
+      "fighter2_prob": 0.1667,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Vegas 115",
+      "event_date": "April 4th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+      "fighter1": "Ethyn Ewing",
+      "fighter2": "Rafael Estevam",
+      "fighter1_odds": -110,
+      "fighter2_odds": -110,
+      "fighter1_prob": 0.5238,
+      "fighter2_prob": 0.5238,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Vegas 115",
+      "event_date": "April 4th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+      "fighter1": "Manolo Zecchini",
+      "fighter2": "Tommy McMillen",
+      "fighter1_odds": 400,
+      "fighter2_odds": -649,
+      "fighter1_prob": 0.2,
+      "fighter2_prob": 0.8665,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Vegas 115",
+      "event_date": "April 4th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+      "fighter1": "Jose Delano",
+      "fighter2": "Robert Ruchala",
+      "fighter1_odds": -400,
+      "fighter2_odds": 275,
+      "fighter1_prob": 0.8,
+      "fighter2_prob": 0.2667,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Vegas 115",
+      "event_date": "April 4th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+      "fighter1": "Alessandro Costa",
+      "fighter2": "Stewart Nicoll",
+      "fighter1_odds": -350,
+      "fighter2_odds": 240,
+      "fighter1_prob": 0.7778,
+      "fighter2_prob": 0.2941,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Vegas 115",
+      "event_date": "April 4th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+      "fighter1": "Chris Duncan",
+      "fighter2": "Renato Moicano",
+      "fighter1_odds": -188,
+      "fighter2_odds": 170,
+      "fighter1_prob": 0.6528,
+      "fighter2_prob": 0.3704,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Vegas 115",
+      "event_date": "April 4th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+      "fighter1": "Darrius Flowers",
+      "fighter2": "Lando Vannata",
+      "fighter1_odds": 175,
+      "fighter2_odds": -250,
+      "fighter1_prob": 0.3636,
+      "fighter2_prob": 0.7143,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Vegas 115",
+      "event_date": "April 4th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+      "fighter1": "Alice Pereira",
+      "fighter2": "Hailey Cowan",
+      "fighter1_odds": -110,
+      "fighter2_odds": -110,
+      "fighter1_prob": 0.5238,
+      "fighter2_prob": 0.5238,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Vegas 115",
+      "event_date": "April 4th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+      "fighter1": "Guilherme Pat",
+      "fighter2": "Thomas Petersen",
+      "fighter1_odds": -125,
+      "fighter2_odds": -105,
+      "fighter1_prob": 0.5556,
+      "fighter2_prob": 0.5122,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Vegas 115",
+      "event_date": "April 4th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+      "fighter1": "Azamt Bekoev",
+      "fighter2": "Tresean Gore",
+      "fighter1_odds": -450,
+      "fighter2_odds": 300,
+      "fighter1_prob": 0.8182,
+      "fighter2_prob": 0.25,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Vegas 115",
+      "event_date": "April 4th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-vegas-115-4107",
+      "fighter1": "Dione Barbosa",
+      "fighter2": "Melissa Gatto",
+      "fighter1_odds": -150,
+      "fighter2_odds": 110,
+      "fighter1_prob": 0.6,
+      "fighter2_prob": 0.4762,
+      "source_type": "user_added"
+    }
+  ],
+  "outcomes": [
+    {
+      "event_name": "UFC Fight Night: Moicano vs. Duncan",
+      "event_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+      "fighter1": "Renato Moicano",
+      "fighter2": "Chris Duncan",
+      "winner": "Renato Moicano",
+      "method": "SUB",
+      "round": "2",
+      "fight_key": "chris duncan_vs_renato moicano"
+    },
+    {
+      "event_name": "UFC Fight Night: Moicano vs. Duncan",
+      "event_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+      "fighter1": "Virna Jandiroba",
+      "fighter2": "Tabatha Ricci",
+      "winner": "Virna Jandiroba",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "tabatha ricci_vs_virna jandiroba"
+    },
+    {
+      "event_name": "UFC Fight Night: Moicano vs. Duncan",
+      "event_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+      "fighter1": "Abdul Rakhman Yakhyaev",
+      "fighter2": "Brendson Ribeiro",
+      "winner": "Abdul Rakhman Yakhyaev",
+      "method": "SUB",
+      "round": "1",
+      "fight_key": "abdul rakhman yakhyaev_vs_brendson ribeiro"
+    },
+    {
+      "event_name": "UFC Fight Night: Moicano vs. Duncan",
+      "event_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+      "fighter1": "Ethyn Ewing",
+      "fighter2": "Rafael Estevam",
+      "winner": "Ethyn Ewing",
+      "method": "KO/TKO",
+      "round": "3",
+      "fight_key": "ethyn ewing_vs_rafael estevam"
+    },
+    {
+      "event_name": "UFC Fight Night: Moicano vs. Duncan",
+      "event_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+      "fighter1": "Tommy McMillen",
+      "fighter2": "Manolo Zecchini",
+      "winner": "Tommy McMillen",
+      "method": "KO/TKO",
+      "round": "1",
+      "fight_key": "manolo zecchini_vs_tommy mcmillen"
+    },
+    {
+      "event_name": "UFC Fight Night: Moicano vs. Duncan",
+      "event_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+      "fighter1": "Jose Delano",
+      "fighter2": "Robert Ruchala",
+      "winner": "Jose Delano",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "jose delano_vs_robert ruchala"
+    },
+    {
+      "event_name": "UFC Fight Night: Moicano vs. Duncan",
+      "event_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+      "fighter1": "Thomas Petersen",
+      "fighter2": "Guilherme Pat",
+      "winner": "Thomas Petersen",
+      "method": "M-DEC",
+      "round": "3",
+      "fight_key": "guilherme pat_vs_thomas petersen"
+    },
+    {
+      "event_name": "UFC Fight Night: Moicano vs. Duncan",
+      "event_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+      "fighter1": "Alessandro Costa",
+      "fighter2": "Stewart Nicoll",
+      "winner": "Alessandro Costa",
+      "method": "KO/TKO",
+      "round": "2",
+      "fight_key": "alessandro costa_vs_stewart nicoll"
+    },
+    {
+      "event_name": "UFC Fight Night: Moicano vs. Duncan",
+      "event_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+      "fighter1": "Darrius Flowers",
+      "fighter2": "Lando Vannata",
+      "winner": "Darrius Flowers",
+      "method": "KO/TKO",
+      "round": "2",
+      "fight_key": "darrius flowers_vs_lando vannata"
+    },
+    {
+      "event_name": "UFC Fight Night: Moicano vs. Duncan",
+      "event_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+      "fighter1": "Alice Pereira",
+      "fighter2": "Hailey Cowan",
+      "winner": "Alice Pereira",
+      "method": "KO/TKO",
+      "round": "2",
+      "fight_key": "alice pereira_vs_hailey cowan"
+    },
+    {
+      "event_name": "UFC Fight Night: Moicano vs. Duncan",
+      "event_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+      "fighter1": "Tresean Gore",
+      "fighter2": "Azamat Bekoev",
+      "winner": "Tresean Gore",
+      "method": "SUB",
+      "round": "3",
+      "fight_key": "azamat bekoev_vs_tresean gore"
+    },
+    {
+      "event_name": "UFC Fight Night: Moicano vs. Duncan",
+      "event_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+      "fighter1": "Dione Barbosa",
+      "fighter2": "Melissa Gatto",
+      "winner": "Dione Barbosa",
+      "method": "M-DEC",
+      "round": "3",
+      "fight_key": "dione barbosa_vs_melissa gatto"
+    },
+    {
+      "event_name": "UFC Fight Night: Moicano vs. Duncan",
+      "event_url": "http://ufcstats.com/event-details/9a70f67ad2187fa3",
+      "fighter1": "Kai Kamaka III",
+      "fighter2": "Dakota Hope",
+      "winner": "Kai Kamaka III",
+      "method": "S-DEC",
+      "round": "3",
+      "fight_key": "dakota hope_vs_kai kamaka iii"
+    }
+  ]
+}

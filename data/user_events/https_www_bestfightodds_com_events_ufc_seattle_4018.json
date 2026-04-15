@@ -1,0 +1,203 @@
+{
+  "bfo_url": "https://www.bestfightodds.com/events/ufc-seattle-4018",
+  "ufc_stats_url": "http://ufcstats.com/event-details/5c38639f860a5542",
+  "scraped_at": "2026-03-29T12:07:32.717486+00:00",
+  "event_name": "UFC Seattle",
+  "event_date": "March 29th",
+  "fights": [
+    {
+      "event_name": "UFC Seattle",
+      "event_date": "March 29th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-seattle-4018",
+      "fighter1": "Israel Adesanya",
+      "fighter2": "Joe Pyfer",
+      "fighter1_odds": -141,
+      "fighter2_odds": 114,
+      "fighter1_prob": 0.5851,
+      "fighter2_prob": 0.4673,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Seattle",
+      "event_date": "March 29th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-seattle-4018",
+      "fighter1": "Alexa Grasso",
+      "fighter2": "Maycee Barber",
+      "fighter1_odds": 160,
+      "fighter2_odds": -200,
+      "fighter1_prob": 0.3846,
+      "fighter2_prob": 0.6667,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Seattle",
+      "event_date": "March 29th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-seattle-4018",
+      "fighter1": "Michael Chiesa",
+      "fighter2": "Niko Price",
+      "fighter1_odds": -1100,
+      "fighter2_odds": 700,
+      "fighter1_prob": 0.9167,
+      "fighter2_prob": 0.125,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Seattle",
+      "event_date": "March 29th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-seattle-4018",
+      "fighter1": "Julian Erosa",
+      "fighter2": "Lerryan Douglas",
+      "fighter1_odds": 250,
+      "fighter2_odds": -333,
+      "fighter1_prob": 0.2857,
+      "fighter2_prob": 0.7691,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Seattle",
+      "event_date": "March 29th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-seattle-4018",
+      "fighter1": "Mansur Abdul-Malik",
+      "fighter2": "Yousri Belgaroui",
+      "fighter1_odds": -158,
+      "fighter2_odds": 124,
+      "fighter1_prob": 0.6124,
+      "fighter2_prob": 0.4464,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Seattle",
+      "event_date": "March 29th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-seattle-4018",
+      "fighter1": "Kyle Nelson",
+      "fighter2": "Terrance McKinney",
+      "fighter1_odds": 160,
+      "fighter2_odds": -195,
+      "fighter1_prob": 0.3846,
+      "fighter2_prob": 0.661,
+      "source_type": "user_added"
+    }
+  ],
+  "outcomes": [
+    {
+      "event_name": "UFC Fight Night: Adesanya vs. Pyfer",
+      "event_url": "http://ufcstats.com/event-details/5c38639f860a5542",
+      "fighter1": "Joe Pyfer",
+      "fighter2": "Israel Adesanya",
+      "winner": "Joe Pyfer",
+      "method": "KO/TKO",
+      "round": "2",
+      "fight_key": "israel adesanya_vs_joe pyfer"
+    },
+    {
+      "event_name": "UFC Fight Night: Adesanya vs. Pyfer",
+      "event_url": "http://ufcstats.com/event-details/5c38639f860a5542",
+      "fighter1": "Alexa Grasso",
+      "fighter2": "Maycee Barber",
+      "winner": "Alexa Grasso",
+      "method": "KO/TKO",
+      "round": "1",
+      "fight_key": "alexa grasso_vs_maycee barber"
+    },
+    {
+      "event_name": "UFC Fight Night: Adesanya vs. Pyfer",
+      "event_url": "http://ufcstats.com/event-details/5c38639f860a5542",
+      "fighter1": "Michael Chiesa",
+      "fighter2": "Niko Price",
+      "winner": "Michael Chiesa",
+      "method": "SUB",
+      "round": "1",
+      "fight_key": "michael chiesa_vs_niko price"
+    },
+    {
+      "event_name": "UFC Fight Night: Adesanya vs. Pyfer",
+      "event_url": "http://ufcstats.com/event-details/5c38639f860a5542",
+      "fighter1": "Lerryan Douglas",
+      "fighter2": "Julian Erosa",
+      "winner": "Lerryan Douglas",
+      "method": "KO/TKO",
+      "round": "1",
+      "fight_key": "julian erosa_vs_lerryan douglas"
+    },
+    {
+      "event_name": "UFC Fight Night: Adesanya vs. Pyfer",
+      "event_url": "http://ufcstats.com/event-details/5c38639f860a5542",
+      "fighter1": "Yousri Belgaroui",
+      "fighter2": "Mansur Abdul-Malik",
+      "winner": "Yousri Belgaroui",
+      "method": "KO/TKO",
+      "round": "3",
+      "fight_key": "mansur abdul-malik_vs_yousri belgaroui"
+    },
+    {
+      "event_name": "UFC Fight Night: Adesanya vs. Pyfer",
+      "event_url": "http://ufcstats.com/event-details/5c38639f860a5542",
+      "fighter1": "Terrance McKinney",
+      "fighter2": "Kyle Nelson",
+      "winner": "Terrance McKinney",
+      "method": "KO/TKO",
+      "round": "1",
+      "fight_key": "kyle nelson_vs_terrance mckinney"
+    },
+    {
+      "event_name": "UFC Fight Night: Adesanya vs. Pyfer",
+      "event_url": "http://ufcstats.com/event-details/5c38639f860a5542",
+      "fighter1": "Tofiq Musayev",
+      "fighter2": "Ignacio Bahamondes",
+      "winner": "Tofiq Musayev",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "ignacio bahamondes_vs_tofiq musayev"
+    },
+    {
+      "event_name": "UFC Fight Night: Adesanya vs. Pyfer",
+      "event_url": "http://ufcstats.com/event-details/5c38639f860a5542",
+      "fighter1": "Lance Gibson Jr.",
+      "fighter2": "Chase Hooper",
+      "winner": "Lance Gibson Jr.",
+      "method": "KO/TKO",
+      "round": "1",
+      "fight_key": "chase hooper_vs_lance gibson jr."
+    },
+    {
+      "event_name": "UFC Fight Night: Adesanya vs. Pyfer",
+      "event_url": "http://ufcstats.com/event-details/5c38639f860a5542",
+      "fighter1": "Tyrell Fortune",
+      "fighter2": "Marcin Tybura",
+      "winner": "Tyrell Fortune",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "marcin tybura_vs_tyrell fortune"
+    },
+    {
+      "event_name": "UFC Fight Night: Adesanya vs. Pyfer",
+      "event_url": "http://ufcstats.com/event-details/5c38639f860a5542",
+      "fighter1": "Casey O'Neill",
+      "fighter2": "Gabriella Fernandes",
+      "winner": "Casey O'Neill",
+      "method": "KO/TKO",
+      "round": "1",
+      "fight_key": "casey o'neill_vs_gabriella fernandes"
+    },
+    {
+      "event_name": "UFC Fight Night: Adesanya vs. Pyfer",
+      "event_url": "http://ufcstats.com/event-details/5c38639f860a5542",
+      "fighter1": "Navajo Stirling",
+      "fighter2": "Bruno Lopes",
+      "winner": "Navajo Stirling",
+      "method": "KO/TKO",
+      "round": "2",
+      "fight_key": "bruno lopes_vs_navajo stirling"
+    },
+    {
+      "event_name": "UFC Fight Night: Adesanya vs. Pyfer",
+      "event_url": "http://ufcstats.com/event-details/5c38639f860a5542",
+      "fighter1": "Alexia Thainara",
+      "fighter2": "Bruna Brasil",
+      "winner": "Alexia Thainara",
+      "method": "U-DEC",
+      "round": "3",
+      "fight_key": "alexia thainara_vs_bruna brasil"
+    }
+  ]
+}

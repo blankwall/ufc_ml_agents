@@ -22,7 +22,7 @@ if str(ROOT_DIR) not in sys.path:
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from database.schema import Fight, Fighter
+from database.schema import Event, Fight, Fighter
 from services.predict_service import (
     BLEND_WEIGHT,
     FIGHTER_ALIASES,
@@ -58,10 +58,31 @@ def _american_to_prob(odds: int) -> float:
     return abs(odds) / (abs(odds) + 100)
 
 
-def _fight_count(session, fighter_id: int) -> int:
-    return session.query(Fight).filter(
-        (Fight.fighter_1_id == fighter_id) | (Fight.fighter_2_id == fighter_id)
-    ).count()
+def _fight_count(session, fighter_id: int, as_of=None) -> int:
+    """
+    Count fights for a fighter, optionally filtered to those strictly before as_of.
+    Event.date is stored as "Month DD, YYYY" (not ISO), so filtering is done in
+    Python after parsing — same strict-< boundary as the feature builder.
+    """
+    rows = (
+        session.query(Event.date)
+        .join(Fight, Fight.event_id == Event.id)
+        .filter((Fight.fighter_1_id == fighter_id) | (Fight.fighter_2_id == fighter_id))
+        .all()
+    )
+    if as_of is None:
+        return len(rows)
+    count = 0
+    for (date_str,) in rows:
+        for fmt in ("%B %d, %Y", "%b %d, %Y", "%Y-%m-%d"):
+            try:
+                dt = datetime.strptime(date_str or "", fmt)
+                if dt < as_of:
+                    count += 1
+                break
+            except (ValueError, TypeError):
+                continue
+    return count
 
 
 # ── scoring (as_of_date-aware version of predict_service._score_row) ─────────
@@ -148,9 +169,9 @@ async def predict_fight(req: PredictRequest):
         pick_mkt_prob   = mkt_prob_f1 if model_prob >= 0.5 else 1 - mkt_prob_f1
         edge = round((pick_model_prob - pick_mkt_prob) * 100, 1)
 
-        # Fighter metadata
-        f1_count = _fight_count(session, f1.id)
-        f2_count = _fight_count(session, f2.id)
+        # Fighter metadata — date-filtered to match feature extraction boundary
+        f1_count = _fight_count(session, f1.id, as_of)
+        f2_count = _fight_count(session, f2.id, as_of)
 
         return {
             "fighter1":           req.fighter1,

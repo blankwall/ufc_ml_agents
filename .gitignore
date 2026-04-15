@@ -93,3 +93,6 @@ planning/
 
 # Agent artifacts
 agent_loop/agent_artifacts/
+
+# Database backups (large binaries)
+data/backups/

@@ -243,6 +243,36 @@
   align-self: center;
 }
 
+/* Bet-size badges (1x, 1.5x, 2x) */
+.bet-size-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  border-radius: 4px;
+  padding: 2px 7px;
+  flex-shrink: 0;
+  align-self: center;
+  line-height: 1;
+}
+.bet-size-low {
+  background: #ffffff;
+  color: #1a1a1a;
+  border: 1px solid #d0d0d0;
+  font-weight: 800;
+}
+.bet-size-mid {
+  background: #ffd000;
+  color: #1a1a1a;
+  border: 1px solid #e6bb00;
+  font-weight: 800;
+}
+.bet-size-high {
+  background: #ff2d2d;
+  color: #ffffff;
+  border: 1px solid #e00;
+  font-weight: 800;
+}
+
 /* Event tab strip */
 .event-tabs {
   display: flex;

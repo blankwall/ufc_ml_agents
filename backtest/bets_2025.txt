@@ -1,0 +1,50 @@
+[2025-01-12] Punahele Soriano          @  +198  prob=57.2%  ev=+0.70  WON  (+1.98)  vs Uros Medic
+[2025-01-18] Ailin Perez               @  +205  prob=56.7%  ev=+0.73  WON  (+2.05)  vs Karol Rosa
+[2025-02-01] Nassourdine Imavov        @  +134  prob=61.8%  ev=+0.45  WON  (+1.34)  vs Israel Adesanya
+[2025-02-01] Fares Ziam                @  +122  prob=69.3%  ev=+0.54  WON  (+1.22)  vs Mike Davis
+[2025-02-16] Andre Petroski            @  +220  prob=54.9%  ev=+0.76  WON  (+2.20)  vs Rodolfo Vieira
+[2025-02-23] Song Yadong               @  -255  prob=74.0%  ev=+0.03  WON  (+0.39)  vs Henry Cejudo
+[2025-02-23] Melquizael Costa          @  -142  prob=72.9%  ev=+0.24  WON  (+0.70)  vs Andre Fili
+[2025-02-23] Ricky Simon               @  +215  prob=56.3%  ev=+0.77  WON  (+2.15)  vs Javid Basharat
+[2025-03-02] Cody Brundage             @  -116  prob=72.5%  ev=+0.35  WON  (+0.86)  vs Julian Marquez
+[2025-03-02] Sam Patterson             @  +200  prob=59.4%  ev=+0.78  WON  (+2.00)  vs Danny Barlow
+[2025-02-09] Dricus Du Plessis         @  -220  prob=75.5%  ev=+0.10  WON  (+0.45)  vs Sean Strickland
+[2025-02-09] Francisco Prado           @  +200  prob=60.7%  ev=+0.82  LOST (-1.00)  vs Jake Matthews
+[2025-10-04] Alex Pereira              @  +205  prob=65.0%  ev=+0.98  LOST (-1.00)  vs Magomed Ankalaev
+[2025-03-16] Chidi Njokuani            @  +164  prob=66.1%  ev=+0.75  WON  (+1.64)  vs Elizeu Zaleski Dos Santos
+[2025-03-22] Kevin Holland             @  +108  prob=69.1%  ev=+0.44  WON  (+1.08)  vs Gunnar Nelson
+[2025-03-30] Manuel Torres             @  -124  prob=70.3%  ev=+0.27  WON  (+0.81)  vs Drew Dober
+[2025-06-21] Ignacio Bahamondes        @  -144  prob=74.6%  ev=+0.26  LOST (-1.00)  vs Rafael Fiziev
+[2025-05-11] Jack Della Maddalena      @  +166  prob=70.4%  ev=+0.87  WON  (+1.66)  vs Belal Muhammad
+[2025-05-11] Valentina Shevchenko      @  +116  prob=61.8%  ev=+0.33  WON  (+1.16)  vs Manon Fiorot
+[2025-05-11] Aiemann Zahabi            @  +160  prob=56.2%  ev=+0.46  WON  (+1.60)  vs Jose Aldo
+[2025-05-11] Natalia Silva             @  -235  prob=77.9%  ev=+0.11  WON  (+0.43)  vs Alexa Grasso
+[2025-05-11] Mike Malott               @  -200  prob=76.7%  ev=+0.15  WON  (+0.50)  vs Charles Radtke
+[2025-05-11] Jessica Andrade           @  +225  prob=56.7%  ev=+0.84  LOST (-1.00)  vs Jasmine Jasudavicius
+[2025-05-04] Reinier de Ridder         @  +295  prob=73.2%  ev=+1.89  WON  (+2.95)  vs Bo Nickal
+[2025-05-04] Daniel Rodriguez          @  +118  prob=61.6%  ev=+0.34  WON  (+1.18)  vs Santiago Ponzinibbio
+[2025-05-04] Quang Le                  @  +108  prob=63.0%  ev=+0.31  WON  (+1.08)  vs Gaston Bolanos
+[2025-05-18] Mairon Santos             @  -148  prob=70.0%  ev=+0.17  WON  (+0.68)  vs Sodiq Yusuff
+[2025-06-15] Miranda Maverick          @  +200  prob=69.6%  ev=+1.09  LOST (-1.00)  vs Rose Namajunas
+[2025-06-15] Court McGee               @  +270  prob=53.5%  ev=+0.98  LOST (-1.00)  vs Michael Chiesa
+[2025-06-29] Terrance McKinney         @  -172  prob=71.8%  ev=+0.14  WON  (+0.58)  vs Viacheslav Borshchev
+[2025-06-29] Tracy Cortez              @  -210  prob=71.9%  ev=+0.06  WON  (+0.48)  vs Viviane Araujo
+[2025-08-02] Chris Duncan              @  +198  prob=53.5%  ev=+0.59  WON  (+1.98)  vs Mateusz Rebecki
+[2025-08-09] Christian Rodriguez       @  -250  prob=74.8%  ev=+0.05  LOST (-1.00)  vs Andre Fili
+[2025-09-14] Diego Lopes               @  +176  prob=57.2%  ev=+0.58  WON  (+1.76)  vs Jean Silva
+[2025-09-14] Dustin Stoltzfus          @  +130  prob=59.1%  ev=+0.36  LOST (-1.00)  vs Kelvin Gastelum
+[2025-09-28] Jimmy Crute               @  -235  prob=75.3%  ev=+0.07  WON  (+0.43)  vs Ivan Erslan
+[2025-09-28] Neil Magny                @  +260  prob=57.1%  ev=+1.06  WON  (+2.60)  vs Jake Matthews
+[2025-09-28] Tom Nolan                 @  -158  prob=70.9%  ev=+0.16  WON  (+0.63)  vs Charlie Campbell
+[2025-10-25] Jailton Almeida           @  -198  prob=74.8%  ev=+0.13  LOST (-1.00)  vs Alexander Volkov
+[2025-10-25] Azamat Murzakanov         @  +100  prob=61.4%  ev=+0.23  WON  (+1.00)  vs Aleksandar Rakic
+[2025-11-01] Norma Dumont              @  -174  prob=70.7%  ev=+0.11  WON  (+0.57)  vs Ketlen Vieira
+[2025-11-09] Christian Leroy Duncan    @  +140  prob=65.6%  ev=+0.58  WON  (+1.40)  vs Marco Tulio
+[2025-11-15] Zhang Weili               @  +120  prob=64.0%  ev=+0.41  LOST (-1.00)  vs Valentina Shevchenko
+[2025-11-15] Michael Morales           @  +128  prob=75.9%  ev=+0.73  WON  (+1.28)  vs Sean Brady
+[2025-11-22] Ian Machado Garry         @  -290  prob=75.8%  ev=+0.02  WON  (+0.34)  vs Belal Muhammad
+[2025-12-07] Joshua van                @  +176  prob=78.6%  ev=+1.17  WON  (+1.76)  vs Alexandre Pantoja
+[2025-12-07] Maycee Barber             @  -220  prob=79.8%  ev=+0.16  WON  (+0.45)  vs Karine Silva
+[2025-12-07] Fares Ziam                @  -188  prob=75.5%  ev=+0.16  WON  (+0.53)  vs Nazim Sadykhov
+[2025-12-14] Melquizael Costa          @  -111  prob=74.7%  ev=+0.42  WON  (+0.90)  vs Morgan Charriere
+[2025-12-06] Mairon Santos             @  -245  prob=72.7%  ev=+0.02  WON  (+0.41)  vs Muhammad Naimov

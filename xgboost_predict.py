@@ -228,6 +228,7 @@ def xgboost_predict(
     debug_fights: int | None = None,
     odds_f1: int | None = None,
     odds_f2: int | None = None,
+    as_of_date: str | None = None,
 ):
     """Make a prediction using XGBoost model"""
     
@@ -302,10 +303,10 @@ def xgboost_predict(
     if symmetric:
         # Compute predictions for both fighter orders and average them
         # This makes the prediction order-invariant
-        features_1 = extractor.extract_matchup_features(fighter_1.id, fighter_2.id)
+        features_1 = extractor.extract_matchup_features(fighter_1.id, fighter_2.id, as_of_date=as_of_date)
         features_1['is_title_fight'] = 1 if title_fight else 0
-        
-        features_2 = extractor.extract_matchup_features(fighter_2.id, fighter_1.id)
+
+        features_2 = extractor.extract_matchup_features(fighter_2.id, fighter_1.id, as_of_date=as_of_date)
         features_2['is_title_fight'] = 1 if title_fight else 0
         
         # Prepare both feature sets
@@ -336,7 +337,7 @@ def xgboost_predict(
                        f"symmetric={p_f1:.3f}")
     else:
         # Non-symmetric: use raw prediction from single order
-        features = extractor.extract_matchup_features(fighter_1.id, fighter_2.id)
+        features = extractor.extract_matchup_features(fighter_1.id, fighter_2.id, as_of_date=as_of_date)
         features['is_title_fight'] = 1 if title_fight else 0
         
         # Prepare features
@@ -680,9 +681,11 @@ if __name__ == '__main__':
                         help='American odds for fighter 1 (e.g. -260 or +215). Enables underdog routing.')
     parser.add_argument('--odds-f2', type=int, default=None,
                         help='American odds for fighter 2.')
+    parser.add_argument('--as-of-date', type=str, default=None,
+                        help='Date (YYYY-MM-DD) for point-in-time features. Only uses fights before this date.')
 
     args = parser.parse_args()
-    
+
     xgboost_predict(
         args.fighter_1,
         args.fighter_2,
@@ -698,5 +701,6 @@ if __name__ == '__main__':
         debug_fights=args.debug,
         odds_f1=args.odds_f1,
         odds_f2=args.odds_f2,
+        as_of_date=args.as_of_date,
     )
 

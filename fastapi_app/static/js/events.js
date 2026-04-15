@@ -4,15 +4,18 @@
 let allEvents   = [];
 let activeIndex = 0;
 
-/* ── Filter state (defaults match the controls) ────────────────────────────── */
-let filters = { minEdge: null, favConf: 65, udConf: 53, udEdge: 10,
-                favCap: -400, dogCap: 300 };
+/* ── Betting config (loaded from /api/config) ──────────────────────────────── */
+let bettingConfig = null;
 
-const THIN_DATA_MIN_FIGHTS = 3;
+/* ── Filter state (defaults overridden from config on boot) ────────────────── */
+let filters = { minEdge: 5, favConf: 70, udConf: 53, udEdge: 10,
+                favCap: -300, dogCap: 300 };
 
-/* ── Odds cap defaults (mirrors the HTML input values) ──────────────────── */
-const ODDS_CAP_FAV_DEFAULT = -400;
-const ODDS_CAP_UD_DEFAULT  =  300;
+let THIN_DATA_MIN_FIGHTS = 3;
+
+/* ── Odds cap defaults (overridden from config on boot) ──────────────────── */
+let ODDS_CAP_FAV_DEFAULT = -300;
+let ODDS_CAP_UD_DEFAULT  =  300;
 
 /* ── DOM refs ──────────────────────────────────────────────────────────────── */
 const loadingEl    = document.getElementById('loadingState');
@@ -26,9 +29,17 @@ const headerStats  = document.getElementById('headerStats');
 /* ── Boot ──────────────────────────────────────────────────────────────────── */
 async function init() {
   try {
-    const res  = await fetch('/api/events');
-    if (!res.ok) throw new Error(`Server ${res.status}: ${await res.text()}`);
-    allEvents = await res.json();
+    const [evRes, cfgRes] = await Promise.all([
+      fetch('/api/events'),
+      fetch('/api/config'),
+    ]);
+    if (!evRes.ok) throw new Error(`Server ${evRes.status}: ${await evRes.text()}`);
+    allEvents = await evRes.json();
+
+    if (cfgRes.ok) {
+      bettingConfig = await cfgRes.json();
+      _applyConfigDefaults(bettingConfig);
+    }
 
     loadingEl.classList.add('hidden');
 
@@ -50,6 +61,82 @@ async function init() {
   }
   // Always return resolved so .then() chains work
 }
+
+/* ── Apply config defaults to filters + HTML inputs ────────────────────────── */
+function _applyConfigDefaults(cfg) {
+  if (!cfg) return;
+  const f = cfg.filters || {};
+
+  if (f.min_fights != null) THIN_DATA_MIN_FIGHTS = f.min_fights;
+  if (f.favorite_confidence_min != null) filters.favConf = f.favorite_confidence_min * 100;
+  if (f.underdog_confidence_min != null) filters.udConf  = f.underdog_confidence_min * 100;
+  if (f.favorite_odds_cap != null) { filters.favCap = f.favorite_odds_cap; ODDS_CAP_FAV_DEFAULT = f.favorite_odds_cap; }
+  if (f.underdog_odds_cap != null) { filters.dogCap = f.underdog_odds_cap; ODDS_CAP_UD_DEFAULT  = f.underdog_odds_cap; }
+
+  const _setVal = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+  _setVal('favConf', filters.favConf);
+  _setVal('udConf',  filters.udConf);
+  _setVal('favCap',  filters.favCap);
+  _setVal('dogCap',  filters.dogCap);
+}
+
+/* ── Bet decision: unified filter + multiplier ─────────────────────────────── */
+function getBetDecision(f) {
+  if (!f.model_prob_f1) return { visible: true, multiplier: null };
+
+  // Thin data filter
+  if (document.getElementById('excludeThinData')?.checked) {
+    const c1 = f.f1_fight_count ?? 999;
+    const c2 = f.f2_fight_count ?? 999;
+    if (c1 < THIN_DATA_MIN_FIGHTS || c2 < THIN_DATA_MIN_FIGHTS)
+      return { visible: false, multiplier: null };
+  }
+
+  // Odds cap filter
+  if (filters.favCap !== null || filters.dogCap !== null) {
+    for (const o of [f.f1_odds, f.f2_odds]) {
+      if (o === null || o === undefined) continue;
+      if (filters.favCap !== null && o <= filters.favCap) return { visible: false, multiplier: null };
+      if (filters.dogCap !== null && o >= filters.dogCap) return { visible: false, multiplier: null };
+    }
+  }
+
+  const pickProb   = f.model_prob_f1 >= 50 ? f.model_prob_f1 : 100 - f.model_prob_f1;
+  const mktForPick = f.model_prob_f1 >= 50 ? f.market_prob_f1 : 100 - f.market_prob_f1;
+  const isFav      = mktForPick >= 50;
+  const edge       = pickProb - mktForPick;
+
+  if (filters.minEdge !== null && edge < filters.minEdge) return { visible: false, multiplier: null };
+  if (filters.favConf !== null && isFav  && pickProb < filters.favConf) return { visible: false, multiplier: null };
+  if (filters.udConf  !== null && !isFav && pickProb < filters.udConf)  return { visible: false, multiplier: null };
+  if (filters.udEdge  !== null && !isFav && edge     < filters.udEdge)  return { visible: false, multiplier: null };
+
+  // Multiplier from config edge buckets
+  if (!bettingConfig) return { visible: true, multiplier: null };
+
+  const edgeFrac = edge / 100;
+  const buckets  = bettingConfig.edge_buckets || [];
+  let multiplier = null;
+
+  for (const b of buckets) {
+    if (edgeFrac >= b.min_edge && edgeFrac < b.max_edge) {
+      if (b.action === 'skip') { multiplier = null; break; }
+      multiplier = b.multiplier ?? null;
+      break;
+    }
+  }
+
+  // WMMA rules: cap multiplier and require higher edge
+  const wmma = bettingConfig.wmma_rules;
+  if (wmma && wmma.enabled && f.is_wmma !== false) {
+    if (edgeFrac < wmma.min_edge) multiplier = null;
+    else if (multiplier !== null) multiplier = Math.min(multiplier, wmma.max_multiplier);
+  }
+
+  return { visible: true, multiplier };
+}
+
+function passesFilter(f) { return getBetDecision(f).visible; }
 
 /* ── Filter wiring ──────────────────────────────────────────────────────────── */
 function wireFilters() {
@@ -88,14 +175,14 @@ function wireFilters() {
 
   resetBtn.addEventListener('click', () => {
     minEdgeEl.value        = '';
-    favConfEl.value        = 65;
+    favConfEl.value        = filters.favConf ?? 70;
     udConfEl.value         = '';
     udEdgeEl.value         = 10;
     favCapEl.value         = ODDS_CAP_FAV_DEFAULT;
     dogCapEl.value         = ODDS_CAP_UD_DEFAULT;
     excludeThinEl.checked  = true;
-    filters = { minEdge: null, favConf: 65, udConf: 53, udEdge: 10,
-                favCap: ODDS_CAP_FAV_DEFAULT, dogCap: ODDS_CAP_UD_DEFAULT };
+    _applyConfigDefaults(bettingConfig);
+    readFilters();
     refresh();
   });
 
@@ -115,42 +202,7 @@ function wireFilters() {
   readFilters();
 }
 
-/* ── Filter predicate ───────────────────────────────────────────────────────── */
-function passesFilter(f) {
-  if (!f.model_prob_f1) return true;   // no prediction → always show
-
-  // Exclude fights where either fighter has fewer than THIN_DATA_MIN_FIGHTS DB fights
-  if (document.getElementById('excludeThinData')?.checked) {
-    const c1 = f.f1_fight_count ?? 999;
-    const c2 = f.f2_fight_count ?? 999;
-    if (c1 < THIN_DATA_MIN_FIGHTS || c2 < THIN_DATA_MIN_FIGHTS) return false;
-  }
-
-  // Exclude fights outside the odds cap window
-  if (filters.favCap !== null || filters.dogCap !== null) {
-    const o1 = f.f1_odds, o2 = f.f2_odds;
-    for (const o of [o1, o2]) {
-      if (o === null || o === undefined) continue;
-      if (filters.favCap !== null && o <= filters.favCap) return false;
-      if (filters.dogCap !== null && o >= filters.dogCap) return false;
-    }
-  }
-
-  const pickProb   = f.model_prob_f1 >= 50 ? f.model_prob_f1 : 100 - f.model_prob_f1;
-  const mktForPick = f.model_prob_f1 >= 50 ? f.market_prob_f1 : 100 - f.market_prob_f1;
-  const isFav      = mktForPick >= 50;
-  const edge       = pickProb - mktForPick;
-
-  // Global edge filter — applies to all fights when set
-  if (filters.minEdge !== null && edge < filters.minEdge) return false;
-
-  // Per-type filters (only apply when set)
-  if (filters.favConf !== null && isFav  && pickProb < filters.favConf) return false;
-  if (filters.udConf  !== null && !isFav && pickProb < filters.udConf)  return false;
-  if (filters.udEdge  !== null && !isFav && edge     < filters.udEdge)  return false;
-
-  return true;
-}
+/* ── Filter predicate (now delegates to getBetDecision) ────────────────────── */
 
 /* ── Overall summary strip ──────────────────────────────────────────────────── */
 function renderOverall() {
@@ -256,7 +308,10 @@ function selectEvent(idx) {
   const roiClass  = roi  !== null ? (roi  > 0 ? 'pos' : roi  < 0 ? 'neg' : '') : '';
   const pnlClass  = totalPnl > 0 ? 'pos' : totalPnl < 0 ? 'neg' : '';
 
-  const fightCards = ev.fights.map(f => renderFightCard(f, passesFilter(f))).join('');
+  const fightCards = ev.fights.map(f => {
+    const decision = getBetDecision(f);
+    return renderFightCard(f, decision.visible, decision.multiplier);
+  }).join('');
 
   panelEl.innerHTML = `
     <div class="event-panel">
@@ -292,7 +347,7 @@ function selectEvent(idx) {
 }
 
 /* ── Fight card ──────────────────────────────────────────────────────────────── */
-function renderFightCard(f, visible = true) {
+function renderFightCard(f, visible = true, multiplier = null) {
   const hasPred   = f.model_prob_f1 !== null;
   const hasResult = f.winner !== null;
   const isWin     = f.correct === true;
@@ -378,6 +433,14 @@ function renderFightCard(f, visible = true) {
 
   const noBetBadge = visible ? '' : `<span class="no-bet-badge">no bet</span>`;
 
+  // Bet-size badge (1x, 1.5x, 2x) — only for visible fights with a multiplier
+  let betSizeBadge = '';
+  if (visible && multiplier !== null) {
+    const label = multiplier % 1 === 0 ? `${multiplier}x` : `${multiplier}x`;
+    const tier  = multiplier >= 2 ? 'high' : multiplier >= 1.5 ? 'mid' : 'low';
+    betSizeBadge = `<span class="bet-size-badge bet-size-${tier}">${label}</span>`;
+  }
+
   return `
     <div class="fight-card ${cardClass}">
       <div class="fight-top">
@@ -394,6 +457,7 @@ function renderFightCard(f, visible = true) {
           </div>
         </div>
         ${noBetBadge}
+        ${betSizeBadge}
       </div>
 
       ${hasPred ? `
