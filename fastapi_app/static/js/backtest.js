@@ -108,7 +108,7 @@ function renderKPIs(d) {
     { label: 'Flat ROI', value: o.roi, suffix: '%' },
     { label: 'Weighted ROI', value: w.weighted.roi, suffix: '%' },
     { label: 'Flat P&L', value: Math.round(o.profit * 100), dollar: true },
-    { label: 'Weighted P&L', value: Math.round(w.weighted.profit * 100), dollar: true },
+    { label: 'Weighted P&L', value: Math.round(w.weighted.profit), dollar: true },
     { label: 'Lift', value: w.lift_pp, suffix: 'pp' },
   ];
 
