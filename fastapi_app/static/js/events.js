@@ -82,7 +82,7 @@ function _applyConfigDefaults(cfg) {
 
 /* ── Bet decision: unified filter + multiplier ─────────────────────────────── */
 function getBetDecision(f) {
-  if (!f.model_prob_f1) return { visible: true, multiplier: null };
+  if (!f.model_prob_f1) return { visible: !f.error, multiplier: null };
 
   // Thin data filter
   if (document.getElementById('excludeThinData')?.checked) {
