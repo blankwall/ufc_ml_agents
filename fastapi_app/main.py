@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 
 from routers.analyze import router as analyze_router
 from routers.backtest import router as backtest_router
+from routers.bucket_analysis import router as bucket_analysis_router
 from routers.database import router as database_router
 from routers.events import router as events_router
 from routers.predict import router as predict_router
@@ -25,6 +26,7 @@ templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 app.include_router(analyze_router, prefix="/api")
 app.include_router(backtest_router, prefix="/api")
+app.include_router(bucket_analysis_router, prefix="/api")
 app.include_router(database_router, prefix="/api")
 app.include_router(events_router, prefix="/api")
 app.include_router(predict_router, prefix="/api")
@@ -43,7 +45,7 @@ async def events_page(request: Request):
 
 @app.get("/backtest", response_class=HTMLResponse)
 async def backtest_page(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("backtest.html", {"request": request})
 
 
 @app.get("/ingest", response_class=HTMLResponse)

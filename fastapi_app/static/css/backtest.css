@@ -1,0 +1,339 @@
+/* ── Backtest Dashboard ─────────────────────────────────────────────────────── */
+
+.backtest-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* ── Year Tabs ─────────────────────────────────────────────────────────────── */
+.year-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 1.5rem;
+}
+
+.year-tab {
+  padding: 8px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.92rem;
+  transition: all 0.15s;
+}
+
+.year-tab:hover { background: var(--surface2); color: var(--text); }
+.year-tab.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* ── KPI Strip ─────────────────────────────────────────────────────────────── */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 2rem;
+}
+
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+}
+
+.kpi-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.kpi-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.kpi-value.positive { color: var(--green); }
+.kpi-value.negative { color: var(--red); }
+
+/* ── Section ───────────────────────────────────────────────────────────────── */
+.bt-section {
+  margin-bottom: 2.5rem;
+}
+
+.bt-section-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1rem;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bt-section-title .icon {
+  color: var(--accent);
+  font-size: 1.1rem;
+}
+
+/* ── Chart Container ───────────────────────────────────────────────────────── */
+.chart-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 1rem;
+}
+
+/* ── Data Tables ───────────────────────────────────────────────────────────── */
+.bt-table-wrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.bt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.bt-table th {
+  background: var(--surface2);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 12px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.bt-table th:first-child { text-align: left; }
+
+.bt-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.bt-table td:first-child {
+  text-align: left;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.bt-table tr:last-child td { border-bottom: none; }
+
+.bt-table tr:hover td { background: rgba(79, 172, 254, 0.04); }
+
+.bt-table .total-row td {
+  font-weight: 700;
+  border-top: 2px solid var(--border2);
+  background: var(--surface2);
+}
+
+.bt-table .gender-row td {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.bt-table .gender-row td:first-child { padding-left: 24px; }
+
+.val-positive { color: var(--green); }
+.val-negative { color: var(--red); }
+.val-neutral  { color: var(--text-muted); }
+
+/* ── Weighted ROI Comparison ───────────────────────────────────────────────── */
+.roi-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 1rem;
+}
+
+.roi-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+}
+
+.roi-card-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.roi-card-value {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.roi-card-sub {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.lift-badge {
+  display: inline-block;
+  background: rgba(0, 212, 170, 0.12);
+  color: var(--green);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 12px;
+}
+
+/* ── Loading / Error ───────────────────────────────────────────────────────── */
+.bt-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem;
+  color: var(--text-muted);
+  gap: 12px;
+}
+
+.bt-error {
+  background: rgba(255, 75, 110, 0.1);
+  border: 1px solid var(--red);
+  border-radius: var(--radius);
+  padding: 16px;
+  color: var(--red);
+  margin: 2rem;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  .roi-comparison { grid-template-columns: 1fr; }
+  .config-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Config Display ────────────────────────────────────────────────────────── */
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.config-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.config-card-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.config-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.config-row:last-child { border-bottom: none; }
+
+.config-key { color: var(--text-muted); }
+.config-val { color: var(--text); font-weight: 500; }
+
+/* ── Skip Legend ────────────────────────────────────────────────────────────── */
+.skip-legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.skip-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.skip-tag .code {
+  font-weight: 700;
+  color: var(--yellow);
+  min-width: 22px;
+  text-align: center;
+}
+
+/* ── Collapsible ───────────────────────────────────────────────────────────── */
+.collapsible-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+
+.collapsible-toggle:hover { color: var(--accent); }
+
+.toggle-arrow {
+  font-size: 0.75rem;
+  transition: transform 0.2s;
+  margin-left: auto;
+}
+
+.toggle-arrow.open { transform: rotate(90deg); }
+
+/* ── Fight Result Rows ─────────────────────────────────────────────────────── */
+.bt-table .bet-yes {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.bt-table .bet-no {
+  color: var(--text-dim);
+}
+
+.bt-table .result-correct td { border-left: 3px solid var(--green); }
+.bt-table .result-wrong td { border-left: 3px solid var(--red); }
+.bt-table .result-skip td { border-left: 3px solid var(--border); opacity: 0.7; }
+
+.skip-code {
+  display: inline-block;
+  background: rgba(247, 201, 72, 0.12);
+  color: var(--yellow);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}

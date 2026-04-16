@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UFC Backtest · Bucket Analysis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css?v=8" />
+  <link rel="stylesheet" href="/static/css/backtest.css?v=1" />
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <span class="logo-text">UFC<strong>ML</strong></span>
+    </div>
+    <nav class="header-nav">
+      <a href="/backtest" class="nav-link active">Backtest</a>
+      <a href="/events" class="nav-link">Events</a>
+      <a href="/ingest" class="nav-link">Ingest</a>
+      <a href="/fighter" class="nav-link">Fighter</a>
+    </nav>
+    <div class="header-meta">
+      <span class="badge">mar_4_v2</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- Loading -->
+  <div id="loadingState" class="bt-loading">
+    <div class="spinner-large"></div>
+    <p>Loading backtest data…</p>
+  </div>
+
+  <!-- Error -->
+  <div id="errorState" class="bt-error" style="display:none"></div>
+
+  <!-- Content -->
+  <div id="content" class="backtest-content" style="display:none">
+
+    <!-- Year Tabs -->
+    <div class="year-tabs" id="yearTabs"></div>
+
+    <!-- KPI Strip -->
+    <div class="kpi-strip" id="kpiStrip"></div>
+
+    <!-- Odds Buckets -->
+    <section class="bt-section">
+      <h2 class="bt-section-title"><span class="icon">📊</span> Odds Bucket Breakdown</h2>
+      <div class="chart-container" id="oddsBucketChart"></div>
+      <div class="bt-table-wrap" id="oddsBucketTable"></div>
+    </section>
+
+    <!-- Weight Class Performance -->
+    <section class="bt-section">
+      <h2 class="bt-section-title"><span class="icon">🏋️</span> Weight Class Performance</h2>
+      <div class="chart-container" id="weightClassChart"></div>
+      <div class="bt-table-wrap" id="weightClassTable"></div>
+    </section>
+
+    <!-- Config + Legend -->
+    <section class="bt-section">
+      <h2 class="bt-section-title"><span class="icon">⚙️</span> Betting Configuration</h2>
+      <div class="config-grid" id="configDisplay"></div>
+    </section>
+
+    <!-- Fight Results -->
+    <section class="bt-section">
+      <h2 class="bt-section-title collapsible-toggle" id="fightsToggle">
+        <span class="icon">📋</span> Fight Results
+        <span class="toggle-arrow">▶</span>
+      </h2>
+      <div class="collapsible-content" id="fightsContent" style="display:none">
+        <div class="bt-table-wrap" id="fightsTable"></div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script src="/static/js/backtest.js?v=1"></script>
+</body>
+</html>
