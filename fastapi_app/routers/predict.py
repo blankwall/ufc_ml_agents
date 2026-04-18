@@ -24,12 +24,9 @@ from sqlalchemy.orm import sessionmaker
 
 from database.schema import Event, Fight, Fighter
 from services.predict_service import (
-    BLEND_WEIGHT,
     FIGHTER_ALIASES,
-    UD_THRESHOLD,
     MatchupFeatureExtractor,
     _load_general_model,
-    _load_underdog_model,
     _resolve_fighter,
 )
 
@@ -103,19 +100,6 @@ def _score_fight(extractor: MatchupFeatureExtractor,
         return float(gen_model.predict_proba(Xs)[0, 1])
 
     gen_prob = 0.5 * (_predict(f1_id, f2_id) + (1.0 - _predict(f2_id, f1_id)))
-
-    if market_prob_f1 < UD_THRESHOLD:
-        try:
-            ud_model, ud_scaler, ud_features = _load_underdog_model()
-            feats_ud = extractor.extract_matchup_features(f1_id, f2_id, as_of_date=as_of_date)
-            feats_ud["is_title_fight"] = 0
-            X_ud  = pd.DataFrame([feats_ud]).reindex(columns=ud_features, fill_value=0).fillna(0)
-            Xs_ud = pd.DataFrame(ud_scaler.transform(X_ud), columns=ud_features)
-            p_ud  = float(ud_model.predict_proba(Xs_ud)[0, 1])
-            return {"model_prob_f1": round(BLEND_WEIGHT * p_ud + (1 - BLEND_WEIGHT) * gen_prob, 4),
-                    "model_source": "blended"}
-        except Exception:
-            pass
 
     return {"model_prob_f1": round(gen_prob, 4), "model_source": "general"}
 
