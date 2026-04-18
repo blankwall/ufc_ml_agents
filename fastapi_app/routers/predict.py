@@ -226,12 +226,24 @@ async def predict_fight(req: PredictRequest):
 
         model_prob  = pred["model_prob_f1"]          # 0–1
         model_prob_pct = round(model_prob * 100, 1)
-        model_pick  = req.fighter1 if model_prob >= 0.5 else req.fighter2
 
-        # Edge: model confidence for the pick minus market probability for same fighter
-        pick_model_prob = model_prob if model_prob >= 0.5 else 1 - model_prob
-        pick_mkt_prob   = mkt_prob_f1 if model_prob >= 0.5 else 1 - mkt_prob_f1
-        edge = round((pick_model_prob - pick_mkt_prob) * 100, 1)
+        # Pick whichever side has the larger positive edge over the market,
+        # NOT whichever side the model nominally favors. When the model and
+        # market disagree on the favorite, the value bet is the underdog the
+        # model thinks is undervalued — even if model_prob_for_them is < 50%.
+        edge_f1 = model_prob - mkt_prob_f1            # edge on fighter1 (signed)
+        if edge_f1 >= 0:
+            model_pick      = req.fighter1
+            pick_model_prob = model_prob
+            pick_mkt_prob   = mkt_prob_f1
+            pick_odds_int   = req.fighter1_odds
+        else:
+            model_pick      = req.fighter2
+            pick_model_prob = 1 - model_prob
+            pick_mkt_prob   = 1 - mkt_prob_f1
+            pick_odds_int   = req.fighter2_odds
+
+        edge = round((pick_model_prob - pick_mkt_prob) * 100, 1)  # always ≥ 0
 
         # Fighter metadata — date-filtered to match feature extraction boundary
         f1_count = _fight_count(session, f1.id, as_of)
@@ -248,8 +260,7 @@ async def predict_fight(req: PredictRequest):
             is_wmma = False
 
         # Bet decision against the current betting_config rules
-        pick_odds_int = (req.fighter1_odds if model_prob >= 0.5 else req.fighter2_odds)
-        is_favorite   = pick_odds_int is not None and pick_odds_int < 0
+        is_favorite = pick_odds_int is not None and pick_odds_int < 0
         bet_eval = _evaluate_bet(
             pick_model_prob=pick_model_prob,
             pick_mkt_prob=pick_mkt_prob,
