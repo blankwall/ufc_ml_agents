@@ -1,14 +1,13 @@
 {
     "model": "mar_4_v2",
     "cutoff_date": "2027-01-01",
-    "edge_min": 0.00,
+    "edge_min": 0.05,
     "edge_underdog": 0.1,
-    "confidence_favorite": 0.7,
+    "confidence_favorite": 0.65,
     "confidence_underdog": 0.53,
     "favorite_odds_cap": -300,
     "underdog_odds_cap": 300,
-    "min_fights": 3,
+    "min_fights": 2,
     "female": true,
     "underdog_blend": false
 }
-

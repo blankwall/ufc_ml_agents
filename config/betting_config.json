@@ -2,8 +2,10 @@
   "model": "mar_4_v2",
 
   "filters": {
-    "min_fights": 3,
-    "favorite_confidence_min": 0.70,
+    "min_fights": 2,
+    "edge_min": 0.05,
+    "underdog_edge_min": 0.05,
+    "favorite_confidence_min": 0.65,
     "underdog_confidence_min": 0.53,
     "favorite_odds_cap": -300,
     "underdog_odds_cap": 300
