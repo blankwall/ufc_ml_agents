@@ -7,6 +7,7 @@ and optional American odds.  No caching — runs fresh on every call.
 
 from __future__ import annotations
 
+import json
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -26,15 +27,30 @@ from database.schema import Event, Fight, Fighter
 from services.predict_service import (
     FIGHTER_ALIASES,
     MatchupFeatureExtractor,
+    _is_wmma,
     _load_general_model,
     _resolve_fighter,
 )
 
 router = APIRouter()
 
-_DB_PATH = ROOT_DIR / "data" / "ufc_database.db"
+_DB_PATH     = ROOT_DIR / "data" / "ufc_database.db"
+_CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 _engine  = create_engine(f"sqlite:///{_DB_PATH}", connect_args={"check_same_thread": False})
 _Session = sessionmaker(bind=_engine)
+
+
+# Skip codes (mirror events / bucket_analysis vocabulary).
+SKIP_REASONS = {
+    "F1":   "Favorite low confidence",
+    "F2":   "Favorite odds cap exceeded",
+    "U1":   "Underdog low confidence",
+    "U2":   "Underdog low edge",
+    "U3":   "Underdog odds cap exceeded",
+    "W1":   "WMMA edge below WMMA minimum",
+    "D1":   "Insufficient fight data",
+    "ERR":  "Prediction failed",
+}
 
 
 # ── request / response models ─────────────────────────────────────────────────
@@ -80,6 +96,70 @@ def _fight_count(session, fighter_id: int, as_of=None) -> int:
             except (ValueError, TypeError):
                 continue
     return count
+
+
+def _load_betting_filters() -> dict:
+    """Read filter thresholds + WMMA rules from config/betting_config.json."""
+    if not _CONFIG_PATH.exists():
+        return {}
+    try:
+        cfg = json.loads(_CONFIG_PATH.read_text())
+        return {
+            "filters": cfg.get("filters", {}),
+            "wmma":    cfg.get("wmma_rules", {}),
+        }
+    except Exception:
+        return {}
+
+
+def _evaluate_bet(
+    *,
+    pick_model_prob: float,   # 0–1 — model conviction on the picked side
+    pick_mkt_prob:   float,   # 0–1 — implied market prob on the picked side
+    pick_odds:       Optional[int],
+    is_favorite:     bool,
+    is_wmma:         Optional[bool],
+    f1_count:        int,
+    f2_count:        int,
+) -> dict:
+    """Apply current betting_config rules and return (bet, skip_code, reason)."""
+    cfg          = _load_betting_filters()
+    filters      = cfg.get("filters", {})
+    wmma_rules   = cfg.get("wmma", {})
+
+    min_fights   = filters.get("min_fights", 2)
+    fav_conf     = filters.get("favorite_confidence_min", 0.65)
+    ud_conf      = filters.get("underdog_confidence_min", 0.53)
+    fav_cap      = filters.get("favorite_odds_cap", -300)
+    ud_cap       = filters.get("underdog_odds_cap", 300)
+    edge_min     = filters.get("edge_min", 0.04)
+    ud_edge_min  = filters.get("underdog_edge_min", edge_min)
+    wmma_min_edge = wmma_rules.get("min_edge", 0.10)
+
+    edge_pct = pick_model_prob - pick_mkt_prob   # 0–1 scale
+
+    if f1_count < min_fights or f2_count < min_fights:
+        return {"bet": False, "skip_code": "D1", "skip_reason": SKIP_REASONS["D1"]}
+
+    if is_wmma and edge_pct < wmma_min_edge:
+        return {"bet": False, "skip_code": "W1", "skip_reason": SKIP_REASONS["W1"]}
+
+    if is_favorite:
+        if pick_model_prob < fav_conf:
+            return {"bet": False, "skip_code": "F1", "skip_reason": SKIP_REASONS["F1"]}
+        if pick_odds is not None and pick_odds < fav_cap:
+            return {"bet": False, "skip_code": "F2", "skip_reason": SKIP_REASONS["F2"]}
+        if edge_pct < edge_min:
+            return {"bet": False, "skip_code": "U2", "skip_reason": "Favorite low edge"}
+    else:
+        if pick_model_prob < ud_conf:
+            return {"bet": False, "skip_code": "U1", "skip_reason": SKIP_REASONS["U1"]}
+        if pick_odds is not None and pick_odds > ud_cap:
+            return {"bet": False, "skip_code": "U3", "skip_reason": SKIP_REASONS["U3"]}
+        if edge_pct < ud_edge_min:
+            return {"bet": False, "skip_code": "U2", "skip_reason": SKIP_REASONS["U2"]}
+
+    return {"bet": True, "skip_code": None, "skip_reason": None}
 
 
 # ── scoring (as_of_date-aware version of predict_service._score_row) ─────────
@@ -157,6 +237,29 @@ async def predict_fight(req: PredictRequest):
         f1_count = _fight_count(session, f1.id, as_of)
         f2_count = _fight_count(session, f2.id, as_of)
 
+        # WMMA detection (None means unknown — treated as not-WMMA for bet rules)
+        w1 = _is_wmma(session, f1.id)
+        w2 = _is_wmma(session, f2.id)
+        if w1 is True or w2 is True:
+            is_wmma = True
+        elif w1 is None and w2 is None:
+            is_wmma = None
+        else:
+            is_wmma = False
+
+        # Bet decision against the current betting_config rules
+        pick_odds_int = (req.fighter1_odds if model_prob >= 0.5 else req.fighter2_odds)
+        is_favorite   = pick_odds_int is not None and pick_odds_int < 0
+        bet_eval = _evaluate_bet(
+            pick_model_prob=pick_model_prob,
+            pick_mkt_prob=pick_mkt_prob,
+            pick_odds=pick_odds_int,
+            is_favorite=is_favorite,
+            is_wmma=bool(is_wmma),
+            f1_count=f1_count,
+            f2_count=f2_count,
+        )
+
         return {
             "fighter1":           req.fighter1,
             "fighter2":           req.fighter2,
@@ -176,7 +279,11 @@ async def predict_fight(req: PredictRequest):
             "f1_record":          f"{f1.wins}-{f1.losses}-{f1.draws}",
             "f2_record":          f"{f2.wins}-{f2.losses}-{f2.draws}",
             "thin_data_warning":  f1_count < 3 or f2_count < 3,
+            "is_wmma":            is_wmma,
             "fight_date":         req.fight_date.isoformat() if req.fight_date else None,
+            "bet":                bet_eval["bet"],
+            "skip_code":          bet_eval["skip_code"],
+            "skip_reason":        bet_eval["skip_reason"],
         }
 
     finally:
