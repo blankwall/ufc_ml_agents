@@ -28,6 +28,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from features.matchup_features import MatchupFeatureExtractor
 from database.schema import Event as _Event, Fight as _Fight
+from models.utils import resolve_model_dir
 
 ODDS_DIR         = ROOT_DIR / "data" / "future_fight_odds"
 USER_EVENTS_DIR  = ROOT_DIR / "data" / "user_events"
@@ -48,20 +49,22 @@ _ud_model  = _ud_scaler  = _ud_features  = None
 def _load_general_model():
     global _gen_model, _gen_scaler, _gen_features
     if _gen_model is None:
+        _run_dir = resolve_model_dir(MODEL_DIR, "mar_4_v2")
         _gen_model = xgb.XGBClassifier()
-        _gen_model.load_model(MODEL_DIR / "mar_4_v2.json")
-        _gen_scaler   = joblib.load(MODEL_DIR / "mar_4_v2_feature_scaler.pkl")
-        _gen_features = joblib.load(MODEL_DIR / "mar_4_v2_feature_names.pkl")
+        _gen_model.load_model(_run_dir / "mar_4_v2.json")
+        _gen_scaler   = joblib.load(_run_dir / "mar_4_v2_feature_scaler.pkl")
+        _gen_features = joblib.load(_run_dir / "mar_4_v2_feature_names.pkl")
     return _gen_model, _gen_scaler, _gen_features
 
 
 def _load_underdog_model():
     global _ud_model, _ud_scaler, _ud_features
     if _ud_model is None:
+        _run_dir = resolve_model_dir(MODEL_DIR, "underdog_v1")
         _ud_model = xgb.XGBClassifier()
-        _ud_model.load_model(MODEL_DIR / "underdog_v1.json")
-        _ud_scaler   = joblib.load(MODEL_DIR / "underdog_v1_feature_scaler.pkl")
-        _ud_features = joblib.load(MODEL_DIR / "underdog_v1_feature_names.pkl")
+        _ud_model.load_model(_run_dir / "underdog_v1.json")
+        _ud_scaler   = joblib.load(_run_dir / "underdog_v1_feature_scaler.pkl")
+        _ud_features = joblib.load(_run_dir / "underdog_v1_feature_names.pkl")
     return _ud_model, _ud_scaler, _ud_features
 
 
@@ -189,17 +192,13 @@ def _parse_event_date(s: str) -> Optional[datetime]:
         except ValueError:
             continue
 
-    # Try year-less formats — infer the year from context
+    # Try year-less formats — assume current year (works for both past and
+    # upcoming events; never silently roll back to last year, which causes
+    # stale features and wrong cache keys).
     for fmt in ("%B %d", "%b %d"):
         try:
             partial = datetime.strptime(cleaned, fmt)
-            now = datetime.now()
-            # Try current year, then previous year; pick the most recent past date
-            for year in (now.year, now.year - 1):
-                candidate = partial.replace(year=year)
-                if candidate <= now:
-                    return candidate
-            return None  # date is in the future for both years → upcoming fight
+            return partial.replace(year=datetime.now().year)
         except ValueError:
             continue
 
