@@ -487,7 +487,13 @@ def _run_prediction_loop(
         ev_url      = str(row.get("event_url", "")).strip()
         f1_odds     = row.get("fighter1_odds")
         f2_odds     = row.get("fighter2_odds")
-        mkt_prob    = float(row.get("fighter1_prob", 0.5))
+        raw1     = float(row.get("fighter1_prob", 0.5))
+        raw2     = float(row.get("fighter2_prob", 1 - raw1))
+        vig      = raw1 + raw2
+        mkt_prob = raw1 / vig if vig > 0 else 0.5
+
+
+
         source_type = str(row.get("source_type", "csv"))
         ev_name     = str(row.get("event_name", "")).strip()
 
