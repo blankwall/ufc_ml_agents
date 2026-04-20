@@ -44,6 +44,7 @@ _Session = sessionmaker(bind=_engine)
 SKIP_REASONS = {
     "F1":   "Favorite low confidence",
     "F2":   "Favorite odds cap exceeded",
+    "F3":   "Favorite low edge",
     "U1":   "Underdog low confidence",
     "U2":   "Underdog low edge",
     "U3":   "Underdog odds cap exceeded",
@@ -150,7 +151,7 @@ def _evaluate_bet(
         if pick_odds is not None and pick_odds < fav_cap:
             return {"bet": False, "skip_code": "F2", "skip_reason": SKIP_REASONS["F2"]}
         if edge_pct < edge_min:
-            return {"bet": False, "skip_code": "U2", "skip_reason": "Favorite low edge"}
+            return {"bet": False, "skip_code": "F3", "skip_reason": SKIP_REASONS["F3"]}
     else:
         if pick_model_prob < ud_conf:
             return {"bet": False, "skip_code": "U1", "skip_reason": SKIP_REASONS["U1"]}
@@ -227,12 +228,12 @@ async def predict_fight(req: PredictRequest):
         model_prob  = pred["model_prob_f1"]          # 0–1
         model_prob_pct = round(model_prob * 100, 1)
 
-        # Pick whichever side has the larger positive edge over the market,
-        # NOT whichever side the model nominally favors. When the model and
-        # market disagree on the favorite, the value bet is the underdog the
-        # model thinks is undervalued — even if model_prob_for_them is < 50%.
-        edge_f1 = model_prob - mkt_prob_f1            # edge on fighter1 (signed)
-        if edge_f1 >= 0:
+        # Pick is always the side the model thinks will win. We never bet
+        # against our own model. Edge is signed — negative means the market
+        # is more confident in our pick than the model is, in which case the
+        # bet evaluator will skip with F3 (favorite low edge) or U2
+        # (underdog low edge).
+        if model_prob >= 0.5:
             model_pick      = req.fighter1
             pick_model_prob = model_prob
             pick_mkt_prob   = mkt_prob_f1
@@ -243,7 +244,7 @@ async def predict_fight(req: PredictRequest):
             pick_mkt_prob   = 1 - mkt_prob_f1
             pick_odds_int   = req.fighter2_odds
 
-        edge = round((pick_model_prob - pick_mkt_prob) * 100, 1)  # always ≥ 0
+        edge = round((pick_model_prob - pick_mkt_prob) * 100, 1)  # signed
 
         # Fighter metadata — date-filtered to match feature extraction boundary
         f1_count = _fight_count(session, f1.id, as_of)
