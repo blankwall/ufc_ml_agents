@@ -227,18 +227,24 @@ async def predict_fight(req: PredictRequest):
         model_prob  = pred["model_prob_f1"]          # 0–1
         model_prob_pct = round(model_prob * 100, 1)
 
-        # Pick whichever side has the larger positive edge over the market,
-        # NOT whichever side the model nominally favors. When the model and
-        # market disagree on the favorite, the value bet is the underdog the
-        # model thinks is undervalued — even if model_prob_for_them is < 50%.
+        # model_pick = who the model thinks wins (highest model_prob).
+        # bet_pick   = side with positive edge over market — this is the
+        # side to consider betting and the side bet rules are evaluated on.
+        # When the model and market disagree on the favorite, model_pick and
+        # bet_pick are different fighters.
+        if model_prob >= 0.5:
+            model_pick = req.fighter1
+        else:
+            model_pick = req.fighter2
+
         edge_f1 = model_prob - mkt_prob_f1            # edge on fighter1 (signed)
         if edge_f1 >= 0:
-            model_pick      = req.fighter1
+            bet_pick        = req.fighter1
             pick_model_prob = model_prob
             pick_mkt_prob   = mkt_prob_f1
             pick_odds_int   = req.fighter1_odds
         else:
-            model_pick      = req.fighter2
+            bet_pick        = req.fighter2
             pick_model_prob = 1 - model_prob
             pick_mkt_prob   = 1 - mkt_prob_f1
             pick_odds_int   = req.fighter2_odds
@@ -280,6 +286,7 @@ async def predict_fight(req: PredictRequest):
             "model_prob_f2":      round(100 - model_prob_pct, 1),
             "model_source":       pred["model_source"],
             "model_pick":         model_pick,
+            "bet_pick":           bet_pick,
             "market_prob_f1":     round(mkt_prob_f1 * 100, 1),
             "market_prob_f2":     round((1 - mkt_prob_f1) * 100, 1),
             "edge":               edge,
