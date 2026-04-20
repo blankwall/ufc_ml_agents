@@ -1,0 +1,82 @@
+{
+  "bfo_url": "https://www.bestfightodds.com/events/ufc-328-4091",
+  "ufc_stats_url": "",
+  "scraped_at": "2026-04-18T02:05:30.952517+00:00",
+  "event_name": "UFC 328",
+  "event_date": "May 10th",
+  "fights": [
+    {
+      "event_name": "UFC 328",
+      "event_date": "May 10th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-328-4091",
+      "fighter1": "Joshua van",
+      "fighter2": "Tatsuro Taira",
+      "fighter1_odds": 164,
+      "fighter2_odds": -200,
+      "fighter1_prob": 0.3788,
+      "fighter2_prob": 0.6667,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 328",
+      "event_date": "May 10th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-328-4091",
+      "fighter1": "Jeremy Stephens",
+      "fighter2": "King Green",
+      "fighter1_odds": 240,
+      "fighter2_odds": -275,
+      "fighter1_prob": 0.2941,
+      "fighter2_prob": 0.7333,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 328",
+      "event_date": "May 10th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-328-4091",
+      "fighter1": "Khamzat Chimaev",
+      "fighter2": "Sean Strickland",
+      "fighter1_odds": -520,
+      "fighter2_odds": 350,
+      "fighter1_prob": 0.8387,
+      "fighter2_prob": 0.2222,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 328",
+      "event_date": "May 10th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-328-4091",
+      "fighter1": "Alexander Volkov",
+      "fighter2": "Waldo Cortes-Acosta",
+      "fighter1_odds": -165,
+      "fighter2_odds": 127,
+      "fighter1_prob": 0.6226,
+      "fighter2_prob": 0.4405,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 328",
+      "event_date": "May 10th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-328-4091",
+      "fighter1": "Joaquin Buckley",
+      "fighter2": "Sean Brady",
+      "fighter1_odds": 160,
+      "fighter2_odds": -210,
+      "fighter1_prob": 0.3846,
+      "fighter2_prob": 0.6774,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC 328",
+      "event_date": "May 10th",
+      "event_url": "https://www.bestfightodds.com/events/ufc-328-4091",
+      "fighter1": "Bogdan Guskov",
+      "fighter2": "Jan Blachowicz",
+      "fighter1_odds": -163,
+      "fighter2_odds": 120,
+      "fighter1_prob": 0.6198,
+      "fighter2_prob": 0.4545,
+      "source_type": "user_added"
+    }
+  ],
+  "outcomes": []
+}

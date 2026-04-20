@@ -258,7 +258,7 @@ const SKIP_LEGEND = [
   { code: 'F1', desc: 'Favorite low confidence' },
   { code: 'F2', desc: 'Favorite odds cap exceeded' },
   { code: 'U1', desc: 'Underdog low confidence' },
-  { code: 'U2', desc: 'Underdog low edge' },
+  { code: 'U2', desc: 'Low edge' },
   { code: 'U3', desc: 'Underdog odds cap exceeded' },
   { code: 'D1', desc: 'Insufficient fight data' },
   { code: 'ERR', desc: 'Prediction failed' },
@@ -276,6 +276,8 @@ function renderConfig(cfg) {
   html += `<div class="config-card">
     <div class="config-card-title">Filters</div>
     <div class="config-row"><span class="config-key">Min Fights</span><span class="config-val">${filters.min_fights || '—'}</span></div>
+    <div class="config-row"><span class="config-key">Edge Min</span><span class="config-val">≥ ${filters.edge_min ? (filters.edge_min * 100) + '%' : '—'}</span></div>
+    <div class="config-row"><span class="config-key">Dog Edge Min</span><span class="config-val">≥ ${filters.underdog_edge_min ? (filters.underdog_edge_min * 100) + '%' : '—'}</span></div>
     <div class="config-row"><span class="config-key">Fav Confidence</span><span class="config-val">≥ ${filters.favorite_confidence_min ? (filters.favorite_confidence_min * 100) + '%' : '—'}</span></div>
     <div class="config-row"><span class="config-key">Dog Confidence</span><span class="config-val">≥ ${filters.underdog_confidence_min ? (filters.underdog_confidence_min * 100) + '%' : '—'}</span></div>
     <div class="config-row"><span class="config-key">Fav Odds Cap</span><span class="config-val">${filters.favorite_odds_cap || '—'}</span></div>

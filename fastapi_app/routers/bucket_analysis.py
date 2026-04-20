@@ -386,7 +386,9 @@ def _build_fights_table(results_path: Path, bets_filter: set | None):
                         skip_code = "F2"
                     elif not is_fav and pick_prob < filters.get("underdog_confidence_min", 0.53):
                         skip_code = "U1"
-                    elif edge < filters.get("edge_min", 0.05):
+                    elif is_fav and edge < filters.get("edge_min", 0.05):
+                        skip_code = "U2"
+                    elif not is_fav and edge < filters.get("underdog_edge_min", filters.get("edge_min", 0.05)):
                         skip_code = "U2"
                     else:
                         skip_code = "—"

@@ -487,8 +487,22 @@ def _run_prediction_loop(
         ev_url      = str(row.get("event_url", "")).strip()
         f1_odds     = row.get("fighter1_odds")
         f2_odds     = row.get("fighter2_odds")
-        raw1     = float(row.get("fighter1_prob", 0.5))
-        raw2     = float(row.get("fighter2_prob", 1 - raw1))
+        # Derive raw implied probabilities from odds when available so that
+        # manually-edited odds don't drift from the stored prob columns.
+        # Fall back to stored probs only if odds are missing.
+        def _to_raw(o):
+            try:
+                o = float(o)
+            except (TypeError, ValueError):
+                return None
+            return (-o) / ((-o) + 100) if o < 0 else 100 / (o + 100)
+        raw1_from_odds = _to_raw(f1_odds)
+        raw2_from_odds = _to_raw(f2_odds)
+        if raw1_from_odds is not None and raw2_from_odds is not None:
+            raw1, raw2 = raw1_from_odds, raw2_from_odds
+        else:
+            raw1 = float(row.get("fighter1_prob", 0.5))
+            raw2 = float(row.get("fighter2_prob", 1 - raw1))
         vig      = raw1 + raw2
         mkt_prob = raw1 / vig if vig > 0 else 0.5
 
@@ -555,7 +569,10 @@ def _run_prediction_loop(
 
         if model_prob is not None:
             model_pick = f1_name if model_prob >= 0.5 else f2_name
-            edge = round((model_prob - mkt_prob) * 100, 1)
+            # Edge from the *picked* fighter's perspective (matches /api/predict)
+            pick_model_prob = model_prob if model_prob >= 0.5 else 1 - model_prob
+            pick_mkt_prob   = mkt_prob   if model_prob >= 0.5 else 1 - mkt_prob
+            edge = round((pick_model_prob - pick_mkt_prob) * 100, 1)
 
             if winner:
                 w_norm  = _normalize_name(winner)
