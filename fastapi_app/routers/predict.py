@@ -23,13 +23,15 @@ if str(ROOT_DIR) not in sys.path:
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from database.schema import Event, Fight, Fighter
+from backtest.confidence_profile import describe_confidence
+from database.schema import Fighter
 from services.predict_service import (
     FIGHTER_ALIASES,
     MatchupFeatureExtractor,
+    _fight_count_as_of,
     _is_wmma,
-    _load_general_model,
     _resolve_fighter,
+    _score_row,
 )
 
 router = APIRouter()
@@ -70,33 +72,6 @@ def _american_to_prob(odds: int) -> float:
     if odds > 0:
         return 100 / (odds + 100)
     return abs(odds) / (abs(odds) + 100)
-
-
-def _fight_count(session, fighter_id: int, as_of=None) -> int:
-    """
-    Count fights for a fighter, optionally filtered to those strictly before as_of.
-    Event.date is stored as "Month DD, YYYY" (not ISO), so filtering is done in
-    Python after parsing — same strict-< boundary as the feature builder.
-    """
-    rows = (
-        session.query(Event.date)
-        .join(Fight, Fight.event_id == Event.id)
-        .filter((Fight.fighter_1_id == fighter_id) | (Fight.fighter_2_id == fighter_id))
-        .all()
-    )
-    if as_of is None:
-        return len(rows)
-    count = 0
-    for (date_str,) in rows:
-        for fmt in ("%B %d, %Y", "%b %d, %Y", "%Y-%m-%d"):
-            try:
-                dt = datetime.strptime(date_str or "", fmt)
-                if dt < as_of:
-                    count += 1
-                break
-            except (ValueError, TypeError):
-                continue
-    return count
 
 
 def _load_betting_filters() -> dict:
@@ -163,26 +138,14 @@ def _evaluate_bet(
     return {"bet": True, "skip_code": None, "skip_reason": None}
 
 
-# ── scoring (as_of_date-aware version of predict_service._score_row) ─────────
-
-def _score_fight(extractor: MatchupFeatureExtractor,
-                 f1_id: int, f2_id: int,
-                 market_prob_f1: float,
-                 as_of_date=None) -> dict:
-    import pandas as pd
-
-    gen_model, gen_scaler, gen_features = _load_general_model()
-
-    def _predict(fid_a: int, fid_b: int) -> float:
-        feats = extractor.extract_matchup_features(fid_a, fid_b, as_of_date=as_of_date)
-        feats["is_title_fight"] = 0
-        X  = pd.DataFrame([feats]).reindex(columns=gen_features, fill_value=0).fillna(0)
-        Xs = pd.DataFrame(gen_scaler.transform(X), columns=gen_features)
-        return float(gen_model.predict_proba(Xs)[0, 1])
-
-    gen_prob = 0.5 * (_predict(f1_id, f2_id) + (1.0 - _predict(f2_id, f1_id)))
-
-    return {"model_prob_f1": round(gen_prob, 4), "model_source": "general"}
+def _matchup_wmma_flag(session, fighter1_id: int, fighter2_id: int) -> Optional[bool]:
+    w1 = _is_wmma(session, fighter1_id)
+    w2 = _is_wmma(session, fighter2_id)
+    if w1 is True or w2 is True:
+        return True
+    if w1 is None and w2 is None:
+        return None
+    return False
 
 
 # ── endpoint ──────────────────────────────────────────────────────────────────
@@ -223,7 +186,14 @@ async def predict_fight(req: PredictRequest):
                 if req.fight_date else None
 
         extractor = MatchupFeatureExtractor(session)
-        pred = _score_fight(extractor, f1.id, f2.id, mkt_prob_f1, as_of)
+        pred = _score_row(
+            session,
+            extractor,
+            f1.id,
+            f2.id,
+            mkt_prob_f1,
+            as_of_date=as_of,
+        )
 
         model_prob  = pred["model_prob_f1"]          # 0–1
         model_prob_pct = round(model_prob * 100, 1)
@@ -247,18 +217,11 @@ async def predict_fight(req: PredictRequest):
         edge = round((pick_model_prob - pick_mkt_prob) * 100, 1)  # signed
 
         # Fighter metadata — date-filtered to match feature extraction boundary
-        f1_count = _fight_count(session, f1.id, as_of)
-        f2_count = _fight_count(session, f2.id, as_of)
+        f1_count = _fight_count_as_of(session, f1.id, as_of)
+        f2_count = _fight_count_as_of(session, f2.id, as_of)
 
         # WMMA detection (None means unknown — treated as not-WMMA for bet rules)
-        w1 = _is_wmma(session, f1.id)
-        w2 = _is_wmma(session, f2.id)
-        if w1 is True or w2 is True:
-            is_wmma = True
-        elif w1 is None and w2 is None:
-            is_wmma = None
-        else:
-            is_wmma = False
+        is_wmma = _matchup_wmma_flag(session, f1.id, f2.id)
 
         # Bet decision against the current betting_config rules
         is_favorite = pick_odds_int is not None and pick_odds_int < 0
@@ -267,10 +230,11 @@ async def predict_fight(req: PredictRequest):
             pick_mkt_prob=pick_mkt_prob,
             pick_odds=pick_odds_int,
             is_favorite=is_favorite,
-            is_wmma=bool(is_wmma),
+            is_wmma=is_wmma is True,
             f1_count=f1_count,
             f2_count=f2_count,
         )
+        confidence = describe_confidence(pick_model_prob)
 
         return {
             "fighter1":           req.fighter1,
@@ -292,6 +256,8 @@ async def predict_fight(req: PredictRequest):
             "f2_record":          f"{f2.wins}-{f2.losses}-{f2.draws}",
             "thin_data_warning":  f1_count < 3 or f2_count < 3,
             "is_wmma":            is_wmma,
+            "confidence_score":   confidence["confidence_score"],
+            "confidence_historical_win_rate": confidence["confidence_historical_win_rate"],
             "fight_date":         req.fight_date.isoformat() if req.fight_date else None,
             "bet":                bet_eval["bet"],
             "skip_code":          bet_eval["skip_code"],

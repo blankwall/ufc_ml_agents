@@ -2,9 +2,16 @@ import argparse
 import csv
 import json
 import re
+import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from backtest.confidence_profile import build_confidence_bands
 
 
 @dataclass
@@ -295,7 +302,32 @@ def analyze_edge_tiers(rows):
 
 
 # ---------------------------------------------------------------------------
-# Section 3: Skip reason breakdown  (only relevant when NOT filtering by bets)
+# Section 3: Confidence score bands (pick_prob deciles)
+# ---------------------------------------------------------------------------
+
+def analyze_confidence_scores(rows):
+    print("=" * 80)
+    print("CONFIDENCE SCORE BANDS  (score = pick_prob decile for the current dataset)")
+    print("=" * 80)
+    print(
+        f"{'Score':<7} {'ProbRange':<18} {'N':>5} {'WinRate':>8} "
+        f"{'AvgPred':>8} {'Gap':>8}"
+    )
+    print("-" * 80)
+
+    bands = build_confidence_bands([(row.pick_prob, row.correct) for row in rows])
+    for band in bands:
+        gap = (band.win_rate - band.avg_prob) * 100
+        prob_range = f"{band.min_prob*100:>4.1f}%–{band.max_prob*100:>4.1f}%"
+        print(
+            f"{band.score:<7} {prob_range:<18} {band.sample_size:>5} "
+            f"{band.win_rate:>7.1%} {band.avg_prob:>7.1%} {gap:>+7.1f}pp"
+        )
+    print()
+
+
+# ---------------------------------------------------------------------------
+# Section 4: Skip reason breakdown  (only relevant when NOT filtering by bets)
 # ---------------------------------------------------------------------------
 
 def analyze_skip_reasons(rows):
@@ -336,7 +368,7 @@ def analyze_skip_reasons(rows):
 
 
 # ---------------------------------------------------------------------------
-# Section 4: Weighted ROI using config edge buckets (--config)
+# Section 5: Weighted ROI using config edge buckets (--config)
 # ---------------------------------------------------------------------------
 
 def _get_multiplier(edge: float, female: bool, config: dict) -> float | None:
@@ -480,7 +512,7 @@ def main():
     parser.add_argument(
         "--section",
         type=str,
-        choices=["buckets", "edge", "skip_reasons", "weighted", "all"],
+        choices=["buckets", "edge", "confidence", "skip_reasons", "weighted", "all"],
         default="all",
         help="Which analysis section to show (default: all)",
     )
@@ -507,6 +539,8 @@ def main():
         analyze_confidence_buckets(rows)
     if args.section in ("edge", "all"):
         analyze_edge_tiers(rows)
+    if args.section in ("confidence", "all"):
+        analyze_confidence_scores(rows)
     if args.section in ("skip_reasons", "all") and bets_filter is None:
         analyze_skip_reasons(rows)
 
