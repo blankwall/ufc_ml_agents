@@ -54,6 +54,13 @@ data/predictions/
 # Per-request cache files (regenerated automatically)
 data/future_fight_odds/predictions_cache.json
 
+# Generated backtest inputs
+backtest/odds/ufc_2026_odds.csv
+
+# Generated backtest scratch/results artifacts
+backtest/backtest_results.csv
+backtest/optimize_results.csv
+
 # Models
 # models/saved/*.pkl
 # models/saved/*.pth

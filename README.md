@@ -132,7 +132,7 @@ Evaluate the model on 2025+ data:
 ```bash
 python -m evaluation.evaluate_model \
   --data-path data/processed/training_data.csv \
-  --odds-path ufc_2025_odds.csv \
+  --odds-path backtest/odds/ufc_2025_odds.csv \
   --min-year 2025 \
   --output-dir reports4 \
   --odds-date-tolerance-days 5 \

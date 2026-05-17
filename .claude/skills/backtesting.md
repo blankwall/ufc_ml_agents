@@ -9,7 +9,7 @@ The backtest pipeline evaluates the `mar_4_v2` model against real historical odd
 ## Step 1 — Generate a Results CSV
 
 `backtest/backtest_2025.py` is the primary backtest runner. It:
-- Loads odds from a CSV (exported from DB via `scripts/export_odds_from_db.py`)
+- Loads odds from a canonical CSV (`backtest/odds/ufc_2025_odds.csv` or generated `backtest/odds/ufc_2026_odds.csv`)
 - Resolves fighter names to DB IDs (with `_NAME_FIXES` alias dict for BFO→DB mismatches)
 - Runs **in-process symmetric predictions**: scores both `(A vs B)` and `(B vs A)`, averages → `P_sym`
 - Applies underdog blend (if enabled in config: `UNDERDOG_BLEND=False` by default)
@@ -18,14 +18,16 @@ The backtest pipeline evaluates the `mar_4_v2` model against real historical odd
 
 ```bash
 # Standard run — 2025 season
-python backtest/backtest_2025.py --odds data/odds/db_odds_2025.csv --model mar_4_v2
+python backtest/backtest_2025.py --odds backtest/odds/ufc_2025_odds.csv --model mar_4_v2
 
 # With explicit config
-python backtest/backtest_2025.py --odds data/odds/db_odds_2025.csv --config backtest/backtest_config.json
+python backtest/backtest_2025.py --odds backtest/odds/ufc_2025_odds.csv --config backtest/backtest_config.json
 
-# 2026 live events (reads scraped BFO CSVs + outcomes.csv directly, no DB odds needed)
-python backtest/backtest_live.py
-python backtest/backtest_live.py --event "UFC 327" --edge 0.10 --quiet
+# 2026 season (same script, point at the 2026 odds CSV with a future cutoff)
+python backtest/backtest_2025.py \
+  --odds backtest/odds/ufc_2026_odds.csv \
+  --cutoff 2027-01-01 \
+  --quiet
 ```
 
 ### Results CSV schema
@@ -47,7 +49,6 @@ Key columns:
 |---|---|---|---|
 | `backtest/backtest_2025_results.csv` | 2025 | ~359 | True out-of-sample for `mar_4_v2` |
 | `backtest/backtest_2026_results.csv` | 2026 | ~136 | Growing as events are scraped |
-| `backtest/backtest_results.csv` | 2026 | ~136 | Alias for current year results |
 
 ---
 
@@ -134,10 +135,10 @@ Shows per tier: Mult, N/W/L, WinRate, Staked $, Profit $, ROI%, AvgEdge. Totals 
 
 ## Step 3 — Optimize Config (optional)
 
-`backtest/optimize_config.py` grid-searches parameter combinations to maximize P&L. Pure pandas — no model inference, runs in seconds on existing results CSVs. Saves all combos to `backtest/optimize_results.csv`.
+`backtest/optimize_config.py` grid-searches parameter combinations to maximize P&L. Pure pandas — no model inference, runs in seconds on existing results CSVs. Writes generated `backtest/optimize_results.csv` locally; that file is ignored and should not be committed.
 
 ```bash
-python backtest/optimize_config.py --results backtest/backtest_results.csv --top 20 --sort-by roi
+python backtest/optimize_config.py --results backtest/backtest_2026_results.csv --top 20 --sort-by roi
 ```
 
 Parameters tuned: `edge_underdog`, `confidence_favorite`, `confidence_underdog`, `favorite_odds_cap`, `underdog_odds_cap`, `female` (True/False).
@@ -199,14 +200,52 @@ When `--bets` is passed to `bucket_analysis.py`, only rows where `(date, normali
 
 ---
 
-## 2026 Live Backtest Data
+## 2026 Backtest Data
+
+2026 uses the same `backtest_2025.py` script — no separate live runner. `backtest/odds/ufc_2026_odds.csv` is a **generated file** — build it first with `rebuild_2026_odds.py`, which merges all 2026 data sources (BFO CSVs, user event JSONs, DB results).
+
+```bash
+# Step 0 — build the 2026 odds input file (must run before backtest)
+python backtest/rebuild_2026_odds.py
+# outputs backtest/odds/ufc_2026_odds.csv
+
+# Step 1 — run the backtest
+python backtest/backtest_2025.py \
+  --odds backtest/odds/ufc_2026_odds.csv \
+  --cutoff 2027-01-01 \
+  --quiet
+```
 
 | File | Purpose |
 |---|---|
-| `data/future_fight_odds/all_events.csv` | Scraped BFO odds (~60 rows, 9+ events) |
-| `data/future_fight_odds/outcomes.csv` | UFC Stats results (~75 rows) |
-| `data/future_fight_odds/predictions.csv` | Output written by `backtest_live.py` |
-| `data/user_events/*.json` | Events added via `POST /api/add-event` or `/api/analyze` |
+| `backtest/rebuild_2026_odds.py` | Builds `backtest/odds/ufc_2026_odds.csv` from all 2026 sources |
+| `backtest/odds/ufc_2026_odds.csv` | Generated odds input (not committed) |
+| `data/future_fight_odds/ufc*.csv` | Per-event BFO odds CSVs |
+| `data/future_fight_odds/outcomes.csv` | UFC Stats results |
+| `data/user_events/*.json` | Events added via `POST /api/add-event` |
+| `backtest/backtest_2026_results.csv` | Output results CSV |
+
+---
+
+## Cleaned Backtest Layout
+
+Canonical backtesting now lives in a small active surface:
+
+| Path | Status |
+|---|---|
+| `backtest/backtest_2025.py` | Active formal runner for 2025 and 2026 |
+| `backtest/rebuild_2026_odds.py` | Active 2026 odds-input generator |
+| `backtest/bucket_analysis.py` | Active analyzer |
+| `backtest/confidence_profile.py` | Active confidence scoring helper |
+| `backtest/optimize_config.py` | Optional active grid-search helper |
+| `backtest/odds/ufc_2025_odds.csv` | Tracked canonical 2025 odds input |
+| `backtest/odds/ufc_2026_odds.csv` | Generated/ignored 2026 odds input |
+| `backtest/archive/backtest_live.py` | Archived legacy prototype; do not use for formal backtesting |
+| `backtest/archive/backtest_underdog.py` | Archived underdog-model research |
+
+Generated scratch artifacts are intentionally removed/ignored:
+- `backtest/backtest_results.csv`
+- `backtest/optimize_results.csv`
 
 ---
 
@@ -234,18 +273,23 @@ Where `prob_edge = pick_prob - market_implied_prob(pick_odds)`.
 
 **Re-run 2025 backtest with new config thresholds:**
 ```bash
-python backtest/backtest_2025.py --odds data/odds/db_odds_2025.csv --model mar_4_v2
+python backtest/backtest_2025.py --odds backtest/odds/ufc_2025_odds.csv --model mar_4_v2
 python backtest/bucket_analysis.py --results backtest/backtest_2025_results.csv
 ```
 
-**Check what the model actually made on real bets this year:**
+**Run 2026 backtest (rebuild odds file first):**
 ```bash
+python backtest/rebuild_2026_odds.py
+python backtest/backtest_2025.py \
+  --odds backtest/odds/ufc_2026_odds.csv \
+  --cutoff 2027-01-01 \
+  --quiet
 python backtest/bucket_analysis.py --results backtest/backtest_2026_results.csv --bets backtest/bets.txt
 ```
 
 **Find optimal config parameters:**
 ```bash
-python backtest/optimize_config.py --results backtest/backtest_results.csv --top 20
+python backtest/optimize_config.py --results backtest/backtest_2026_results.csv --top 20
 ```
 
 **Check single analysis section quickly:**
