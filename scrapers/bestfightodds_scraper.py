@@ -98,6 +98,24 @@ def _extract_odds_from_span(span) -> Optional[int]:
     return None
 
 
+def _extract_fighter_name(th) -> str:
+    """
+    Extract the visible fighter name from a matchup header cell.
+
+    BFO event rows can include a hidden admin link like /cnadm/matchups/41970
+    before the real /fighters/... link. Reading the whole <th> text would
+    incorrectly prefix names with that matchup ID.
+    """
+    if th is None:
+        return ""
+
+    fighter_link = th.find("a", href=re.compile(r"^/fighters/"))
+    if fighter_link:
+        return fighter_link.get_text(" ", strip=True)
+
+    return th.get_text(" ", strip=True)
+
+
 # ── Main Scraper Class ────────────────────────────────────────────────────────
 
 class BestFightOddsScraper:

@@ -112,15 +112,22 @@
 <div class="modal-overlay hidden" id="addEventOverlay">
   <div class="modal-box">
     <div class="modal-header">
-      <span class="modal-title">Add Event</span>
+      <span class="modal-title" id="modalTitle">Add Event</span>
       <button class="modal-close" id="addEventClose">✕</button>
     </div>
     <div class="modal-body">
-      <label class="modal-label">BestFightOdds URL <span class="req">*</span></label>
+      <label class="modal-label">BestFightOdds URL <span class="req" id="bfoReq">*</span></label>
       <input type="url" id="bfoUrl" class="modal-input"
              placeholder="https://www.bestfightodds.com/events/ufc-4025" />
 
-      <label class="modal-label" style="margin-top:14px">UFCStats URL <span class="modal-optional">(optional — adds results)</span></label>
+      <div id="eventSelectorWrap" class="hidden" style="margin-top:14px">
+        <label class="modal-label">Select Event <span class="req">*</span></label>
+        <select id="eventSelector" class="modal-input modal-select">
+          <option value="">— Choose an event —</option>
+        </select>
+      </div>
+
+      <label class="modal-label" style="margin-top:14px">UFCStats URL <span class="modal-optional" id="ufcOptional">(optional — adds results)</span></label>
       <input type="url" id="ufcStatsUrl" class="modal-input"
              placeholder="http://ufcstats.com/event-details/…" />
 

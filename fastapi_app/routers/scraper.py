@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-from services.scraper_service import scrape_and_save, list_user_events, delete_user_event, _slug, USER_EVENTS_DIR
+from services.scraper_service import scrape_and_save, list_user_events, delete_user_event, update_results, _slug, USER_EVENTS_DIR
 from services.predict_service import analyze_event
 
 router = APIRouter()
@@ -11,6 +11,10 @@ router = APIRouter()
 class AddEventRequest(BaseModel):
     bfo_url: str
     ufc_stats_url: Optional[str] = None
+
+
+class UpdateResultsRequest(BaseModel):
+    ufc_stats_url: str
 
 
 class AnalyzeRequest(BaseModel):
@@ -49,6 +53,21 @@ async def api_delete_user_event(slug: str):
     if not deleted:
         raise HTTPException(status_code=404, detail=f"No user event with slug '{slug}'")
     return {"status": "deleted", "slug": slug}
+
+
+@router.post("/user-events/{slug}/results")
+async def api_update_results(slug: str, body: UpdateResultsRequest):
+    """
+    Update results for an existing event without re-scraping odds.
+    Provide the event slug and a UFC Stats URL.
+    """
+    try:
+        result = update_results(slug, body.ufc_stats_url)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Update failed: {e}")
+    return result
 
 
 # ── One-shot analyze ──────────────────────────────────────────────────────────

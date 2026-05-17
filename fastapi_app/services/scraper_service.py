@@ -134,3 +134,46 @@ def delete_user_event(slug: str) -> bool:
         path.unlink()
         return True
     return False
+
+
+def update_results(slug: str, ufc_stats_url: str) -> dict:
+    """
+    Update results for an existing event without re-scraping odds.
+
+    Loads the existing JSON, scrapes outcomes from UFC Stats, updates
+    the outcomes field, and saves back.
+
+    Raises ValueError if the event doesn't exist or scraping fails.
+    """
+    ev_path = USER_EVENTS_DIR / f"{slug}.json"
+    if not ev_path.exists():
+        raise ValueError(f"No event found with slug '{slug}'")
+
+    # Load existing event data
+    payload = json.loads(ev_path.read_text())
+
+    # Scrape outcomes from UFC Stats
+    outcomes = _scrape_outcomes(ufc_stats_url.strip())
+    if not outcomes:
+        raise ValueError(f"No outcomes found at UFC Stats URL: {ufc_stats_url}")
+
+    # Stamp with event name if missing
+    event_name = payload.get("event_name", "")
+    for o in outcomes:
+        if not o.get("event_name"):
+            o["event_name"] = event_name
+
+    # Update payload
+    payload["ufc_stats_url"] = ufc_stats_url.strip()
+    payload["outcomes"] = outcomes
+    payload["results_updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Save back
+    ev_path.write_text(json.dumps(payload, indent=2))
+
+    return {
+        "status": "ok",
+        "slug": slug,
+        "event_name": event_name,
+        "outcomes_scraped": len(outcomes),
+    }

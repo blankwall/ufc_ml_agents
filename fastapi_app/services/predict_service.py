@@ -347,6 +347,7 @@ def _load_all_odds() -> pd.DataFrame:
 
     # Normalise column names
     odds.columns = [c.strip().lower() for c in odds.columns]
+    odds = _sanitize_fighter_columns(odds)
 
     # Build fight pair key using alias-resolved names so e.g. "Bobby Green" and
     # "King Green" in the same event collapse to one canonical row.
@@ -413,11 +414,31 @@ def _load_outcomes() -> pd.DataFrame:
     return out
 
 
+def _clean_fighter_name(name: str) -> str:
+    """
+    Strip BFO admin matchup IDs accidentally prefixed to cached fighter names.
+
+    Example: "41970Carlos Prates" -> "Carlos Prates"
+    """
+    import re
+
+    cleaned = str(name).strip()
+    return re.sub(r"^\d{4,}\s*(?=[A-Z])", "", cleaned)
+
+
+def _sanitize_fighter_columns(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    for col in ("fighter1", "fighter2"):
+        if col in df.columns:
+            df[col] = df[col].map(_clean_fighter_name)
+    return df
+
+
 def _normalize_name(name: str) -> str:
     """Lowercase, normalise punctuation that varies across sources.
     Hyphens become spaces; apostrophes and dots are dropped."""
     import unicodedata, re
-    n = name.lower().strip()
+    n = _clean_fighter_name(name).lower().strip()
     n = unicodedata.normalize("NFKD", n).encode("ascii", "ignore").decode()
     n = n.replace("-", " ")          # hyphen → space (Cortes-Acosta → Cortes Acosta)
     n = re.sub(r"['\.`]", "", n)     # drop apostrophes and dots
@@ -481,8 +502,8 @@ def _run_prediction_loop(
                 fightkey_to_ev_name[nk] = name
 
     for _, row in odds_df.iterrows():
-        f1_name     = str(row.get("fighter1", "")).strip()
-        f2_name     = str(row.get("fighter2", "")).strip()
+        f1_name     = _clean_fighter_name(str(row.get("fighter1", "")))
+        f2_name     = _clean_fighter_name(str(row.get("fighter2", "")))
         ev_date     = str(row.get("event_date", "")).strip()
         ev_url      = str(row.get("event_url", "")).strip()
         f1_odds     = row.get("fighter1_odds")
@@ -711,6 +732,7 @@ def analyze_event(bfo_url: str, ufc_stats_url: Optional[str] = None) -> dict:
     # Build minimal DataFrames (same schema as the CSV pipeline)
     odds_df = pd.DataFrame(fight_rows)
     odds_df.columns = [c.strip().lower() for c in odds_df.columns]
+    odds_df = _sanitize_fighter_columns(odds_df)
 
     if outcome_rows:
         outcomes_df = pd.DataFrame(outcome_rows)

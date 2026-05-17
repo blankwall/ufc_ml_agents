@@ -497,6 +497,8 @@ function fmtOdds(n) {
 }
 
 /* ── Add Event modal ────────────────────────────────────────────────────────── */
+let userEventsList = [];
+
 function wireAddEvent() {
   const fab      = document.getElementById('addEventFab');
   const overlay  = document.getElementById('addEventOverlay');
@@ -506,9 +508,63 @@ function wireAddEvent() {
   const bfoInput = document.getElementById('bfoUrl');
   const statsInput = document.getElementById('ufcStatsUrl');
   const errEl    = document.getElementById('addEventError');
+  const modalTitle = document.getElementById('modalTitle');
+  const eventSelectorWrap = document.getElementById('eventSelectorWrap');
+  const eventSelector = document.getElementById('eventSelector');
+  const bfoReq = document.getElementById('bfoReq');
+  const ufcOptional = document.getElementById('ufcOptional');
 
-  function openModal()  { overlay.classList.remove('hidden'); bfoInput.focus(); }
-  function closeModal() { overlay.classList.add('hidden'); errEl.classList.add('hidden'); errEl.textContent = ''; }
+  function openModal()  {
+    overlay.classList.remove('hidden');
+    bfoInput.focus();
+    updateModalMode();
+  }
+  function closeModal() {
+    overlay.classList.add('hidden');
+    errEl.classList.add('hidden');
+    errEl.textContent = '';
+    bfoInput.value = '';
+    statsInput.value = '';
+    updateModalMode();
+  }
+
+  // Dynamically update modal based on inputs
+  function updateModalMode() {
+    const bfoVal = bfoInput.value.trim();
+    const statsVal = statsInput.value.trim();
+
+    if (!bfoVal && statsVal) {
+      // Only UFC Stats provided → Add Results mode
+      modalTitle.textContent = 'Add Results';
+      submitBtn.textContent = 'Add Results';
+      eventSelectorWrap.classList.remove('hidden');
+      bfoReq.classList.add('hidden');
+      ufcOptional.classList.add('hidden');
+      loadUserEvents();
+    } else {
+      // Normal mode: Add Event
+      modalTitle.textContent = 'Add Event';
+      submitBtn.textContent = 'Scrape & Add';
+      eventSelectorWrap.classList.add('hidden');
+      bfoReq.classList.remove('hidden');
+      ufcOptional.classList.remove('hidden');
+    }
+  }
+
+  async function loadUserEvents() {
+    if (userEventsList.length === 0) {
+      try {
+        const res = await fetch('/api/user-events');
+        if (res.ok) userEventsList = await res.json();
+      } catch (e) { console.error('Failed to load user events', e); }
+    }
+    // Populate dropdown
+    eventSelector.innerHTML = '<option value="">— Choose an event —</option>' +
+      userEventsList.map(e => `<option value="${e.slug}">${e.event_name} (${e.event_date})</option>`).join('');
+  }
+
+  bfoInput.addEventListener('input', updateModalMode);
+  statsInput.addEventListener('input', updateModalMode);
 
   fab.addEventListener('click', openModal);
   closeBtn.addEventListener('click', closeModal);
@@ -518,45 +574,87 @@ function wireAddEvent() {
   submitBtn.addEventListener('click', async () => {
     const bfoUrl   = bfoInput.value.trim();
     const statsUrl = statsInput.value.trim();
+    const isResultsMode = !bfoUrl && statsUrl;
 
-    if (!bfoUrl) {
-      showErr('BestFightOdds URL is required.');
-      return;
-    }
-
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Scraping…';
-    errEl.classList.add('hidden');
-
-    try {
-      const res = await fetch('/api/add-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bfo_url: bfoUrl, ufc_stats_url: statsUrl || null }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ detail: res.statusText }));
-        throw new Error(body.detail || res.statusText);
+    if (isResultsMode) {
+      // Add Results mode
+      const slug = eventSelector.value;
+      if (!slug) {
+        showErr('Please select an event to update.');
+        return;
+      }
+      if (!statsUrl) {
+        showErr('UFCStats URL is required.');
+        return;
       }
 
-      const result = await res.json();
-      closeModal();
-      bfoInput.value   = '';
-      statsInput.value = '';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Updating…';
+      errEl.classList.add('hidden');
 
-      // Reload events (new event is now in user_events dir)
-      await reloadEvents();
-      // Jump to the newly added event tab (it will be last or close to last)
-      const newIdx = allEvents.findIndex(e => e.source_type === 'user_added' &&
-        (e.event_url === bfoUrl || e.event_name === result.event_name));
-      if (newIdx >= 0) selectEvent(newIdx);
+      try {
+        const res = await fetch(`/api/user-events/${encodeURIComponent(slug)}/results`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ufc_stats_url: statsUrl }),
+        });
 
-    } catch (err) {
-      showErr(err.message);
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Scrape & Add';
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(body.detail || res.statusText);
+        }
+
+        closeModal();
+        await reloadEvents();
+        // Jump to the updated event
+        const idx = allEvents.findIndex(e => e.event_url && e.event_url.includes(slug));
+        if (idx >= 0) selectEvent(idx);
+
+      } catch (err) {
+        showErr(err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add Results';
+      }
+    } else {
+      // Scrape & Add mode (existing behavior)
+      if (!bfoUrl) {
+        showErr('BestFightOdds URL is required.');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Scraping…';
+      errEl.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/add-event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bfo_url: bfoUrl, ufc_stats_url: statsUrl || null }),
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(body.detail || res.statusText);
+        }
+
+        const result = await res.json();
+        closeModal();
+
+        // Reload events (new event is now in user_events dir)
+        await reloadEvents();
+        // Jump to the newly added event tab (it will be last or close to last)
+        const newIdx = allEvents.findIndex(e => e.source_type === 'user_added' &&
+          (e.event_url === bfoUrl || e.event_name === result.event_name));
+        if (newIdx >= 0) selectEvent(newIdx);
+
+      } catch (err) {
+        showErr(err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Scrape & Add';
+      }
     }
   });
 
