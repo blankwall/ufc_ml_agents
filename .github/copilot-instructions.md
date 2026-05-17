@@ -10,12 +10,95 @@ UFC fight prediction platform: XGBoost model (`mar_4_v2`, 251 features) → Fast
 # FastAPI dev server (from repo root)
 cd fastapi_app && ../.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 
-# Bucket analysis (post-backtest)
-.venv/bin/python backtest/bucket_analysis.py --results backtest/backtest_2026_results.csv --bets backtest/bets.txt
-.venv/bin/python backtest/bucket_analysis.py --results backtest/backtest_2025_results.csv --bets backtest/bets_2025.txt
+# Run tests
+.venv/bin/pytest -q tests/
 ```
 
-There is no automated test suite. Validate changes by running the app and checking outputs manually.
+## Backtest Pipeline
+
+The backtest pipeline is two commands: **generate results CSV** → **analyze with bucket_analysis**.
+
+### Step 1 — Generate results CSV
+
+`backtest/backtest_2025.py` loads odds from a CSV (exported from DB), runs in-process symmetric predictions (no subprocess) for every fight, applies the config-driven `should_bet()` filter, and writes a results CSV.
+
+```bash
+# 2025 season (true out-of-sample for mar_4_v2)
+python backtest/backtest_2025.py --odds data/odds/db_odds_2025.csv --model mar_4_v2
+
+# Use a custom config (edge_min, confidence thresholds, odds caps)
+python backtest/backtest_2025.py --config backtest/backtest_config.json
+
+# 2026 season (use the live backtest script instead — reads scraped CSVs directly)
+python backtest/backtest_live.py --model mar_4_v2 --edge 0.05
+```
+
+**Output CSV columns:** `date, fighter1, fighter2, odds1, odds2, prob1, prob2, pick, pick_odds, pick_prob, ev1, ev2, winner, pick_correct, actual_pnl, bet, skip_reason, error, female`
+
+- `bet=True/False` — whether the bet passed the config filter
+- `skip_reason` — human-readable reason for skips (e.g. `"favorite confidence (58.4% < 65.0%)"`)
+- `actual_pnl` — P&L per unit if the bet was placed (positive=win, -1=loss)
+- `female=True` — women's divisions (detected via `Fight.weight_class.startswith("Women's")`)
+
+**Key files:**
+- `backtest/backtest_2025_results.csv` — 2025 results (359 fights)
+- `backtest/backtest_2026_results.csv` — 2026 results (136 fights, growing)
+- `backtest/backtest_config.json` — per-run config (model, cutoffs, edge/confidence thresholds, odds caps)
+- `config/betting_config.json` — site-facing config (also used by `bucket_analysis --config`)
+- `backtest/bets_2025.txt` — manually curated actual bets placed in 2025 (line format: `[YYYY-MM-DD] Fighter @ odds  prob=X%  ev=+Y  WON/LOST (pnl)  vs Opponent`)
+- `backtest/bets.txt` — 2026 actual bets
+
+### Step 2 — Bucket analysis
+
+`backtest/bucket_analysis.py` is the post-backtest analytical layer. It slices the results CSV five ways.
+
+```bash
+# Full analysis — all 5 sections
+python backtest/bucket_analysis.py --results backtest/backtest_2025_results.csv
+
+# Filter to only fights that were actually bet on (bets.txt contains real placed bets)
+python backtest/bucket_analysis.py --results backtest/backtest_2025_results.csv --bets backtest/bets_2025.txt
+
+# 2026 with betting config for weighted ROI
+python backtest/bucket_analysis.py --results backtest/backtest_2026_results.csv --bets backtest/bets.txt
+
+# Single section (buckets | edge | confidence | skip_reasons | weighted)
+python backtest/bucket_analysis.py --results backtest/backtest_2025_results.csv --section edge
+```
+
+**The 5 analysis sections:**
+
+1. **ODDS BUCKET BREAKDOWN** (`--section buckets`) — groups bets by market odds: `-400` (78–99%), `-300` (71–78%), `-200` (60–71%), `+200` (37–60%), `+300` (22–37%), `+400` (<22%). Shows N/W/L, WinRate, Profit, ROI, AvgEdge, AvgConf per bucket + M/F gender split.
+
+2. **EDGE-TIER BREAKDOWN** (`--section edge`) — groups by model edge: `0–5%`, `5–10%`, `10–15%`, `15%+`. Same stats. Shows whether higher edge actually translates to higher ROI.
+
+3. **CONFIDENCE SCORE BANDS** (`--section confidence`) — decile-based confidence scoring (1–10). Computed from `confidence_profile.py` which splits all pick_prob values into 10 equal-size buckets ranked by prob. Shows AvgPred vs actual WinRate per band — the calibration gap. This is the canonical way to report how well-calibrated the model is.
+
+4. **SKIP REASON BREAKDOWN** (`--section skip_reasons`) — only shown when no `--bets` filter. Tallies which config filter rejected the most fights: `favorite confidence`, `favorite cap`, `underdog confidence`, `underdog cap`, `underdog edge`, `min_fights`, `female`. Critical for tuning `backtest_config.json`.
+
+5. **WEIGHTED ROI ANALYSIS** (`--section weighted`) — reads `config/betting_config.json` edge_buckets and applies variable bet sizing: 0–5% skip, 5–10% at 1x, 10–20% at 1.5x, 20%+ at 2x. Shows side-by-side flat vs weighted P&L. WMMA (women's) fights capped at 1x and require ≥10% edge. This is the most realistic P&L projection.
+
+### Step 3 — Optimize config (optional)
+
+`backtest/optimize_config.py` grid-searches across edge, confidence, and odds-cap parameters to maximize P&L. Vectorized — no model inference, runs in seconds. Saves `backtest/optimize_results.csv` with all combos ranked.
+
+```bash
+python backtest/optimize_config.py --results backtest/backtest_results.csv --top 20 --sort-by roi
+```
+
+### Step 4 — 2026 live backtest
+
+`backtest/backtest_live.py` reads `data/future_fight_odds/all_events.csv` (scraped BFO odds) and `data/future_fight_odds/outcomes.csv` (UFC Stats results). Runs in-process predictions. Used for events that haven't been imported to the DB yet.
+
+```bash
+python backtest/backtest_live.py                     # all 2026 events
+python backtest/backtest_live.py --event "UFC 327"   # single event
+python backtest/backtest_live.py --edge 0.10 --quiet # only ≥10% edge, summary only
+```
+
+### The confidence scoring system
+
+`backtest/confidence_profile.py` provides `build_confidence_bands()` which splits all `pick_prob` values from both `backtest_2025_results.csv` and `backtest_2026_results.csv` into 10 decile bands (score 1–10). The `/api/predict` endpoint uses `describe_confidence()` from this module to attach a confidence score to every prediction — this is what the events UI displays as the confidence score badge.
 
 ## Architecture
 
@@ -56,16 +139,24 @@ Fighter names vary between data sources. `FIGHTER_ALIASES` dict in `predict_serv
 ### Underdog Blend
 `UNDERDOG_BLEND = False` in `predict_service.py`. The secondary `underdog_v1` model exists but is disabled — the general model performs better alone.
 
-## Backtest Data Flow
+## Test Suite
 
-```
-backtest/backtest_2025_results.csv  ─┐
-backtest/bets_2025.txt              ─┤─→ bucket_analysis.py ─→ odds buckets, edge tiers, weighted ROI
-backtest/backtest_2026_results.csv  ─┤
-backtest/bets.txt                   ─┘
+```bash
+.venv/bin/pytest -q tests/   # 33 tests, ~30s
 ```
 
-CSV columns: `date, fighter1, fighter2, odds1, odds2, prob1, prob2, pick, pick_odds, pick_prob, ev1, ev2, winner, pick_correct, actual_pnl, bet, skip_reason, error, female`
+| Test file | What it covers |
+|---|---|
+| `test_skip_codes_exhaustive.py` | Every skip code in `_evaluate_bet()` (predict router). Catches ordering bugs that shadow later checks. Uses synthetic inputs against `config/betting_config.json`. |
+| `test_bet_sizing_buckets.py` | Edge bucket boundaries and WMMA multiplier caps mirror JS logic in `events.js`. Pins the spec: 0–5% skip, 5–10% 1×, 10–20% 1.5×, 20%+ 2×. |
+| `test_confidence_profile.py` | `build_confidence_bands()` decile logic — verifies 10 bands, monotonic prob ordering, edge cases. |
+| `test_fighter_alias_resolution.py` | FIGHTER_ALIASES lookup and name normalization in `predict_service.py`. |
+| `test_no_lookahead_leakage.py` | Point-in-time integrity: features at `as_of=D` and `as_of=D-1day` must be identical (fight at D excluded from both). Features at `as_of=D+1day` must differ. Guards against `<` → `<=` regressions in feature extractor. |
+| `test_predict_response.py` | `/api/predict` endpoint response shape and field presence. |
+| `test_predict_symmetry.py` | Model is symmetric: `P(A beats B) + P(B beats A) ≈ 1.0`. |
+| `test_ufc_328_consistency.py` | Event-level regression: UFC 328 predictions are stable across runs. |
+
+**Note:** `test_ufc_328_consistency.py` requires `playwright` (`pip install playwright`). All others have no heavy external dependencies beyond the repo's `.venv`.
 
 ## Key Model Artifacts
 
