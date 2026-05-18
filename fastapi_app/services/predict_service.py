@@ -29,6 +29,7 @@ from sqlalchemy.orm import sessionmaker
 from features.matchup_features import MatchupFeatureExtractor
 from database.schema import Event as _Event, Fight as _Fight
 from models.utils import resolve_model_dir
+from fastapi_app.services.the_odds_api_service import get_bet_placed_map
 
 ODDS_DIR         = ROOT_DIR / "data" / "future_fight_odds"
 USER_EVENTS_DIR  = ROOT_DIR / "data" / "user_events"
@@ -44,6 +45,10 @@ UNDERDOG_BLEND   = False  # set True to re-enable the underdog_v1 blend
 # ── model loaders (reuse backtest_engine pattern) ────────────────────────────
 _gen_model = _gen_scaler = _gen_features = None
 _ud_model  = _ud_scaler  = _ud_features  = None
+
+
+def _now() -> datetime:
+    return datetime.now()
 
 
 def _load_general_model():
@@ -179,34 +184,58 @@ def _parse_event_date(s: str) -> Optional[datetime]:
     Returns None for future fights (no as_of restriction needed) or unparseable strings.
     """
     import re as _re
+    dt = _parse_event_date_any(s)
+    return dt if dt is not None and dt <= _now() else None
+
+
+def _parse_event_date_any(s: str) -> Optional[datetime]:
+    """Parse an event date string without filtering out future dates."""
+    import re as _re
+
     if not s or s.lower() in ("", "nan", "none"):
         return None
     cleaned = _re.sub(r"(\d+)(st|nd|rd|th)\b", r"\1", s.strip())
 
-    # Try formats that include the year first
     for fmt in ("%B %d, %Y", "%Y-%m-%d", "%m/%d/%Y", "%b %d, %Y", "%d %B %Y", "%B %d %Y"):
         try:
-            dt = datetime.strptime(cleaned, fmt)
-            # Only use as as_of_date if the fight is in the past
-            return dt if dt <= datetime.now() else None
+            return datetime.strptime(cleaned, fmt)
         except ValueError:
             continue
 
-    # Try year-less formats — assume current year (works for both past and
-    # upcoming events; never silently roll back to last year, which causes
-    # stale features and wrong cache keys).
     for fmt in ("%B %d", "%b %d"):
         try:
             partial = datetime.strptime(cleaned, fmt)
-            return partial.replace(year=datetime.now().year)
+            return partial.replace(year=_now().year)
         except ValueError:
             continue
 
     try:
-        dt = pd.to_datetime(cleaned, errors="raise").to_pydatetime()
-        return dt if dt <= datetime.now() else None
+        return pd.to_datetime(cleaned, errors="raise").to_pydatetime()
     except Exception:
         return None
+
+
+def _cache_key_for_prediction(fight_key: str, *, as_of: Optional[datetime], event_date: str) -> str:
+    """Use date-anchored keys for history and roll future-fight cache daily."""
+    event_dt = _parse_event_date_any(event_date)
+    if event_dt is not None and event_dt.date() > _now().date():
+        return f"{fight_key}|future|{event_dt.strftime('%Y-%m-%d')}|{_now().strftime('%Y-%m-%d')}"
+
+    if as_of is not None:
+        return f"{fight_key}|{as_of.strftime('%Y-%m-%d')}"
+
+    return fight_key
+
+
+def _prune_stale_future_cache(cache: dict) -> tuple[dict, bool]:
+    """Drop prior-day future-fight cache entries so they recompute daily."""
+    today_key = f"|{_now().strftime('%Y-%m-%d')}"
+    pruned = {
+        key: value
+        for key, value in cache.items()
+        if "|future|" not in key or key.endswith(today_key)
+    }
+    return pruned, len(pruned) != len(cache)
 
 
 def _fight_count_as_of(session, fighter_id: int, as_of: Optional[datetime]) -> int:
@@ -323,6 +352,16 @@ def _load_all_odds() -> pd.DataFrame:
         except Exception:
             pass
 
+    # ── Generated The Odds API CSVs (supplemental, lower priority than manual/BFO) ──
+    for csv in sorted(ODDS_DIR.glob("the_odds_api*.csv")):
+        try:
+            df = pd.read_csv(csv)
+            df["source_file"] = csv.name
+            df["source_type"] = "the_odds_api"
+            frames.append(df)
+        except Exception:
+            pass
+
     # ── User-added events (data/user_events/*.json) ───────────────────────────
     if USER_EVENTS_DIR.exists():
         for jf in sorted(USER_EVENTS_DIR.glob("*.json")):
@@ -348,6 +387,9 @@ def _load_all_odds() -> pd.DataFrame:
     # Normalise column names
     odds.columns = [c.strip().lower() for c in odds.columns]
     odds = _sanitize_fighter_columns(odds)
+    for col in ("event_url", "event_name", "event_date", "source_file", "source_type", "last_update"):
+        if col in odds.columns:
+            odds[col] = odds[col].fillna("")
 
     # Build fight pair key using alias-resolved names so e.g. "Bobby Green" and
     # "King Green" in the same event collapse to one canonical row.
@@ -374,8 +416,10 @@ def _load_all_odds() -> pd.DataFrame:
         m = _re.search(r'_(\d+)(?:\.json|\.csv)?$', str(src))
         return int(m.group(1)) if m else 0
     odds["_src_id"] = odds["source_file"].apply(_src_id)
-    odds = odds.sort_values("_src_id", ascending=False)
-    odds = odds.drop_duplicates("_key", keep="first").drop(columns=["_key", "_src_id"])
+    odds["_priority"] = odds["source_type"].map({"user_added": 3, "csv": 2, "the_odds_api": 1}).fillna(0)
+    odds["_last_update"] = pd.to_datetime(odds.get("last_update"), errors="coerce", utc=True)
+    odds = odds.sort_values(["_priority", "_src_id", "_last_update"], ascending=[False, False, False])
+    odds = odds.drop_duplicates("_key", keep="first").drop(columns=["_key", "_src_id", "_priority", "_last_update"])
 
     return odds.reset_index(drop=True)
 
@@ -491,6 +535,7 @@ def _run_prediction_loop(
     """
     cache_dirty = False
     events_map: dict[str, dict] = {}
+    tracked_bets = get_bet_placed_map()
 
     # norm_key → real event name (outcomes have the authoritative UFC names)
     fightkey_to_ev_name: dict[str, str] = {}
@@ -502,10 +547,16 @@ def _run_prediction_loop(
                 fightkey_to_ev_name[nk] = name
 
     for _, row in odds_df.iterrows():
+        def _clean_str(value) -> str:
+            if pd.isna(value):
+                return ""
+            text = str(value).strip()
+            return "" if text.lower() == "nan" else text
+
         f1_name     = _clean_fighter_name(str(row.get("fighter1", "")))
         f2_name     = _clean_fighter_name(str(row.get("fighter2", "")))
-        ev_date     = str(row.get("event_date", "")).strip()
-        ev_url      = str(row.get("event_url", "")).strip()
+        ev_date     = _clean_str(row.get("event_date", ""))
+        ev_url      = _clean_str(row.get("event_url", ""))
         f1_odds     = row.get("fighter1_odds")
         f2_odds     = row.get("fighter2_odds")
         # Derive raw implied probabilities from odds when available so that
@@ -529,20 +580,28 @@ def _run_prediction_loop(
 
 
 
-        source_type = str(row.get("source_type", "csv"))
-        ev_name     = str(row.get("event_name", "")).strip()
+        source_type = _clean_str(row.get("source_type", "csv")) or "csv"
+        ev_name     = _clean_str(row.get("event_name", ""))
 
         f1_canonical = FIGHTER_ALIASES.get(f1_name, f1_name)
         f2_canonical = FIGHTER_ALIASES.get(f2_name, f2_name)
         fkey = _fight_key(f1_canonical, f2_canonical)
 
-        # Parse the event date so we can pass it as as_of_date to prevent
-        # the model from seeing fight results that hadn't happened yet.
-        as_of = _parse_event_date(ev_date)
+        # Use the scheduled event date for point-in-time feature extraction so
+        # /events matches /api/predict on future fights too.
+        as_of = _parse_event_date_any(ev_date)
 
-        # Cache key includes the date so past-fight predictions (computed with
-        # as_of_date) are stored separately from undated future-fight predictions.
-        cache_key = f"{fkey}|{as_of.strftime('%Y-%m-%d')}" if as_of else fkey
+        # Historical fights stay anchored to the event date; future fights roll
+        # daily so newly ingested DB history doesn't leave /events stale.
+        cache_key = _cache_key_for_prediction(fkey, as_of=as_of, event_date=ev_date)
+
+        api_event_dt = pd.to_datetime(ev_date, errors="coerce") if ev_date else pd.NaT
+        if source_type == "the_odds_api" and not pd.isna(api_event_dt):
+            date_key = api_event_dt.strftime("%Y-%m-%d")
+            ev_name = f"MMA Card · {date_key}"
+            ev_date = date_key
+            ev_url = ""
+        bet_placed = tracked_bets.get((ev_date, fkey)) if source_type == "the_odds_api" and ev_date else None
 
         # ── model prediction (cached) ─────────────────────────────────────────
         pred = cache.get(cache_key)
@@ -629,13 +688,14 @@ def _run_prediction_loop(
             "pnl":            pnl,
             "error":          pred.get("error"),
             "source_type":    source_type,
+            "bet_placed":     bet_placed,
             "f1_fight_count": pred.get("f1_fight_count"),
             "f2_fight_count": pred.get("f2_fight_count"),
             "is_wmma":        pred.get("is_wmma"),
         }
 
         ev_name_real = fightkey_to_ev_name.get(fkey, ev_name)
-        ev_key = ev_url or ev_name
+        ev_key = f"the_odds_api|{ev_date}" if source_type == "the_odds_api" and ev_date else (ev_url or ev_name)
         if ev_key not in events_map:
             events_map[ev_key] = {
                 "event_name":  ev_name_real,
@@ -671,12 +731,15 @@ def _attach_summaries(events_map: dict) -> list[dict]:
         events.append(ev)
 
     def _parse_date(d: str) -> datetime:
-        try:
-            return datetime.strptime(
-                d.replace("st","").replace("nd","").replace("rd","").replace("th",""), "%B %d"
-            )
-        except Exception:
+        if not d:
             return datetime.min
+        cleaned = d.replace("st", "").replace("nd", "").replace("rd", "").replace("th", "")
+        for fmt in ("%B %d", "%B %d, %Y", "%Y-%m-%d", "%Y-%m-%d %H:%M:%S"):
+            try:
+                return datetime.strptime(cleaned, fmt)
+            except Exception:
+                continue
+        return datetime.min
 
     events.sort(key=lambda e: _parse_date(e["event_date"]))
     return events
@@ -688,18 +751,18 @@ def get_events_data() -> list[dict]:
     """All events (CSVs + user-added) with predictions. Used by /api/events."""
     odds_df  = _load_all_odds()
     outcomes = _load_outcomes()
-    cache    = _load_cache()
+    cache, cache_dirty = _prune_stale_future_cache(_load_cache())
     if odds_df.empty:
         return []
 
     session   = _open_session()
     extractor = MatchupFeatureExtractor(session)
     try:
-        events_map, cache_dirty = _run_prediction_loop(odds_df, outcomes, cache, session, extractor)
+        events_map, prediction_cache_dirty = _run_prediction_loop(odds_df, outcomes, cache, session, extractor)
     finally:
         session.close()
 
-    if cache_dirty:
+    if cache_dirty or prediction_cache_dirty:
         _save_cache(cache)
 
     return _attach_summaries(events_map)
@@ -746,15 +809,15 @@ def analyze_event(bfo_url: str, ufc_stats_url: Optional[str] = None) -> dict:
         outcomes_df = pd.DataFrame(columns=["fighter1","fighter2","winner","method","round",
                                             "fight_key","norm_key","event_name"])
 
-    cache     = _load_cache()
+    cache, cache_dirty = _prune_stale_future_cache(_load_cache())
     session   = _open_session()
     extractor = MatchupFeatureExtractor(session)
     try:
-        events_map, cache_dirty = _run_prediction_loop(odds_df, outcomes_df, cache, session, extractor)
+        events_map, prediction_cache_dirty = _run_prediction_loop(odds_df, outcomes_df, cache, session, extractor)
     finally:
         session.close()
 
-    if cache_dirty:
+    if cache_dirty or prediction_cache_dirty:
         _save_cache(cache)
 
     events = _attach_summaries(events_map)

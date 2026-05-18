@@ -53,6 +53,10 @@ data/predictions/
 
 # Per-request cache files (regenerated automatically)
 data/future_fight_odds/predictions_cache.json
+data/future_fight_odds/the_odds_api*.csv
+data/future_fight_odds/the_odds_api_events.json
+data/future_fight_odds/the_odds_api_sync.json
+data/ufcstats_sync_state.json
 
 # Generated backtest inputs
 backtest/odds/ufc_2026_odds.csv

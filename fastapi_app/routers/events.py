@@ -18,6 +18,7 @@ from sqlalchemy.orm import sessionmaker
 
 from database.schema import BettingOdds, Event, Fight, Fighter
 from services.predict_service import FIGHTER_ALIASES, get_events_data
+from services.the_odds_api_service import get_sampled_odds_history, toggle_bet_placed
 
 CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 
@@ -89,6 +90,37 @@ async def api_config():
     if not CONFIG_PATH.exists():
         raise HTTPException(status_code=404, detail="Config file not found")
     return json.loads(CONFIG_PATH.read_text())
+
+
+@router.get("/odds-history")
+async def api_odds_history(fighter1: str, fighter2: str, event_date: str):
+    """Return first/middle/latest sampled odds history for the new The Odds API flow."""
+    data = get_sampled_odds_history(event_date=event_date, fighter1=fighter1, fighter2=fighter2)
+    if not data:
+        raise HTTPException(status_code=404, detail="Odds history not found for that matchup")
+    return data
+
+
+@router.get("/odds-history/bet-toggle")
+async def api_toggle_odds_history_bet(
+    fighter1: str,
+    fighter2: str,
+    event_date: str,
+    bet_fighter: str,
+    stake: float | None = None,
+    custom_odds: int | None = None,
+):
+    data = toggle_bet_placed(
+        event_date=event_date,
+        fighter1=fighter1,
+        fighter2=fighter2,
+        bet_fighter=bet_fighter,
+        stake=stake,
+        custom_odds=custom_odds,
+    )
+    if not data:
+        raise HTTPException(status_code=404, detail="Fight not found for bet toggle")
+    return data
 
 
 @router.get("/fighter/{fighter_name}/recent")
@@ -177,4 +209,3 @@ async def fighter_recent(fighter_name: str, limit: int = 3):
         }
     finally:
         session.close()
-

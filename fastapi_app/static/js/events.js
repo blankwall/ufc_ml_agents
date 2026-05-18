@@ -208,18 +208,108 @@ function wireFilters() {
 
 /* ── Filter predicate (now delegates to getBetDecision) ────────────────────── */
 
+function normalizeFightName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/['.`]/g, '')
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function didTrackedBetWin(f) {
+  const bet = f.bet_placed;
+  if (!bet || !f.winner) return null;
+  const winner = normalizeFightName(f.winner);
+  const fighter = normalizeFightName(bet.fighter);
+  if (!winner || !fighter) return null;
+  return winner.includes(fighter) || fighter.includes(winner);
+}
+
+function getTrackedBetSummary(f) {
+  const bet = f.bet_placed;
+  if (!bet) return null;
+  const stake = Number(bet.stake);
+  const odds = Number(bet.bet_odds);
+  if (!Number.isFinite(stake) || stake <= 0 || !Number.isFinite(odds) || odds === 0) return null;
+  const won = didTrackedBetWin(f);
+  const pnl = won === null
+    ? null
+    : (won
+      ? +(stake * (odds > 0 ? odds / 100 : 100 / Math.abs(odds))).toFixed(1)
+      : -stake);
+  return {
+    fighter: bet.fighter,
+    stake,
+    odds,
+    listedOdds: bet.listed_odds,
+    opponentListedOdds: bet.opponent_listed_odds,
+    placedAt: bet.placed_at,
+    settled: won !== null,
+    won,
+    pnl,
+    risk: stake,
+  };
+}
+
+function summarizeFights(fights) {
+  const visible = fights.filter(passesFilter);
+  const tracked = visible
+    .map(f => ({ fight: f, bet: getTrackedBetSummary(f) }))
+    .filter(item => item.bet);
+  const useTracked = tracked.length > 0;
+  const settled = [];
+
+  if (useTracked) {
+    for (const item of tracked) {
+      if (item.bet.settled && item.bet.pnl !== null) {
+        settled.push({ won: item.bet.won, pnl: item.bet.pnl, risk: item.bet.risk });
+      }
+    }
+  } else {
+    for (const f of visible) {
+      if (f.correct !== null) {
+        settled.push({ won: f.correct, pnl: f.pnl || 0, risk: 100 });
+      }
+    }
+  }
+
+  const totalPnl = settled.reduce((sum, item) => sum + item.pnl, 0);
+  const totalRisk = settled.reduce((sum, item) => sum + item.risk, 0);
+  const wins = settled.filter(item => item.won).length;
+  const settledCount = settled.length;
+
+  return {
+    mode: useTracked ? 'tracked' : 'model',
+    visibleCount: visible.length,
+    settledCount,
+    wins,
+    totalPnl,
+    totalRisk,
+    accuracy: settledCount ? +((wins / settledCount) * 100).toFixed(1) : null,
+    roi: totalRisk ? +((totalPnl / totalRisk) * 100).toFixed(1) : null,
+  };
+}
+
+async function reloadEventsData() {
+  const evRes = await fetch('/api/events');
+  if (!evRes.ok) throw new Error(`Server ${evRes.status}: ${await evRes.text()}`);
+  allEvents = await evRes.json();
+  if (!allEvents.length) return;
+  activeIndex = Math.min(activeIndex, allEvents.length - 1);
+  renderOverall();
+  renderTabs();
+  selectEvent(Math.max(activeIndex, 0));
+}
+
 /* ── Overall summary strip ──────────────────────────────────────────────────── */
 function renderOverall() {
-  let totalN = 0, totalWins = 0, totalPnl = 0;
-  for (const ev of allEvents) {
-    const withResult = ev.fights.filter(f => passesFilter(f) && f.correct !== null);
-    totalN    += withResult.length;
-    totalWins += withResult.filter(f => f.correct).length;
-    totalPnl  += withResult.reduce((s, f) => s + (f.pnl || 0), 0);
-  }
-  const totalBets = totalN;
-  const acc = totalN ? ((totalWins / totalN) * 100).toFixed(1) : '—';
-  const roi = totalBets ? ((totalPnl / (totalBets * 100)) * 100).toFixed(1) : '—';
+  const summary = summarizeFights(allEvents.flatMap(ev => ev.fights));
+  const acc = summary.accuracy !== null ? summary.accuracy.toFixed(1) : '—';
+  const roi = summary.roi !== null ? summary.roi.toFixed(1) : '—';
+  const totalPnl = summary.totalPnl;
+  const roiLabel = summary.mode === 'tracked' ? 'ROI (tracked bets)' : 'ROI (flat $100)';
+  const totalLabel = summary.mode === 'tracked' ? 'Tracked P&amp;L' : 'Total P&amp;L';
 
   const roiClass   = parseFloat(roi) > 0 ? 'pos' : parseFloat(roi) < 0 ? 'neg' : 'neut';
   const pnlClass   = totalPnl > 0 ? 'pos' : totalPnl < 0 ? 'neg' : 'neut';
@@ -232,26 +322,26 @@ function renderOverall() {
     </div>
     <div class="overall-divider"></div>
     <div class="overall-stat">
-      <span class="label">Fights tracked</span>
-      <span class="value">${totalN}</span>
+      <span class="label">${summary.mode === 'tracked' ? 'Bets settled' : 'Fights tracked'}</span>
+      <span class="value">${summary.settledCount}</span>
     </div>
     <div class="overall-stat">
-      <span class="label">Model accuracy</span>
+      <span class="label">${summary.mode === 'tracked' ? 'Bet accuracy' : 'Model accuracy'}</span>
       <span class="value ${roiClass}">${acc}%</span>
     </div>
     <div class="overall-divider"></div>
     <div class="overall-stat">
-      <span class="label">ROI (flat $100)</span>
+      <span class="label">${roiLabel}</span>
       <span class="value ${roiClass}">${roi !== '—' ? roi + '%' : '—'}</span>
     </div>
     <div class="overall-stat">
-      <span class="label">Total P&amp;L</span>
+      <span class="label">${totalLabel}</span>
       <span class="value ${pnlClass}">${pnlFmt}</span>
     </div>
   `;
 
   if (headerStats) {
-    headerStats.textContent = `${totalN} fights · ${acc}% acc`;
+    headerStats.textContent = `${summary.settledCount} ${summary.mode === 'tracked' ? 'bets' : 'fights'} · ${acc}% acc`;
   }
 }
 
@@ -263,7 +353,10 @@ function renderTabs() {
     const roiStr = roi !== null ? (roi >= 0 ? `+${roi}%` : `${roi}%`) : '?';
     const label = shortEventName(ev.event_name);
     const userCls = ev.source_type === 'user_added' ? ' user-added' : '';
-    return `<button class="event-tab${userCls}" onclick="selectEvent(${i})" id="etab-${i}">
+    return `<button class="event-tab${userCls}" onclick="selectEvent(${i})" id="etab-${i}"
+      data-event-name="${escAttr(ev.event_name || '')}"
+      data-event-date="${escAttr(ev.event_date || '')}"
+      title="${escAttr(ev.event_name || '')}">
       ${label}${ev.source_type === 'user_added' ? '<span class="ua-dot" title="User-added event">●</span>' : ''}
       <span class="tab-roi ${cls}">${roiStr}</span>
     </button>`;
@@ -271,10 +364,7 @@ function renderTabs() {
 }
 
 function filteredRoi(ev) {
-  const bets = ev.fights.filter(f => passesFilter(f) && f.correct !== null);
-  if (!bets.length) return null;
-  const pnl = bets.reduce((s, f) => s + (f.pnl || 0), 0);
-  return parseFloat((pnl / (bets.length * 100) * 100).toFixed(1));
+  return summarizeFights(ev.fights).roi;
 }
 
 function shortEventName(name) {
@@ -299,12 +389,13 @@ function selectEvent(idx) {
 
   // Recompute stats for filtered fights only
   const filtered    = ev.fights.filter(passesFilter);
-  const withResult  = filtered.filter(f => f.correct !== null);
-  const wins        = withResult.filter(f => f.correct).length;
-  const totalPnl    = withResult.reduce((s, f) => s + (f.pnl || 0), 0);
-  const n           = withResult.length;
-  const accuracy    = n ? (wins / n * 100).toFixed(1) : null;
-  const roi         = n ? (totalPnl / (n * 100) * 100).toFixed(1) : null;
+  const summary     = summarizeFights(ev.fights);
+  const totalPnl    = summary.totalPnl;
+  const accuracy    = summary.accuracy !== null ? summary.accuracy.toFixed(1) : null;
+  const roi         = summary.roi !== null ? summary.roi.toFixed(1) : null;
+  const roiLabel    = summary.mode === 'tracked' ? 'ROI (tracked)' : 'ROI';
+  const pnlLabel    = summary.mode === 'tracked' ? 'Bet P&amp;L' : 'P&amp;L ($100 flat)';
+  const accLabel    = summary.mode === 'tracked' ? 'Bet Accuracy' : 'Accuracy';
 
   const accFmt    = accuracy !== null ? `${accuracy}%`  : '—';
   const roiFmt    = roi      !== null ? (roi >= 0 ? `+${roi}%` : `${roi}%`) : '—';
@@ -314,7 +405,7 @@ function selectEvent(idx) {
 
   const fightCards = ev.fights.map(f => {
     const decision = getBetDecision(f);
-    return renderFightCard(f, decision.visible, decision.multiplier);
+    return renderFightCard(f, ev.event_date, decision.visible, decision.multiplier);
   }).join('');
 
   panelEl.innerHTML = `
@@ -331,15 +422,15 @@ function selectEvent(idx) {
           </div>
           <div class="ev-stat">
             <span class="ev-stat-val ${roiClass}">${accFmt}</span>
-            <span class="ev-stat-lbl">Accuracy</span>
+            <span class="ev-stat-lbl">${accLabel}</span>
           </div>
           <div class="ev-stat">
             <span class="ev-stat-val ${roiClass}">${roiFmt}</span>
-            <span class="ev-stat-lbl">ROI</span>
+            <span class="ev-stat-lbl">${roiLabel}</span>
           </div>
           <div class="ev-stat">
             <span class="ev-stat-val ${pnlClass}">${pnlFmt}</span>
-            <span class="ev-stat-lbl">P&amp;L ($100 flat)</span>
+            <span class="ev-stat-lbl">${pnlLabel}</span>
           </div>
         </div>
       </div>
@@ -351,12 +442,13 @@ function selectEvent(idx) {
 }
 
 /* ── Fight card ──────────────────────────────────────────────────────────────── */
-function renderFightCard(f, visible = true, multiplier = null) {
+function renderFightCard(f, eventDate, visible = true, multiplier = null) {
   const hasPred   = f.model_prob_f1 !== null;
   const hasResult = f.winner !== null;
   const isWin     = f.correct === true;
   const isLoss    = f.correct === false;
   const isPending = !hasResult;
+  const trackedBet = getTrackedBetSummary(f);
 
   const cardClass = [
     isWin ? 'fc-win' : isLoss ? 'fc-loss' : isPending && hasPred ? 'fc-tbd' : 'fc-error',
@@ -389,6 +481,19 @@ function renderFightCard(f, visible = true, multiplier = null) {
 
   const f1OddsFmt = f.f1_odds !== null ? fmtOdds(f.f1_odds) : '—';
   const f2OddsFmt = f.f2_odds !== null ? fmtOdds(f.f2_odds) : '—';
+  const isOddsHistoryAvailable = f.source_type === 'the_odds_api' && !!eventDate;
+  const f1OddsDisplay = isOddsHistoryAvailable
+    ? `<button type="button" class="fighter-odds odds-history-trigger"
+         data-fighter="${escAttr(f.fighter1)}"
+         data-opponent="${escAttr(f.fighter2)}"
+         data-event-date="${escAttr(eventDate)}">${f1OddsFmt} · mkt ${f.market_prob_f1}%</button>`
+    : `<span class="fighter-odds">${f1OddsFmt} · mkt ${f.market_prob_f1}%</span>`;
+  const f2OddsDisplay = isOddsHistoryAvailable
+    ? `<button type="button" class="fighter-odds odds-history-trigger"
+         data-fighter="${escAttr(f.fighter2)}"
+         data-opponent="${escAttr(f.fighter1)}"
+         data-event-date="${escAttr(eventDate)}">${f2OddsFmt} · mkt ${(100 - f.market_prob_f1).toFixed(1)}%</button>`
+    : `<span class="fighter-odds">${f2OddsFmt} · mkt ${(100 - f.market_prob_f1).toFixed(1)}%</span>`;
 
   // Probability bar width: model if available, else market
   const barWidth = hasPred ? f.model_prob_f1 : (f.market_prob_f1 || 50);
@@ -397,6 +502,8 @@ function renderFightCard(f, visible = true, multiplier = null) {
 
   const edgeFmt   = f.edge !== null ? (f.edge > 0 ? `+${f.edge}%` : `${f.edge}%`) : null;
   const edgeClass = f.edge !== null ? (f.edge > 0 ? 'pos' : 'neg') : '';
+  const f1BetBadge = trackedBet && trackedBet.fighter === f.fighter1 ? '<span class="fighter-bet-badge">BET</span>' : '';
+  const f2BetBadge = trackedBet && trackedBet.fighter === f.fighter2 ? '<span class="fighter-bet-badge">BET</span>' : '';
 
   // Outcome meta
   let outcomeMeta = '';
@@ -408,8 +515,12 @@ function renderFightCard(f, visible = true, multiplier = null) {
     outcomeMeta = `<span class="fight-meta-item" style="color:var(--text-secondary)">Result: <span class="meta-val">TBD</span></span>`;
   }
 
-  const pnlMeta = f.pnl !== null
-    ? `<span class="fight-meta-item">P&amp;L: <span class="meta-val ${f.pnl >= 0 ? 'pos' : 'neg'}" style="color:${f.pnl >= 0 ? 'var(--accent)' : 'var(--danger)'}">${f.pnl >= 0 ? '+' : ''}$${f.pnl}</span></span>`
+  const displayedPnl = trackedBet && trackedBet.pnl !== null ? trackedBet.pnl : f.pnl;
+  const pnlMeta = displayedPnl !== null
+    ? `<span class="fight-meta-item">${trackedBet ? 'Bet P&amp;L' : 'P&amp;L'}: <span class="meta-val ${displayedPnl >= 0 ? 'pos' : 'neg'}" style="color:${displayedPnl >= 0 ? 'var(--accent)' : 'var(--danger)'}">${displayedPnl >= 0 ? '+' : ''}$${displayedPnl}</span></span>`
+    : '';
+  const betMeta = trackedBet
+    ? `<span class="fight-meta-item">Bet: <span class="meta-val">$${trackedBet.stake.toFixed(2)} @ ${fmtOdds(trackedBet.odds)}${trackedBet.listedOdds !== null && trackedBet.listedOdds !== undefined && trackedBet.listedOdds !== trackedBet.odds ? ` <span class="meta-subtle">(listed ${fmtOdds(trackedBet.listedOdds)})</span>` : ''}${trackedBet.opponentListedOdds !== null && trackedBet.opponentListedOdds !== undefined ? ` <span class="meta-subtle">vs ${fmtOdds(trackedBet.opponentListedOdds)}</span>` : ''}</span></span>`
     : '';
 
   const srcMeta = f.model_source && f.model_source !== 'not_found' && f.model_source !== 'error'
@@ -451,13 +562,13 @@ function renderFightCard(f, visible = true, multiplier = null) {
         <div class="result-badge ${badgeClass}">${badgeText}</div>
         <div class="fighters-row">
           <div class="fighter-block f1">
-            <span class="${f1Class} fighter-clickable" data-fighter="${f.fighter1}">${f.fighter1}</span>
-            <span class="fighter-odds">${f1OddsFmt} · mkt ${f.market_prob_f1}%</span>
+            <span class="${f1Class} fighter-clickable" data-fighter="${f.fighter1}">${f.fighter1}</span>${f1BetBadge}
+            ${f1OddsDisplay}
           </div>
           <span class="vs-divider">VS</span>
           <div class="fighter-block f2">
-            <span class="${f2Class} fighter-clickable" data-fighter="${f.fighter2}">${f.fighter2}</span>
-            <span class="fighter-odds">${f2OddsFmt} · mkt ${(100 - f.market_prob_f1).toFixed(1)}%</span>
+            <span class="${f2Class} fighter-clickable" data-fighter="${f.fighter2}">${f.fighter2}</span>${f2BetBadge}
+            ${f2OddsDisplay}
           </div>
         </div>
         ${noBetBadge}
@@ -476,6 +587,7 @@ function renderFightCard(f, visible = true, multiplier = null) {
       <div class="fight-meta">
         ${outcomeMeta}
         ${pnlMeta}
+        ${betMeta}
         ${edgeMeta}
         ${srcMeta}
         ${fightsMeta}
@@ -849,8 +961,190 @@ function renderAiResult(data) {
 }
 
 /* ── Shared helpers ──────────────────────────────────────────────────────────── */
+function escHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function escAttr(s) {
-  return s ? s.replace(/"/g, '&quot;').replace(/'/g, '&#39;') : '';
+  return s === null || s === undefined ? '' : String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* ── Odds history modal ─────────────────────────────────────────────────────── */
+function wireOddsHistoryModal() {
+  const overlay = document.getElementById('oddsHistoryOverlay');
+  const closeBtn = document.getElementById('oddsHistoryClose');
+  const titleEl = document.getElementById('oddsHistoryTitle');
+  const metaEl = document.getElementById('oddsHistoryMeta');
+  const bodyEl = document.getElementById('oddsHistoryBody');
+  if (!overlay || !closeBtn || !titleEl || !metaEl || !bodyEl) return;
+
+  const closeModal = () => overlay.classList.add('hidden');
+
+  closeBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) closeModal();
+  });
+
+  const renderModalBody = (payload, selectedFighter) => {
+    const fighterIsF1 = selectedFighter === payload.fighter1;
+    const selectedLabel = fighterIsF1 ? payload.fighter1 : payload.fighter2;
+    const opponentLabel = fighterIsF1 ? payload.fighter2 : payload.fighter1;
+    const currentBet = payload.bet_placed;
+    const selectedBetActive = currentBet && currentBet.fighter === selectedFighter;
+    const selectedCurrentOdds = fighterIsF1 ? payload.current_fighter1_odds : payload.current_fighter2_odds;
+    const snapshotLabel = payload.real_history_count === 1 ? 'real snapshot' : 'real snapshots';
+    const estimatedNote = payload.uses_estimated_samples
+      ? ' · estimated backfill included'
+      : '';
+    const savedStake = selectedBetActive && currentBet?.stake ? currentBet.stake : '';
+    const savedOdds = selectedBetActive && currentBet?.bet_odds ? currentBet.bet_odds : (selectedCurrentOdds ?? '');
+
+    metaEl.textContent = `${payload.event_name || `${payload.fighter1} vs ${payload.fighter2}`} · ${payload.event_date} · ${payload.real_history_count} ${snapshotLabel}${estimatedNote}`;
+    bodyEl.innerHTML = `
+      <div class="odds-history-actions">
+        <div class="odds-history-form">
+          <label class="odds-history-input-group">
+            <span>Fund size</span>
+            <input type="number" min="0.01" step="0.01" class="modal-input odds-history-stake-input" value="${escAttr(savedStake)}" placeholder="40" />
+          </label>
+          <label class="odds-history-input-group">
+            <span>Bet odds</span>
+            <input type="number" step="1" class="modal-input odds-history-custom-odds-input" value="${escAttr(savedOdds)}" placeholder="${escAttr(selectedCurrentOdds ?? '')}" />
+          </label>
+        </div>
+        <div class="odds-history-bet-status">
+          ${currentBet
+            ? `Bet placed: <strong>${escHtml(currentBet.fighter)}</strong> for <strong>$${escHtml(Number(currentBet.stake || 0).toFixed(2))}</strong> @ <strong>${fmtOdds(currentBet.bet_odds)}</strong>${currentBet.listed_odds !== null && currentBet.listed_odds !== undefined && currentBet.listed_odds !== currentBet.bet_odds ? ` <span class="meta-subtle">(listed ${fmtOdds(currentBet.listed_odds)})</span>` : ''}${currentBet.opponent_listed_odds !== null && currentBet.opponent_listed_odds !== undefined ? ` <span class="meta-subtle">· opp ${fmtOdds(currentBet.opponent_listed_odds)}</span>` : ''}${currentBet.placed_at ? ` · ${escHtml(currentBet.placed_at)}` : ''}`
+            : 'Bet placed: not marked'}
+        </div>
+        <button
+          type="button"
+          class="modal-submit odds-history-bet-toggle"
+          data-active="${selectedBetActive ? '1' : '0'}"
+          data-fighter="${escAttr(selectedFighter)}"
+          data-opponent="${escAttr(opponentLabel)}"
+          data-event-date="${escAttr(payload.event_date)}">
+          ${selectedBetActive ? 'Clear bet placed' : 'Save bet placed'}
+        </button>
+      </div>
+      <div class="odds-history-inline-error hidden"></div>
+      <table class="odds-history-table">
+        <thead>
+          <tr>
+            <th>Sample</th>
+            <th>Captured</th>
+            <th>${escHtml(selectedLabel)}</th>
+            <th>${escHtml(opponentLabel)}</th>
+            <th>Book</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(payload.samples || []).map(sample => `
+            <tr>
+              <td class="odds-history-sample">${escHtml(sample.label)}</td>
+              <td>${escHtml(sample.captured_at || '—')}</td>
+              <td>${fighterIsF1 ? fmtOdds(sample.fighter1_odds) : fmtOdds(sample.fighter2_odds)}</td>
+              <td>${fighterIsF1 ? fmtOdds(sample.fighter2_odds) : fmtOdds(sample.fighter1_odds)}</td>
+              <td class="odds-history-book">${escHtml(sample.bookmaker || '—')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  };
+
+  document.addEventListener('click', async e => {
+    const trigger = e.target.closest('.odds-history-trigger');
+    const toggle = e.target.closest('.odds-history-bet-toggle');
+    if (!trigger && !toggle) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (toggle) {
+      const fighter = toggle.dataset.fighter;
+      const opponent = toggle.dataset.opponent;
+      const eventDate = toggle.dataset.eventDate;
+      const isActive = toggle.dataset.active === '1';
+      if (!fighter || !opponent || !eventDate) return;
+      const stakeInput = overlay.querySelector('.odds-history-stake-input');
+      const oddsInput = overlay.querySelector('.odds-history-custom-odds-input');
+      const inlineError = overlay.querySelector('.odds-history-inline-error');
+      const stakeValue = stakeInput?.value.trim() || '';
+      const oddsValue = oddsInput?.value.trim() || '';
+      if (inlineError) {
+        inlineError.classList.add('hidden');
+        inlineError.textContent = '';
+      }
+
+      if (!isActive) {
+        const parsedStake = Number(stakeValue);
+        const parsedOdds = oddsValue === '' ? null : Number(oddsValue);
+        if (!Number.isFinite(parsedStake) || parsedStake <= 0) {
+          if (inlineError) {
+            inlineError.textContent = 'Enter a valid fund size before saving the bet.';
+            inlineError.classList.remove('hidden');
+          }
+          return;
+        }
+        if (parsedOdds !== null && (!Number.isFinite(parsedOdds) || parsedOdds === 0)) {
+          if (inlineError) {
+            inlineError.textContent = 'Enter valid custom odds or leave the field at the listed line.';
+            inlineError.classList.remove('hidden');
+          }
+          return;
+        }
+      }
+
+      try {
+        const params = new URLSearchParams({ fighter1: fighter, fighter2: opponent, event_date: eventDate, bet_fighter: fighter });
+        if (!isActive) {
+          params.set('stake', String(Number(stakeValue)));
+          if (oddsValue !== '') params.set('custom_odds', String(parseInt(oddsValue, 10)));
+        }
+        const res = await fetch(`/api/odds-history/bet-toggle?${params.toString()}`);
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+
+        await reloadEventsData();
+        const refreshed = await fetch(`/api/odds-history?${new URLSearchParams({ fighter1: fighter, fighter2: opponent, event_date: eventDate }).toString()}`);
+        const refreshedBody = await refreshed.json().catch(() => ({}));
+        if (!refreshed.ok) throw new Error(refreshedBody.detail || `HTTP ${refreshed.status}`);
+        renderModalBody(refreshedBody, fighter);
+      } catch (err) {
+        bodyEl.innerHTML = `<div class="odds-history-empty">${escHtml(err.message || 'Unable to update bet status.')}</div>`;
+      }
+      return;
+    }
+
+    const fighter = trigger.dataset.fighter;
+    const opponent = trigger.dataset.opponent;
+    const eventDate = trigger.dataset.eventDate;
+    if (!fighter || !opponent || !eventDate) return;
+
+    overlay.classList.remove('hidden');
+    titleEl.textContent = `Odds History · ${fighter}`;
+    metaEl.textContent = `${fighter} vs ${opponent} · ${eventDate}`;
+    bodyEl.innerHTML = '<div class="odds-history-loading">Loading history…</div>';
+
+    try {
+      const params = new URLSearchParams({ fighter1: fighter, fighter2: opponent, event_date: eventDate });
+      const res = await fetch(`/api/odds-history?${params.toString()}`);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+      renderModalBody(body, fighter);
+    } catch (err) {
+      bodyEl.innerHTML = `<div class="odds-history-empty">${escHtml(err.message || 'Odds history unavailable.')}</div>`;
+    }
+  });
 }
 
 /* ── Fight stats popup ───────────────────────────────────────────────────────── */
@@ -1171,4 +1465,7 @@ document.addEventListener('click', e => {
 });
 
 /* ── Start ─────────────────────────────────────────────────────────────────── */
-init().then(() => wireAddEvent());
+init().then(() => {
+  wireAddEvent();
+  wireOddsHistoryModal();
+});

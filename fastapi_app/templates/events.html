@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/style.css?v=8" />
-  <link rel="stylesheet" href="/static/css/events.css?v=19" />
+  <link rel="stylesheet" href="/static/css/events.css?v=21" />
 </head>
 <body>
 
@@ -140,6 +140,20 @@
   </div>
 </div>
 
-<script src="/static/js/events.js?v=22"></script>
+<!-- ── Odds History modal ───────────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="oddsHistoryOverlay">
+  <div class="modal-box odds-history-modal">
+    <div class="modal-header">
+      <span class="modal-title" id="oddsHistoryTitle">Odds History</span>
+      <button class="modal-close" id="oddsHistoryClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="oddsHistoryMeta" class="odds-history-meta"></div>
+      <div id="oddsHistoryBody" class="odds-history-body"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/events.js?v=25"></script>
 </body>
 </html>

@@ -35,6 +35,7 @@ from playwright.sync_api import sync_playwright
 SITE_URL  = os.environ.get("SITE_URL", "http://107.175.94.166:8002")
 EVENT     = os.environ.get("EVENT_NAME", "UFC 328")
 EVENT_DATE = os.environ.get("EVENT_DATE", "2026-05-10")
+MIN_FIGHTS = int(os.environ.get("MIN_FIGHTS", "5"))
 
 # Tolerances. The events loop and /api/predict run the same model on the
 # same DB so probabilities should match almost exactly. Allow tiny float
@@ -77,20 +78,32 @@ def _parse_edge(text: str) -> Optional[float]:
     return float(m.group(1)) if m else None
 
 
-def _scrape_event_via_browser(page, event_name: str) -> List[FightCard]:
+def _scrape_event_via_browser(page, event_name: str, event_date: str) -> List[FightCard]:
     page.goto(f"{SITE_URL}/events", wait_until="networkidle")
 
     # Wait for the event tabs to render, then click the matching tab.
     page.wait_for_selector(".event-tab", timeout=15_000)
     target = None
     for tab in page.query_selector_all(".event-tab"):
-        if event_name.lower() in (tab.inner_text() or "").lower():
+        tab_text = tab.inner_text() or ""
+        tab_event_name = tab.get_attribute("data-event-name") or ""
+        if event_name.lower() in tab_text.lower() or event_name.lower() == tab_event_name.lower():
             target = tab
             break
+    if target is None and event_name.startswith("MMA Card") and event_date:
+        for tab in page.query_selector_all(".event-tab"):
+            tab_event_date = (tab.get_attribute("data-event-date") or "").strip()
+            tab_event_name = (tab.get_attribute("data-event-name") or "").strip()
+            if tab_event_name.startswith("MMA Card") and tab_event_date == event_date:
+                target = tab
+                break
     if target is None:
         raise AssertionError(
             f"Event '{event_name}' not found in tabs. Available: "
-            + ", ".join(t.inner_text() for t in page.query_selector_all(".event-tab"))
+            + ", ".join(
+                (t.get_attribute("data-event-name") or t.inner_text() or "").strip()
+                for t in page.query_selector_all(".event-tab")
+            )
         )
     target.click()
     page.wait_for_selector(".fight-card", timeout=10_000)
@@ -169,7 +182,7 @@ def scraped_cards() -> List[FightCard]:
         browser = p.chromium.launch()
         try:
             page = browser.new_page(viewport={"width": 1400, "height": 1800})
-            cards = _scrape_event_via_browser(page, EVENT)
+            cards = _scrape_event_via_browser(page, EVENT, EVENT_DATE)
         finally:
             browser.close()
     assert cards, f"No fight cards scraped for {EVENT}"
@@ -185,7 +198,7 @@ def scraped_cards() -> List[FightCard]:
 
 def test_event_has_fights(scraped_cards):
     """Smoke check — playwright actually scraped the event."""
-    assert len(scraped_cards) >= 5, f"Expected ≥5 fights for {EVENT}, got {len(scraped_cards)}"
+    assert len(scraped_cards) >= MIN_FIGHTS, f"Expected ≥{MIN_FIGHTS} fights for {EVENT}, got {len(scraped_cards)}"
 
 
 def test_market_probs_sum_to_100(scraped_cards):

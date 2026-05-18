@@ -94,7 +94,7 @@ python backtest/optimize_config.py --results backtest/backtest_2026_results.csv 
 
 ### Step 4 — 2026 input rebuild
 
-`backtest/rebuild_2026_odds.py` builds `backtest/odds/ufc_2026_odds.csv` from `data/future_fight_odds/ufc*.csv`, `data/future_fight_odds/outcomes.csv`, user-event JSON, and DB outcomes. `backtest/archive/backtest_live.py` is legacy/prototype only and is not used for formal backtesting.
+`backtest/rebuild_2026_odds.py` builds `backtest/odds/ufc_2026_odds.csv` from `data/future_fight_odds/ufc*.csv`, `data/future_fight_odds/the_odds_api*.csv`, `data/future_fight_odds/outcomes.csv`, user-event JSON, and DB outcomes. The Odds API current-value CSV is exported from `data/future_fight_odds/the_odds_api_events.json`, which keeps grouped-date fights plus per-fight odds history. `backtest/archive/backtest_live.py` is legacy/prototype only and is not used for formal backtesting.
 
 ### The confidence scoring system
 
@@ -112,7 +112,7 @@ python backtest/optimize_config.py --results backtest/backtest_2026_results.csv 
 
 ### FastAPI App Structure
 - **Routers** (`fastapi_app/routers/`): 6 routers, all mounted at `/api` prefix
-- **Services** (`fastapi_app/services/`): `predict_service.py` (model loading + prediction), `backtest_engine.py` (interactive backtest), `scraper_service.py` (BFO/UFC Stats scraping), `ai_service.py` (Claude integration)
+- **Services** (`fastapi_app/services/`): `predict_service.py` (model loading + prediction), `backtest_engine.py` (interactive backtest), `scraper_service.py` (BFO/UFC Stats scraping), `ai_service.py` (Claude integration), `the_odds_api_service.py` (daily new-event sync from The Odds API), `ufcstats_sync_service.py` (conservative completed-event UFCStats DB sync)
 - **Templates**: Jinja2 (`fastapi_app/templates/`), dark theme, Google Fonts Inter
 - **Static**: Vanilla JS (no frameworks), Plotly 2.32.0 via CDN for charts, CSS custom properties for theming
 
@@ -135,6 +135,12 @@ python backtest/optimize_config.py --results backtest/backtest_2026_results.csv 
 
 ### Fighter Name Resolution
 Fighter names vary between data sources. `FIGHTER_ALIASES` dict in `predict_service.py` maps variants. When adding new fighters, check for name mismatches.
+
+### The Odds API Sync
+If `THE_ODDS_API_KEY` is set, `fastapi_app/main.py` starts a background loop that checks hourly and fetches at most once every 24 hours into `data/future_fight_odds/the_odds_api_events.json`, then exports current scalar rows to `data/future_fight_odds/the_odds_api_new_events.csv`. This integration is isolated to the new flow: legacy `ufc*.csv` and user-event JSON remain unchanged and keep higher precedence. The JSON store groups fights by calendar date and preserves `odds_history` arrays per fight as prices move over time. The default ingest horizon is 31 days via `THE_ODDS_API_WINDOW_DAYS`, which acts as the main filter against speculative far-future fights because the feed does not expose a reliable confirmed-bout flag.
+
+### UFCStats Completed Sync
+`ufcstats_sync_service.py` is for newly completed events only, not future-card discovery. It should stay conservative: fetch recent completed UFCStats events, run a dry-run ingest first, create one DB backup per sync run, commit only unseen events that pass the dry-run screen, then validate DB winners against UFCStats fight-details pages before marking the event synced in `data/ufcstats_sync_state.json`.
 
 ### Underdog Blend
 `UNDERDOG_BLEND = False` in `predict_service.py`. The secondary `underdog_v1` model exists but is disabled — the general model performs better alone.

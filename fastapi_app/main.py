@@ -1,3 +1,5 @@
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -12,13 +14,34 @@ from routers.database import router as database_router
 from routers.events import router as events_router
 from routers.predict import router as predict_router
 from routers.scraper import router as scraper_router
+from services.the_odds_api_service import run_sync_loop as run_odds_sync_loop, scheduler_enabled as odds_scheduler_enabled
+from services.ufcstats_sync_service import run_sync_loop as run_ufcstats_sync_loop, scheduler_enabled as ufcstats_scheduler_enabled
 
 BASE_DIR = Path(__file__).parent
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    sync_tasks = []
+    if odds_scheduler_enabled():
+        sync_tasks.append(asyncio.create_task(run_odds_sync_loop()))
+    if ufcstats_scheduler_enabled():
+        sync_tasks.append(asyncio.create_task(run_ufcstats_sync_loop()))
+    try:
+        yield
+    finally:
+        for sync_task in sync_tasks:
+            sync_task.cancel()
+        for sync_task in sync_tasks:
+            with suppress(asyncio.CancelledError):
+                await sync_task
+
 
 app = FastAPI(
     title="UFC ML API",
     description="FastAPI-powered UFC model backtesting + event predictions with mar_4_v2",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")

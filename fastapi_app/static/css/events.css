@@ -450,6 +450,19 @@
   color: var(--accent);
 }
 
+.fighter-bet-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(36, 196, 120, 0.16);
+  color: var(--green, #24c478);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
 .fighter-name.actual-winner {
   text-decoration: underline;
   text-decoration-style: dotted;
@@ -459,6 +472,21 @@
   font-size: 12px;
   color: var(--text-secondary);
   font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.fighter-odds.odds-history-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  border-bottom: 1px dashed transparent;
+  transition: color .15s, border-color .15s;
+}
+
+.fighter-odds.odds-history-trigger:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 .vs-divider {
@@ -756,6 +784,120 @@
 
 .modal-submit:hover { opacity: .85; }
 .modal-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+.odds-history-modal {
+  width: 640px;
+}
+
+.odds-history-meta {
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.odds-history-body {
+  min-height: 72px;
+}
+
+.odds-history-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.odds-history-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex: 1 1 100%;
+}
+
+.odds-history-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+  flex: 1 1 180px;
+}
+
+.odds-history-input-group span {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.odds-history-bet-status {
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.odds-history-bet-toggle {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.odds-history-inline-error {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: rgba(255,75,110,.12);
+  border: 1px solid rgba(255,75,110,.3);
+  border-radius: 6px;
+  color: var(--red);
+  font-size: 13px;
+}
+
+.odds-history-inline-error.hidden {
+  display: none;
+}
+
+.odds-history-loading,
+.odds-history-empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.odds-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.odds-history-table th,
+.odds-history-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.odds-history-table th {
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.odds-history-table td {
+  color: var(--text);
+}
+
+.odds-history-sample {
+  font-weight: 600;
+}
+
+.odds-history-book {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.meta-subtle {
+  color: var(--text-secondary);
+}
 
 /* ── Fight-stats clickable links ────────────────────────────────────────────── */
 .fight-stats-link {

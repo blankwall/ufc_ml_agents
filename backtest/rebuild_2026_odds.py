@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Rebuild ufc_2026_odds.csv from all available 2026 data sources:
+Rebuild backtest/odds/ufc_2026_odds.csv from all available 2026 data sources:
   - data/future_fight_odds/ufc*.csv       (odds)
+  - data/future_fight_odds/the_odds_api*.csv (new-event odds)
   - data/future_fight_odds/outcomes.csv   (results)
   - data/user_events/*.json               (odds + outcomes)
   - data/user_events/user_events/*.json   (odds + outcomes)
@@ -9,7 +10,7 @@ Rebuild ufc_2026_odds.csv from all available 2026 data sources:
 
 Usage:
     python backtest/rebuild_2026_odds.py
-    python backtest/rebuild_2026_odds.py --out ufc_2026_odds.csv
+    python backtest/rebuild_2026_odds.py --out backtest/odds/ufc_2026_odds.csv
     python backtest/rebuild_2026_odds.py --year 2025 --out ufc_2025_custom.csv
 """
 
@@ -29,7 +30,7 @@ ODDS_DIR   = PROJECT_ROOT / "data" / "future_fight_odds"
 USER_DIRS  = [
     PROJECT_ROOT / "data" / "user_events",
 ]
-DEFAULT_OUT = PROJECT_ROOT / "ufc_2026_odds.csv"
+DEFAULT_OUT = PROJECT_ROOT / "backtest" / "odds" / "ufc_2026_odds.csv"
 DB_PATH     = PROJECT_ROOT / "data" / "ufc_database.db"
 
 
@@ -81,8 +82,13 @@ def fight_key(f1: str, f2: str) -> str:
 
 
 def parse_date(date_raw: str, year: int = 2026) -> str:
-    """'March 8th' → 'March 8, 2026'"""
+    """Normalize supported date strings to 'Month D, YYYY'."""
     clean = re.sub(r"(\d+)(st|nd|rd|th)", r"\1", str(date_raw).strip())
+    for fmt in ("%B %d, %Y", "%Y-%m-%d", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return pd.to_datetime(clean, format=fmt).strftime("%B %-d, %Y")
+        except Exception:
+            continue
     try:
         return pd.to_datetime(f"{clean} {year}", format="%B %d %Y").strftime("%B %-d, %Y")
     except Exception:
@@ -97,21 +103,22 @@ def collect_odds(year: int) -> dict[str, dict]:
 
     # future_fight_odds CSVs
     if ODDS_DIR.exists():
-        for csv in sorted(ODDS_DIR.glob("ufc*.csv")):
-            try:
-                df = pd.read_csv(csv)
-                for _, r in df.iterrows():
-                    k = fight_key(r["fighter1"], r["fighter2"])
-                    if k not in rows:
-                        rows[k] = {
-                            "date":          parse_date(r.get("event_date", ""), year),
-                            "fighter1":      r["fighter1"],
-                            "fighter2":      r["fighter2"],
-                            "fighter1_odds": r["fighter1_odds"],
-                            "fighter2_odds": r["fighter2_odds"],
-                        }
-            except Exception as e:
-                print(f"  WARN {csv.name}: {e}")
+        for pattern in ("ufc*.csv", "the_odds_api*.csv"):
+            for csv in sorted(ODDS_DIR.glob(pattern)):
+                try:
+                    df = pd.read_csv(csv)
+                    for _, r in df.iterrows():
+                        k = fight_key(r["fighter1"], r["fighter2"])
+                        if k not in rows:
+                            rows[k] = {
+                                "date":          parse_date(r.get("event_date", ""), year),
+                                "fighter1":      r["fighter1"],
+                                "fighter2":      r["fighter2"],
+                                "fighter1_odds": r["fighter1_odds"],
+                                "fighter2_odds": r["fighter2_odds"],
+                            }
+                except Exception as e:
+                    print(f"  WARN {csv.name}: {e}")
 
     # user_events JSONs — sort by event ID descending so newer scrapes (higher IDs) win
     def _event_id(p: Path) -> int:
@@ -225,6 +232,7 @@ def main():
     print(f"  {'TOTAL':<22} {len(df):>5}   {df['winner'].notna().sum()}/{len(df)}")
 
     out_path = Path(args.out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out_path, index=False)
     print(f"\nSaved → {out_path}")
 

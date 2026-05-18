@@ -175,6 +175,8 @@ Canonical formal odds files:
 | `backtest/odds/ufc_2026_odds.csv` | Generated 2026/live-year odds input |
 | `data/odds/historical_odds.csv` | BFO historical/research source |
 | `data/future_fight_odds/ufc*.csv` | Per-event live-year source files |
+| `data/future_fight_odds/the_odds_api_new_events.csv` | Generated append-only The Odds API source for newly discovered MMA matchups |
+| `data/future_fight_odds/the_odds_api_events.json` | Generated grouped-date store for The Odds API fights plus per-fight odds history |
 | `data/future_fight_odds/outcomes.csv` | Outcome source for live-year rebuilds |
 | `data/user_events/*.json` | User-added event odds/outcome source |
 
@@ -183,6 +185,21 @@ Build the 2026 backtest odds input:
 ```bash
 python backtest/rebuild_2026_odds.py
 ```
+
+Fetch new events from The Odds API into the live-year odds pool:
+
+```bash
+THE_ODDS_API_KEY=... .venv/bin/python scripts/fetch_the_odds_api.py
+```
+
+Behavior notes:
+- This source is isolated to the new The Odds API flow; legacy `ufc*.csv` and `data/user_events/*.json` behavior stays unchanged.
+- The JSON store groups The Odds API fights by calendar date and keeps an `odds_history` array per fight as prices move over time.
+- The site still reads a single scalar odds pair from `the_odds_api_new_events.csv`; that CSV is exported from the JSON store using the **current/latest** odds, while the history array remains for replay/audit only.
+- The default ingest horizon is **31 days** via `THE_ODDS_API_WINDOW_DAYS`; this is the practical filter for speculative far-future fights because the feed does not expose a trustworthy “confirmed bout” flag.
+- Existing tracked fights from legacy sources are still left untouched by this flow.
+- Fights missing from a later API sync are marked inactive in the JSON store and dropped from the exported The Odds API CSV.
+- Generated event labels are synthetic date groups because the odds feed does not expose clean UFC card names.
 
 Then run the formal backtest:
 
