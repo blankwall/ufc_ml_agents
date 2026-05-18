@@ -125,15 +125,9 @@ class EventScraper:
                         else:
                             continue
                         
-                        # Extract date and location from the text in the link
-                        # The date is usually after the event name
-                        full_text = link.text.strip()
-                        # Split by multiple spaces or newlines to separate name and date
-                        parts = [p.strip() for p in full_text.split('\n') if p.strip()]
-                        
-                        event_name = parts[0] if parts else event_name
-                        event_date = parts[1] if len(parts) > 1 else None
-                        
+                        date_node = row.select_one('span.b-statistics__date')
+                        event_date = date_node.get_text(strip=True) if date_node else None
+
                         # Location is in a separate column
                         cols = row.select('td.b-statistics__table-col')
                         location = None
@@ -527,8 +521,8 @@ class EventScraper:
                         f1_id = f1_href.split('/fighter-details/')[-1].rstrip('/')
                         outcome['fighter_1_id'] = f1_id
                 if f1_result:
-                    f1_result_text = f1_result.text.strip()
-                    outcome['fighter_1_result'] = f1_result_text  # 'W', 'L', or 'D'
+                    f1_result_text = f1_result.text.strip().upper()
+                    outcome['fighter_1_result'] = f1_result_text  # 'W', 'L', 'D', or 'NC'
                 
                 # Fighter 2 (right side)
                 f2_section = fight_sections[1]
@@ -543,7 +537,7 @@ class EventScraper:
                         f2_id = f2_href.split('/fighter-details/')[-1].rstrip('/')
                         outcome['fighter_2_id'] = f2_id
                 if f2_result:
-                    f2_result_text = f2_result.text.strip()
+                    f2_result_text = f2_result.text.strip().upper()
                     outcome['fighter_2_result'] = f2_result_text
                 
                 # Determine winner
@@ -553,6 +547,11 @@ class EventScraper:
                     outcome['winner'] = 'fighter_2'
                 elif outcome.get('fighter_1_result') == 'D':
                     outcome['winner'] = 'draw'
+                elif (
+                    outcome.get('fighter_1_result') == 'NC'
+                    and outcome.get('fighter_2_result') == 'NC'
+                ):
+                    outcome['winner'] = 'no_contest'
                 else:
                     outcome['winner'] = None
             
@@ -966,4 +965,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
