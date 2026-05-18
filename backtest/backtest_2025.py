@@ -4,13 +4,13 @@ Backtest UFC predictions against betting odds.
 Run predictions on all fights and calculate expected value.
 
 Odds can come from:
-  - A CSV (e.g. ufc_2025_odds.csv or export from DB)
-  - Export from DB: python scripts/export_odds_from_db.py --year 2025 -o data/odds/db_2025.csv
+  - A CSV (e.g. backtest/odds/ufc_2025_odds.csv or export from DB)
+  - Export from DB: python scripts/export_odds_from_db.py --year 2025 -o backtest/odds/db_2025.csv
 
 Usage:
   python backtest/backtest_2025.py
   python backtest/backtest_2025.py --config backtest/backtest_config.json
-  python backtest/backtest_2025.py --odds data/odds/db_odds_2025.csv --model mar_4_v2
+  python backtest/backtest_2025.py --odds backtest/odds/ufc_2025_odds.csv --model mar_4_v2
 """
 
 import json
@@ -27,8 +27,18 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from database.db_manager import DatabaseManager
 
 # Default paths
-DEFAULT_ODDS_CSV = PROJECT_ROOT / "ufc_2025_odds.csv"
+DEFAULT_ODDS_CSV = PROJECT_ROOT / "backtest" / "odds" / "ufc_2025_odds.csv"
 DEFAULT_CONFIG = Path(__file__).resolve().parent / "backtest_config.json"
+
+
+def default_results_path_for_odds(odds_path: Path) -> Path:
+    """Infer the canonical results filename from the odds input year."""
+    name = odds_path.name
+    if "2026" in name:
+        return Path(__file__).resolve().parent / "backtest_2026_results.csv"
+    if "2025" in name:
+        return Path(__file__).resolve().parent / "backtest_2025_results.csv"
+    return Path(__file__).resolve().parent / "backtest_results.csv"
 
 def load_config(config_path: Path | str) -> dict:
     """Load backtest config from JSON file."""
@@ -511,17 +521,17 @@ def print_summary(results_df: pd.DataFrame, cfg: dict, quiet: bool):
 def main():
     parser = argparse.ArgumentParser(description="Backtest model predictions vs odds")
     parser.add_argument("--config", type=str, default=str(DEFAULT_CONFIG), help="Path to backtest_config.json")
-    parser.add_argument("--results", type=str, default=None, help="Re-use existing backtest_results.csv (skip predictions)")
+    parser.add_argument("--results", type=str, default=None, help="Re-use an existing backtest results CSV (skip predictions)")
     parser.add_argument("--odds", type=str, default=str(DEFAULT_ODDS_CSV), help="Path to odds CSV")
     parser.add_argument("--model", type=str, default=None, help="Override model name from config")
     parser.add_argument("--quiet", action="store_true", help="Only print summary, not per-fight")
     parser.add_argument("--cutoff", type=str, default=None, help="Override cutoff date from config (YYYY-MM-DD)")
-    parser.add_argument("--results-out", type=str, default=None, help="Output path for results CSV (default: backtest/backtest_results.csv)")
+    parser.add_argument("--results-out", type=str, default=None, help="Output path for results CSV (default: inferred from odds year, else backtest/backtest_results.csv)")
     args = parser.parse_args()
 
     # Load config
     config_path = Path(args.config)
-    if not config_path.is_absolute():
+    if not config_path.is_absolute() and not config_path.exists():
         config_path = Path(__file__).resolve().parent / config_path
     cfg = load_config(config_path)
 
@@ -579,7 +589,7 @@ def main():
         csv_path = PROJECT_ROOT / csv_path
     if not csv_path.exists():
         print(f"Odds file not found: {csv_path}")
-        print("Export from DB:  python scripts/export_odds_from_db.py --year 2025 -o data/odds/db_2025.csv")
+        print("Export from DB:  python scripts/export_odds_from_db.py --year 2025 -o backtest/odds/db_2025.csv")
         return
 
     df = pd.read_csv(csv_path)
@@ -740,7 +750,7 @@ def main():
         if not out_path.is_absolute():
             out_path = Path.cwd() / out_path
     else:
-        out_path = Path(__file__).resolve().parent / "backtest_results.csv"
+        out_path = default_results_path_for_odds(csv_path)
     results_df.to_csv(out_path, index=False)
     print(f"\nResults saved: {out_path}")
 

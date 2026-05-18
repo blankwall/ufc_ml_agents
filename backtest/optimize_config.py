@@ -8,7 +8,7 @@ apply_strategy call per iteration. Runs in a few seconds.
 
 Usage:
     python backtest/optimize_config.py
-    python backtest/optimize_config.py --results backtest/backtest_results.csv
+    python backtest/optimize_config.py --results backtest/backtest_2026_results.csv
     python backtest/optimize_config.py --min-bets 30 --top 20 --sort-by roi
 """
 
@@ -135,7 +135,7 @@ def score_combo(arrays: dict,
 
 def main():
     parser = argparse.ArgumentParser(description="Grid-search optimize backtest strategy params")
-    parser.add_argument("--results",  default="backtest/backtest_results.csv",
+    parser.add_argument("--results",  default="backtest/backtest_2026_results.csv",
                         help="Pre-built results CSV")
     parser.add_argument("--cutoff",   default=None,
                         help="Override cutoff date filter (YYYY-MM-DD). Defaults to BASE_CONFIG cutoff_date.")

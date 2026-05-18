@@ -165,7 +165,7 @@ def main() -> None:
     parser.add_argument(
         "--odds-path",
         type=str,
-        default="ufc_2025_odds.csv",
+        default="backtest/odds/ufc_2025_odds.csv",
         help="Path to odds CSV (American odds, one row per fight)",
     )
     parser.add_argument(
@@ -235,7 +235,7 @@ def main() -> None:
     parser.add_argument(
         "--underdog",
         action="store_true",
-        help="Print detailed analysis of underdog fights (market prob ≤ 45% for winner)",
+        help="Print detailed analysis of underdog fights (market prob <= 45%% for winner)",
     )
     parser.add_argument(
         "--highest-confidence-per-card",
@@ -2382,5 +2382,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

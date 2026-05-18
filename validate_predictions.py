@@ -12,8 +12,8 @@ from collections import defaultdict
 
 # Paths
 FIGHT_DETAILS_PATH = Path("/Users/tylerbohan/code/ufc_ml_agents/data/fight_details.json")
-BACKTEST_RESULTS_PATH = Path("/Users/tylerbohan/code/ufc_ml_agents/backtest_results.csv")
-ODDS_PATH = Path("/Users/tylerbohan/code/ufc_ml_agents/ufc_2025_odds.csv")
+BACKTEST_RESULTS_PATH = Path("/Users/tylerbohan/code/ufc_ml_agents/backtest/backtest_2025_results.csv")
+ODDS_PATH = Path("/Users/tylerbohan/code/ufc_ml_agents/backtest/odds/ufc_2025_odds.csv")
 
 def load_fight_results():
     """Load actual fight results from fight_details.json."""
