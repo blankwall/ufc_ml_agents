@@ -6,10 +6,29 @@ Minimal FastAPI + Plotly backtest UI for the `mar_4_v2` model with underdog blen
 
 ```bash
 cd fastapi_app
-uv run uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+# fill in runtime.env as needed (THE_ODDS_API_KEY is blank by default)
+../run.sh
 ```
 
 Then open: http://localhost:8001
+
+## Runtime sync config
+
+`fastapi_app/runtime.env` is sourced by `run.sh` before Uvicorn starts.
+
+Use it to control:
+- `THE_ODDS_API_KEY`
+- `THE_ODDS_API_AUTO_SYNC`
+- `THE_ODDS_API_SYNC_INTERVAL_HOURS`
+- `THE_ODDS_API_SYNC_CHECK_SECONDS`
+- `THE_ODDS_API_WINDOW_DAYS`
+- `UFCSTATS_AUTO_SYNC`
+- `UFCSTATS_SYNC_INTERVAL_HOURS`
+- `UFCSTATS_SYNC_CHECK_SECONDS`
+- `UFCSTATS_COMPLETED_LOOKBACK_DAYS`
+- `UFCSTATS_COMPLETED_MAX_PAGES`
+- `UFCSTATS_COMPLETED_MIN_FIGHTS`
+- `UFCSTATS_COMPLETED_MAX_EVENTS_PER_RUN`
 
 ## API
 

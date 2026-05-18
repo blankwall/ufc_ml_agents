@@ -1,0 +1,188 @@
+main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 28px 24px 40px;
+}
+
+.bets-loading,
+.bets-empty,
+.bets-error {
+  margin-top: 48px;
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.bets-error {
+  color: var(--red);
+}
+
+.bets-overall {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.overall-stat {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.overall-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.overall-value {
+  font-size: 24px;
+}
+
+.overall-stat.positive .overall-value {
+  color: var(--green);
+}
+
+.overall-stat.negative .overall-value {
+  color: var(--red);
+}
+
+.bets-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bets-card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.bets-card-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.bets-card-summary::-webkit-details-marker {
+  display: none;
+}
+
+.bets-card-date {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.bets-card-name {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.bets-card-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.metric-chip {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.metric-chip.positive {
+  color: var(--green);
+  border-color: rgba(46, 204, 113, 0.4);
+}
+
+.metric-chip.negative {
+  color: var(--red);
+  border-color: rgba(231, 76, 60, 0.4);
+}
+
+.bets-card-body {
+  padding: 0 20px 20px;
+}
+
+.bets-card-caption {
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.bets-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.bets-table th,
+.bets-table td {
+  padding: 14px 12px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.bets-table th {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.bet-matchup,
+.bet-pick {
+  font-weight: 600;
+}
+
+.bet-subtext {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.positive {
+  color: var(--green);
+}
+
+.negative {
+  color: var(--red);
+}
+
+.neutral {
+  color: var(--muted);
+}
+
+@media (max-width: 900px) {
+  .bets-card-summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .bets-card-metrics {
+    justify-content: flex-start;
+  }
+
+  .bets-table {
+    display: block;
+    overflow-x: auto;
+  }
+}

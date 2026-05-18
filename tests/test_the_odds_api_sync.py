@@ -4,6 +4,7 @@ import sys
 import asyncio
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -950,6 +951,182 @@ def test_api_odds_history_returns_404_when_missing(monkeypatch):
         )
 
     assert exc.value.status_code == 404
+
+
+def test_api_bets_groups_tracked_mma_card_bets(monkeypatch):
+    monkeypatch.setattr(events_router, "EXTERNAL_BETS_PATH", Path("/tmp/definitely-missing-odds.csv"))
+    monkeypatch.setattr(
+        events_router,
+        "get_events_data",
+        lambda: [
+            {
+                "event_name": "MMA Card · 2026-05-30",
+                "event_date": "2026-05-30",
+                "source_type": "the_odds_api",
+                "fights": [
+                    {
+                        "fighter1": "Song Yadong",
+                        "fighter2": "Deiveson Figueiredo",
+                        "winner": "Song Yadong",
+                        "edge": 8.4,
+                        "bet_placed": {
+                            "fighter": "Song Yadong",
+                            "opponent": "Deiveson Figueiredo",
+                            "stake": 40,
+                            "bet_odds": 150,
+                            "listed_odds": 135,
+                            "opponent_listed_odds": -160,
+                            "placed_at": "2026-05-29T12:00:00Z",
+                        },
+                    },
+                    {
+                        "fighter1": "Carlos Prates",
+                        "fighter2": "Michael Morales",
+                        "winner": None,
+                        "edge": 5.1,
+                        "bet_placed": {
+                            "fighter": "Michael Morales",
+                            "opponent": "Carlos Prates",
+                            "stake": 30,
+                            "bet_odds": -120,
+                            "listed_odds": -120,
+                            "opponent_listed_odds": 105,
+                            "placed_at": "2026-05-29T12:05:00Z",
+                        },
+                    },
+                ],
+            },
+            {
+                "event_name": "UFC 330",
+                "event_date": "2026-06-06",
+                "source_type": "csv",
+                "fights": [],
+            },
+        ],
+    )
+
+    payload = asyncio.run(events_router.api_bets())
+
+    assert len(payload) == 1
+    card = payload[0]
+    assert card["event_name"] == "MMA Card · 2026-05-30"
+    assert card["bet_count"] == 2
+    assert card["settled_count"] == 1
+    assert card["wins"] == 1
+    assert card["losses"] == 0
+    assert card["pending_count"] == 1
+    assert card["total_risk"] == 40.0
+    assert card["total_pnl"] == 60.0
+    assert card["roi"] == 150.0
+    assert card["bets"][0]["bet"]["won"] is True
+    assert card["bets"][1]["bet"]["settled"] is False
+
+
+def test_api_bets_imports_external_csv_without_touching_tracked_store(monkeypatch, tmp_path):
+    external_csv = tmp_path / "odds.csv"
+    external_csv.write_text(
+        "\t".join(
+            [
+                "date",
+                "event",
+                "bet_on",
+                "type",
+                "model_prob",
+                "market_odds",
+                "oppenent_odds",
+                "closing_odds",
+                "edge",
+                "manual_confidence",
+                "stake",
+                "multiplier",
+                "PNL",
+                "Notes",
+            ]
+        )
+        + "\n"
+        + "\t".join(
+            [
+                "May 2nd, 2026",
+                "UFC FIGHT NIGHT: DELLA MADDALENA VS PRATES",
+                "Cameron Rowston",
+                "favorite model",
+                "67.4",
+                "-175",
+                "150",
+                "",
+                "6",
+                "7",
+                "100",
+                "1",
+                "",
+                "",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(events_router, "EXTERNAL_BETS_PATH", external_csv)
+    db_fight = SimpleNamespace(
+        id=1,
+        event=SimpleNamespace(name="UFC Fight Night: Della Maddalena vs. Prates", date="May 02, 2026"),
+        fighter_1=SimpleNamespace(name="Cam Rowston"),
+        fighter_2=SimpleNamespace(name="Robert Bryczek"),
+        fighter_1_id=11,
+        fighter_2_id=12,
+        winner_id=11,
+        result="fighter_1",
+        method="KO/TKO",
+        round_finished=2,
+    )
+
+    class _FakeQuery:
+        def __init__(self, fights):
+            self._fights = fights
+
+        def join(self, *args, **kwargs):
+            return self
+
+        def filter(self, *args, **kwargs):
+            return self
+
+        def all(self):
+            return self._fights
+
+    class _FakeSession:
+        def query(self, *args, **kwargs):
+            return _FakeQuery([db_fight])
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(events_router, "_get_session", lambda: _FakeSession())
+    monkeypatch.setattr(events_router, "_resolve_fighter", lambda session, name: SimpleNamespace(id=11, name="Cam Rowston"))
+    monkeypatch.setattr(
+        events_router,
+        "get_events_data",
+        lambda: [],
+    )
+
+    payload = asyncio.run(events_router.api_bets())
+
+    assert len(payload) == 1
+    card = payload[0]
+    assert card["event_name"] == "UFC Fight Night: Della Maddalena vs. Prates"
+    assert card["settled_count"] == 1
+    assert card["wins"] == 1
+    assert card["roi"] == 57.1
+    assert card["bets"][0]["bet"]["fighter"] == "Cameron Rowston"
+    assert card["bets"][0]["bet"]["opponent"] == "Robert Bryczek"
+    assert card["bets"][0]["bet_type"] == "favorite model"
+    assert card["bets"][0]["source_label"] == "Imported from /tmp/odds.csv"
+    assert card["bets"][0]["winner"] == "Cam Rowston"
+    assert card["event_date"] == "2026-05-02"
+
+
+def test_event_match_score_handles_loose_event_labels():
+    assert events_router._event_match_score("UFC 328", "UFC 328: Chimaev vs. Strickland") > 1.0
+    assert events_router._event_match_score("UFC Vegas 116", "UFC Fight Night: Sterling vs. Zalal") == 0.0
 
 
 def test_future_prediction_cache_key_rolls_daily(monkeypatch):

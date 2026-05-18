@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UFC Bets · ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css?v=8" />
+  <link rel="stylesheet" href="/static/css/bets.css?v=1" />
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <span class="logo-text">UFC<strong>ML</strong></span>
+    </div>
+    <nav class="header-nav">
+      <a href="/events" class="nav-link">Events</a>
+      <a href="/bets" class="nav-link active">Bets</a>
+      <a href="/fighter" class="nav-link">Fighter</a>
+    </nav>
+    <div class="header-meta">
+      <span class="badge">Tracked Bets</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="loadingState" class="bets-loading">
+    <div class="spinner-large"></div>
+    <p>Loading tracked bets…</p>
+  </div>
+
+  <div id="errorState" class="bets-error hidden"></div>
+
+  <div id="emptyState" class="bets-empty hidden">
+    <h2>No tracked bets yet</h2>
+    <p>Mark bets from an MMA Card odds-history modal and they will appear here grouped by card date.</p>
+  </div>
+
+  <div id="content" class="bets-content hidden">
+    <div id="overallStrip" class="bets-overall"></div>
+    <div id="cardsList" class="bets-cards"></div>
+  </div>
+</main>
+
+<script src="/static/js/bets.js?v=1"></script>
+</body>
+</html>

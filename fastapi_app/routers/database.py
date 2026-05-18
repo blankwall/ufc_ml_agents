@@ -55,6 +55,26 @@ def _fmt_odds(val: Optional[int]) -> Optional[str]:
     return f"+{val}" if val > 0 else str(val)
 
 
+def _display_pct(value: Optional[float]) -> Optional[float]:
+    if value is None:
+        return None
+    return round(value * 100, 1) if value <= 1 else round(value, 1)
+
+
+def _fight_result_for_fighter(fight: Fight, fighter_id: int) -> str:
+    if not fight.result:
+        return "N/A"
+    is_f1 = fight.fighter_1_id == fighter_id
+    pos = 1 if is_f1 else 2
+    if fight.result == f"fighter_{pos}":
+        return "W"
+    if fight.result == "draw":
+        return "D"
+    if fight.result == "no_contest":
+        return "NC"
+    return "L"
+
+
 # ── POST /api/db/ingest ──────────────────────────────────────────────────────
 
 class IngestRequest(BaseModel):
@@ -171,21 +191,22 @@ async def get_fighter_profile(name: str):
 
         # Build full fight history
         fight_history = []
+        ufc_wins = 0
+        ufc_losses = 0
+        ufc_draws = 0
+        ufc_no_contests = 0
         for fight, event, dt in fight_dates:
             is_f1 = fight.fighter_1_id == fighter.id
             opp = fight.fighter_2 if is_f1 else fight.fighter_1
-            pos = 1 if is_f1 else 2
-
-            result = "N/A"
-            if fight.result:
-                if fight.result == f"fighter_{pos}":
-                    result = "W"
-                elif fight.result == "draw":
-                    result = "D"
-                elif fight.result == "no_contest":
-                    result = "NC"
-                else:
-                    result = "L"
+            result = _fight_result_for_fighter(fight, fighter.id)
+            if result == "W":
+                ufc_wins += 1
+            elif result == "L":
+                ufc_losses += 1
+            elif result == "D":
+                ufc_draws += 1
+            elif result == "NC":
+                ufc_no_contests += 1
 
             # Closing odds
             attr = "fighter_1_odds" if is_f1 else "fighter_2_odds"
@@ -207,11 +228,27 @@ async def get_fighter_profile(name: str):
 
         # Nickname
         nickname = fighter.nickname
+        decided_bouts = ufc_wins + ufc_losses + ufc_draws
+        total_bouts = len(fights)
+        win_rate = round((fighter.wins / max(fighter.wins + fighter.losses + fighter.draws, 1)) * 100, 1)
+        ufc_win_rate = round((ufc_wins / max(decided_bouts, 1)) * 100, 1) if decided_bouts else None
 
         return {
             "name": fighter.name,
             "nickname": nickname,
             "record": f"{fighter.wins}-{fighter.losses}-{fighter.draws}",
+            "overall_record": {
+                "wins": fighter.wins,
+                "losses": fighter.losses,
+                "draws": fighter.draws,
+                "no_contests": fighter.no_contests or 0,
+            },
+            "ufc_record": {
+                "wins": ufc_wins,
+                "losses": ufc_losses,
+                "draws": ufc_draws,
+                "no_contests": ufc_no_contests,
+            },
             "age": fighter.age,
             "stance": fighter.stance,
             "height_cm": fighter.height_cm,
@@ -219,13 +256,21 @@ async def get_fighter_profile(name: str):
             "reach_inches": fighter.reach_inches,
             "sig_strikes_landed_per_min": fighter.sig_strikes_landed_per_min,
             "striking_accuracy": fighter.striking_accuracy,
+            "striking_accuracy_pct": _display_pct(fighter.striking_accuracy),
             "sig_strikes_absorbed_per_min": fighter.sig_strikes_absorbed_per_min,
             "striking_defense": fighter.striking_defense,
+            "striking_defense_pct": _display_pct(fighter.striking_defense),
             "takedown_avg_per_15min": fighter.takedown_avg_per_15min,
             "takedown_accuracy": fighter.takedown_accuracy,
+            "takedown_accuracy_pct": _display_pct(fighter.takedown_accuracy),
             "takedown_defense": fighter.takedown_defense,
+            "takedown_defense_pct": _display_pct(fighter.takedown_defense),
             "submission_avg_per_15min": fighter.submission_avg_per_15min,
-            "fight_count": len(fights),
+            "fight_count": total_bouts,
+            "ufc_bout_count": total_bouts,
+            "win_rate_pct": win_rate,
+            "ufc_win_rate_pct": ufc_win_rate,
+            "recent_form": [fight["result"] for fight in fight_history[:5]],
             "fight_history": fight_history,
         }
     finally:

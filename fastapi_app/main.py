@@ -66,14 +66,19 @@ async def events_page(request: Request):
     return templates.TemplateResponse("events.html", {"request": request})
 
 
+@app.get("/bets", response_class=HTMLResponse)
+async def bets_page(request: Request):
+    return templates.TemplateResponse("bets.html", {"request": request})
+
+
 @app.get("/backtest", response_class=HTMLResponse)
 async def backtest_page(request: Request):
-    return templates.TemplateResponse("backtest.html", {"request": request})
+    return RedirectResponse(url="/events")
 
 
 @app.get("/ingest", response_class=HTMLResponse)
 async def ingest_page(request: Request):
-    return templates.TemplateResponse("ingest.html", {"request": request})
+    return RedirectResponse(url="/events")
 
 
 @app.get("/fighter", response_class=HTMLResponse)

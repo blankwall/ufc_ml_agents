@@ -93,6 +93,8 @@ FIGHTER_ALIASES: dict[str, str] = {
     "Soo Young Yoo":          "SuYoung You",
     # Outcome name mismatches (odds source vs UFC stats canonical)
     "Michael Aswell":         "Michael Aswell Jr.",
+    "Cameron Rowston":        "Cam Rowston",
+    "Don Mar Fan":            "Dom Mar Fan",
 }
 
 

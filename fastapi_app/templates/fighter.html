@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/style.css?v=8" />
-  <link rel="stylesheet" href="/static/css/fighter.css?v=1" />
+  <link rel="stylesheet" href="/static/css/fighter.css?v=2" />
 </head>
 <body>
 
@@ -19,53 +19,69 @@
       <span class="logo-text">UFC<strong>ML</strong></span>
     </div>
     <nav class="header-nav">
-      <a href="/backtest" class="nav-link">Backtest</a>
       <a href="/events" class="nav-link">Events</a>
-      <a href="/ingest" class="nav-link">Ingest</a>
+      <a href="/bets" class="nav-link">Bets</a>
       <a href="/fighter" class="nav-link active">Fighter</a>
     </nav>
     <div class="header-meta">
-      <span class="badge">Fighter Profiles</span>
+      <span class="badge">Profiles + Compare</span>
     </div>
   </div>
 </header>
 
 <main>
 
-  <!-- ── Search ───────────────────────────────────────────────────────────── -->
-  <section class="search-section">
-    <div class="search-wrapper">
-      <input type="text" id="fighterSearch" class="search-input"
-             placeholder="Search fighter…" autocomplete="off" />
-      <div id="searchDropdown" class="search-dropdown hidden"></div>
+  <section class="control-panel">
+    <div class="search-block">
+      <label class="control-label" for="fighterSearch">Fighter</label>
+      <div class="search-wrapper">
+        <input type="text" id="fighterSearch" class="search-input"
+               placeholder="Search fighter…" autocomplete="off" />
+        <div id="searchDropdown" class="search-dropdown hidden"></div>
+      </div>
+    </div>
+
+    <div class="search-block">
+      <label class="control-label" for="compareSearch">Compare</label>
+      <div class="compare-row">
+        <div class="search-wrapper">
+          <input type="text" id="compareSearch" class="search-input"
+                 placeholder="Compare against another fighter…" autocomplete="off" />
+          <div id="compareDropdown" class="search-dropdown hidden"></div>
+        </div>
+        <button id="compareBtn" class="compare-btn" type="button">Compare</button>
+      </div>
     </div>
   </section>
 
-  <!-- ── Loading ──────────────────────────────────────────────────────────── -->
   <div id="loadingState" class="loading-state hidden">
     <div class="spinner-large"></div>
     <p>Loading fighter profile…</p>
   </div>
 
-  <!-- ── Error ────────────────────────────────────────────────────────────── -->
   <div id="errorState" class="error-banner hidden"></div>
 
-  <!-- ── Profile Content ──────────────────────────────────────────────────── -->
   <div id="profileContent" class="hidden">
+    <div id="compareSection" class="compare-section hidden">
+      <div class="section-header">
+        <h3>Compare</h3>
+        <div id="compareStatus" class="compare-status">Select another fighter to compare.</div>
+      </div>
+      <div id="comparePrediction" class="compare-prediction"></div>
+      <div id="compareTableWrap" class="compare-table-wrap"></div>
+    </div>
 
-    <!-- Header card -->
     <div class="profile-header" id="profileHeader"></div>
+    <div class="summary-grid" id="summaryGrid"></div>
 
-    <!-- Physical attributes -->
+    <div class="recent-form-card" id="recentFormCard"></div>
     <div class="phys-grid" id="physGrid"></div>
 
-    <!-- Career stats grid -->
     <div class="stats-section">
-      <div class="stats-title">Career Stats</div>
+      <div class="stats-title">Key Stats</div>
       <div class="stats-grid" id="statsGrid"></div>
     </div>
 
-    <!-- Fight history -->
     <div class="table-section">
       <div class="table-header">
         <h3>Fight History</h3>
@@ -92,6 +108,6 @@
 
 </main>
 
-<script src="/static/js/fighter.js?v=1"></script>
+<script src="/static/js/fighter.js?v=2"></script>
 </body>
 </html>

@@ -1,200 +1,444 @@
-// ── Fighter Page JS ─────────────────────────────────────────────────────────
-
-const $search    = document.getElementById('fighterSearch');
-const $dropdown  = document.getElementById('searchDropdown');
-const $loading   = document.getElementById('loadingState');
-const $error     = document.getElementById('errorState');
-const $profile   = document.getElementById('profileContent');
-const $header    = document.getElementById('profileHeader');
-const $physGrid  = document.getElementById('physGrid');
+const $fighterSearch = document.getElementById('fighterSearch');
+const $searchDropdown = document.getElementById('searchDropdown');
+const $compareSearch = document.getElementById('compareSearch');
+const $compareDropdown = document.getElementById('compareDropdown');
+const $compareBtn = document.getElementById('compareBtn');
+const $loading = document.getElementById('loadingState');
+const $error = document.getElementById('errorState');
+const $profile = document.getElementById('profileContent');
+const $header = document.getElementById('profileHeader');
+const $summaryGrid = document.getElementById('summaryGrid');
+const $recentFormCard = document.getElementById('recentFormCard');
+const $physGrid = document.getElementById('physGrid');
 const $statsGrid = document.getElementById('statsGrid');
-const $history   = document.getElementById('historyTableBody');
+const $history = document.getElementById('historyTableBody');
+const $compareSection = document.getElementById('compareSection');
+const $compareStatus = document.getElementById('compareStatus');
+const $comparePrediction = document.getElementById('comparePrediction');
+const $compareTableWrap = document.getElementById('compareTableWrap');
 
-let searchTimer = null;
+let currentFighter = null;
+let compareFighter = null;
+const searchTimers = new WeakMap();
 
-// ── Autocomplete search ─────────────────────────────────────────────────────
+const COMPARE_METRICS = [
+  { key: 'age', label: 'Age', format: formatInt },
+  { key: 'height_cm', label: 'Height', format: v => formatNumber(v, ' cm') },
+  { key: 'weight_lbs', label: 'Weight', format: v => formatNumber(v, ' lbs') },
+  { key: 'reach_inches', label: 'Reach', format: v => formatNumber(v, '"') },
+  { key: 'sig_strikes_landed_per_min', label: 'SLpM', format: v => formatNumber(v) },
+  { key: 'sig_strikes_absorbed_per_min', label: 'SApM', format: v => formatNumber(v) },
+  { key: 'striking_accuracy_pct', label: 'Str Acc', format: formatPercent },
+  { key: 'striking_defense_pct', label: 'Str Def', format: formatPercent },
+  { key: 'takedown_avg_per_15min', label: 'TD Avg', format: v => formatNumber(v) },
+  { key: 'takedown_accuracy_pct', label: 'TD Acc', format: formatPercent },
+  { key: 'takedown_defense_pct', label: 'TD Def', format: formatPercent },
+  { key: 'submission_avg_per_15min', label: 'Sub Avg', format: v => formatNumber(v) },
+];
 
-$search.addEventListener('input', () => {
-  clearTimeout(searchTimer);
-  const q = $search.value.trim();
-  if (q.length < 2) {
-    $dropdown.classList.add('hidden');
-    return;
-  }
-  searchTimer = setTimeout(() => doSearch(q), 250);
+wireAutocomplete($fighterSearch, $searchDropdown, async (name) => {
+  await loadFighter(name);
 });
 
-$search.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    $dropdown.classList.add('hidden');
+wireAutocomplete($compareSearch, $compareDropdown, async (name) => {
+  compareFighter = name;
+  if (currentFighter && currentFighter.name !== name) {
+    await loadComparison(name);
   }
+});
+
+$compareBtn.addEventListener('click', async () => {
+  const name = $compareSearch.value.trim();
+  if (!name || !currentFighter) return;
+  compareFighter = name;
+  await loadComparison(name);
 });
 
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.search-wrapper')) {
-    $dropdown.classList.add('hidden');
+    $searchDropdown.classList.add('hidden');
+    $compareDropdown.classList.add('hidden');
   }
 });
 
-async function doSearch(q) {
+async function wireAutocomplete(input, dropdown, onSelect) {
+  input.addEventListener('input', () => {
+    clearTimeout(searchTimers.get(input));
+    const q = input.value.trim();
+    if (q.length < 2) {
+      dropdown.classList.add('hidden');
+      return;
+    }
+    const timer = setTimeout(() => doSearch(q, dropdown, onSelect), 200);
+    searchTimers.set(input, timer);
+  });
+
+  input.addEventListener('keydown', async (e) => {
+    if (e.key === 'Escape') {
+      dropdown.classList.add('hidden');
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const name = input.value.trim();
+      if (name) await onSelect(name);
+      dropdown.classList.add('hidden');
+    }
+  });
+}
+
+async function doSearch(q, dropdown, onSelect) {
   try {
     const res = await fetch(`/api/db/fighters/search?q=${encodeURIComponent(q)}`);
-    const data = await res.json();
-    renderDropdown(data);
+    const items = await res.json();
+    renderDropdown(items, dropdown, onSelect);
   } catch {
-    $dropdown.classList.add('hidden');
+    dropdown.classList.add('hidden');
   }
 }
 
-function renderDropdown(items) {
+function renderDropdown(items, dropdown, onSelect) {
   if (!items.length) {
-    $dropdown.classList.add('hidden');
+    dropdown.classList.add('hidden');
     return;
   }
-  $dropdown.innerHTML = items.map(f => `
+  dropdown.innerHTML = items.map(f => `
     <div class="search-item" data-name="${escAttr(f.name)}">
       <span>${esc(f.name)}</span>
       <span class="search-record">${esc(f.record)}</span>
     </div>
   `).join('');
-  $dropdown.classList.remove('hidden');
+  dropdown.classList.remove('hidden');
 
-  $dropdown.querySelectorAll('.search-item').forEach(el => {
-    el.addEventListener('click', () => {
+  dropdown.querySelectorAll('.search-item').forEach(el => {
+    el.addEventListener('click', async () => {
       const name = el.dataset.name;
-      $search.value = name;
-      $dropdown.classList.add('hidden');
-      loadFighter(name);
+      const input = dropdown.id === 'searchDropdown' ? $fighterSearch : $compareSearch;
+      input.value = name;
+      dropdown.classList.add('hidden');
+      await onSelect(name);
     });
   });
 }
 
-// ── Load fighter profile ────────────────────────────────────────────────────
-
 async function loadFighter(name) {
-  $loading.classList.remove('hidden');
-  $error.classList.add('hidden');
+  setLoading(true);
+  hideError();
   $profile.classList.add('hidden');
 
   try {
     const res = await fetch(`/api/db/fighter/${encodeURIComponent(name)}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Fighter not found');
+    currentFighter = data;
+    $fighterSearch.value = data.name;
     renderProfile(data);
+    $profile.classList.remove('hidden');
+    if (compareFighter && compareFighter !== data.name) {
+      await loadComparison(compareFighter);
+    } else {
+      resetComparison();
+    }
   } catch (err) {
-    $error.textContent = err.message;
-    $error.classList.remove('hidden');
+    showError(err.message);
   } finally {
-    $loading.classList.add('hidden');
+    setLoading(false);
   }
 }
 
-// ── Render profile ──────────────────────────────────────────────────────────
+function renderProfile(fighter) {
+  const nicknameHtml = fighter.nickname ? `<div class="nickname">"${esc(fighter.nickname)}"</div>` : '';
+  const recentForm = (fighter.recent_form || []).map(result => {
+    const cls = result === 'W' ? 'win' : result === 'L' ? 'loss' : 'other';
+    return `<span class="form-pill ${cls}">${result}</span>`;
+  }).join('');
 
-function renderProfile(f) {
-  // Header
-  const nicknameHtml = f.nickname ? `<div class="nickname">"${esc(f.nickname)}"</div>` : '';
   $header.innerHTML = `
-    <h2>${esc(f.name)}</h2>
-    ${nicknameHtml}
-    <div class="record-badge">${esc(f.record)}</div>
-    <div class="header-details">
-      ${f.age ? `<span>Age: ${f.age}</span>` : ''}
-      ${f.stance ? `<span>Stance: ${esc(f.stance)}</span>` : ''}
-      <span>Fights: ${f.fight_count}</span>
+    <div class="profile-title">
+      <div>
+        <h1>${esc(fighter.name)}</h1>
+        ${nicknameHtml}
+      </div>
+      <div class="record-stack">
+        <div class="record-chip">Record ${esc(fighter.record)}</div>
+        <div class="record-subtext">UFC ${fighter.ufc_record.wins}-${fighter.ufc_record.losses}-${fighter.ufc_record.draws}</div>
+      </div>
     </div>
   `;
 
-  // Physical attributes
-  $physGrid.innerHTML = '';
-  const attrs = [
-    { label: 'Height', value: f.height_cm ? `${f.height_cm} cm` : '—' },
-    { label: 'Weight', value: f.weight_lbs ? `${f.weight_lbs} lbs` : '—' },
-    { label: 'Reach', value: f.reach_inches ? `${f.reach_inches}"` : '—' },
-  ];
-  for (const a of attrs) {
-    $physGrid.innerHTML += `
-      <div class="phys-card">
-        <div class="phys-label">${a.label}</div>
-        <div class="phys-value">${esc(a.value)}</div>
-      </div>
-    `;
-  }
+  $summaryGrid.innerHTML = [
+    { label: 'Overall Win Rate', value: formatPercent(fighter.win_rate_pct) },
+    { label: 'UFC Win Rate', value: formatPercent(fighter.ufc_win_rate_pct) },
+    { label: 'UFC Bouts', value: formatInt(fighter.ufc_bout_count) },
+    { label: 'Age', value: formatInt(fighter.age) },
+    { label: 'Stance', value: fighter.stance || '—' },
+    { label: 'No Contests', value: formatInt(fighter.overall_record.no_contests || 0) },
+  ].map(item => `
+    <div class="summary-card">
+      <div class="summary-label">${item.label}</div>
+      <div class="summary-value">${esc(item.value)}</div>
+    </div>
+  `).join('');
 
-  // Career stats
+  $recentFormCard.innerHTML = `
+    <div class="section-header">
+      <h3>Recent form</h3>
+      <div class="section-subtitle">Last five UFC results, with overall and UFC records shown once for context.</div>
+    </div>
+    <div class="glance-grid">
+      <div class="glance-item">
+        <span class="glance-label">Last 5</span>
+        <div class="form-strip">${recentForm || '<span class="muted">—</span>'}</div>
+      </div>
+      <div class="glance-item">
+        <span class="glance-label">Overall</span>
+        <strong>${fighter.overall_record.wins}-${fighter.overall_record.losses}-${fighter.overall_record.draws}</strong>
+      </div>
+      <div class="glance-item">
+        <span class="glance-label">UFC</span>
+        <strong>${fighter.ufc_record.wins}-${fighter.ufc_record.losses}-${fighter.ufc_record.draws}</strong>
+      </div>
+      <div class="glance-item">
+        <span class="glance-label">Nickname</span>
+        <strong>${esc(fighter.nickname || '—')}</strong>
+      </div>
+    </div>
+  `;
+
+  $physGrid.innerHTML = [
+    { label: 'Height', value: formatNumber(fighter.height_cm, ' cm') },
+    { label: 'Weight', value: formatNumber(fighter.weight_lbs, ' lbs') },
+    { label: 'Reach', value: formatNumber(fighter.reach_inches, '"') },
+  ].map(item => `
+    <div class="phys-card">
+      <div class="phys-label">${item.label}</div>
+      <div class="phys-value">${esc(item.value)}</div>
+    </div>
+  `).join('');
+
   const stats = [
-    { key: 'sig_strikes_landed_per_min', label: 'SLpM', max: 10 },
-    { key: 'striking_accuracy',          label: 'Str Acc', max: 100, pct: true },
-    { key: 'sig_strikes_absorbed_per_min', label: 'SApM', max: 10 },
-    { key: 'striking_defense',           label: 'Str Def', max: 100, pct: true },
-    { key: 'takedown_avg_per_15min',     label: 'TD Avg', max: 8 },
-    { key: 'takedown_accuracy',          label: 'TD Acc', max: 100, pct: true },
-    { key: 'takedown_defense',           label: 'TD Def', max: 100, pct: true },
-    { key: 'submission_avg_per_15min',   label: 'Sub Avg', max: 4 },
+    { label: 'Strikes Landed / Min', value: formatNumber(fighter.sig_strikes_landed_per_min) },
+    { label: 'Striking Accuracy', value: formatPercent(fighter.striking_accuracy_pct) },
+    { label: 'Strikes Absorbed / Min', value: formatNumber(fighter.sig_strikes_absorbed_per_min) },
+    { label: 'Striking Defense', value: formatPercent(fighter.striking_defense_pct) },
+    { label: 'Takedowns / 15', value: formatNumber(fighter.takedown_avg_per_15min) },
+    { label: 'Takedown Accuracy', value: formatPercent(fighter.takedown_accuracy_pct) },
+    { label: 'Takedown Defense', value: formatPercent(fighter.takedown_defense_pct) },
+    { label: 'Submissions / 15', value: formatNumber(fighter.submission_avg_per_15min) },
   ];
 
-  $statsGrid.innerHTML = '';
-  for (const s of stats) {
-    const val = f[s.key];
-    const display = val != null ? (s.pct ? `${val.toFixed(1)}%` : val.toFixed(2)) : '—';
-    const pct = val != null ? Math.min((val / s.max) * 100, 100) : 0;
-    $statsGrid.innerHTML += `
-      <div class="stat-bar-item">
-        <div class="stat-bar-label">
-          <span>${s.label}</span>
-          <span class="stat-bar-value">${display}</span>
-        </div>
-        <div class="stat-bar-track">
-          <div class="stat-bar-fill" style="width:${pct}%"></div>
-        </div>
-      </div>
-    `;
-  }
+  $statsGrid.innerHTML = stats.map(item => `
+    <div class="stat-card">
+      <div class="stat-card-label">${item.label}</div>
+      <div class="stat-card-value">${esc(item.value)}</div>
+    </div>
+  `).join('');
 
-  // Fight history
   $history.innerHTML = '';
-  for (const h of f.fight_history) {
-    const resultClass = h.result === 'W' ? 'cell-win' :
-                        h.result === 'L' ? 'cell-loss' :
-                        h.result === 'D' ? 'cell-draw' :
-                        h.result === 'NC' ? 'cell-nc' : '';
+  for (const fight of fighter.fight_history) {
+    const resultClass = fight.result === 'W' ? 'cell-win' :
+      fight.result === 'L' ? 'cell-loss' :
+      fight.result === 'D' ? 'cell-draw' :
+      fight.result === 'NC' ? 'cell-nc' : '';
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${esc(h.date) || '—'}</td>
-      <td style="color:var(--text-muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(h.event)}</td>
-      <td><a class="opponent-link" data-name="${escAttr(h.opponent)}">${esc(h.opponent)}</a></td>
-      <td class="${resultClass}">${h.result}</td>
-      <td>${esc(h.method || '—')}</td>
-      <td>${h.round || '—'}</td>
-      <td>${esc(h.closing_odds || '—')}</td>
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${esc(fight.date || '—')}</td>
+      <td class="event-cell">${esc(fight.event || '—')}</td>
+      <td><a class="opponent-link" data-name="${escAttr(fight.opponent)}">${esc(fight.opponent)}</a></td>
+      <td class="${resultClass}">${esc(fight.result)}</td>
+      <td>${esc(fight.method || '—')}</td>
+      <td>${esc(fight.round || '—')}</td>
+      <td>${esc(fight.closing_odds || '—')}</td>
     `;
-    $history.appendChild(tr);
+    $history.appendChild(row);
   }
 
-  // Wire up opponent links
-  $history.querySelectorAll('.opponent-link').forEach(a => {
-    a.addEventListener('click', () => {
-      const name = a.dataset.name;
-      $search.value = name;
-      loadFighter(name);
+  $history.querySelectorAll('.opponent-link').forEach(link => {
+    link.addEventListener('click', async () => {
+      const name = link.dataset.name;
+      $fighterSearch.value = name;
+      await loadFighter(name);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   });
-
-  $profile.classList.remove('hidden');
 }
 
-// ── Utilities ────────────────────────────────────────────────────────────────
+async function loadComparison(name) {
+  if (!currentFighter) return;
+  if (name === currentFighter.name) {
+    resetComparison('Choose a different fighter to compare.');
+    return;
+  }
+
+  $compareSection.classList.remove('hidden');
+  $compareStatus.textContent = 'Loading matchup...';
+  $comparePrediction.innerHTML = '';
+  $compareTableWrap.innerHTML = '';
+
+  try {
+    const [profileRes, predictRes] = await Promise.all([
+      fetch(`/api/db/fighter/${encodeURIComponent(name)}`),
+      fetch('/api/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fighter1: currentFighter.name,
+          fighter2: name,
+        }),
+      }),
+    ]);
+
+    const compareProfile = await profileRes.json();
+    const prediction = await predictRes.json();
+    if (!profileRes.ok) throw new Error(compareProfile.detail || 'Comparison fighter not found');
+    if (!predictRes.ok) throw new Error(prediction.detail || 'Prediction failed');
+
+    compareFighter = compareProfile.name;
+    $compareSearch.value = compareProfile.name;
+    renderComparison(compareProfile, prediction);
+    $compareSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    resetComparison(err.message);
+  }
+}
+
+function renderComparison(other, prediction) {
+  $compareStatus.textContent = 'Neutral-line model comparison';
+  $comparePrediction.innerHTML = renderMatchupPanel(currentFighter, other, prediction);
+  $compareTableWrap.innerHTML = '';
+}
+
+function renderCompareRow(left, right, metric) {
+  const leftValue = left[metric.key];
+  const rightValue = right[metric.key];
+  const winner = compareMetric(leftValue, rightValue);
+  return `<tr>
+    <td class="mp-stat-val ${winner === 'left' ? 'mp-stat-edge' : ''}">${esc(metric.format(leftValue))}</td>
+    <td class="mp-stat-label">${metric.label}</td>
+    <td class="mp-stat-val right ${winner === 'right' ? 'mp-stat-edge' : ''}">${esc(metric.format(rightValue))}</td>
+  </tr>`;
+}
+
+function compareMetric(left, right) {
+  const a = typeof left === 'number' ? left : null;
+  const b = typeof right === 'number' ? right : null;
+  if (a == null || b == null || a === b) return '';
+  return a > b ? 'left' : 'right';
+}
+
+function resetComparison(message = 'Select another fighter to compare.') {
+  $compareSection.classList.add('hidden');
+  $compareStatus.textContent = message;
+  $comparePrediction.innerHTML = '';
+  $compareTableWrap.innerHTML = '';
+}
+
+function renderMatchupPanel(left, right, prediction) {
+  const thinData = prediction.thin_data_warning ? '<span class="mp-meta-chip warning">Thin data</span>' : '';
+  return `
+    <div class="matchup-panel-inner fighter-matchup-panel">
+      <div class="mp-header">
+        <span class="mp-name">${esc(left.name)}</span>
+        <span class="mp-vs">VS</span>
+        <span class="mp-name right">${esc(right.name)}</span>
+      </div>
+      <div class="mp-subheader">
+        <span>${esc(left.record)} · ${left.age ?? '?'}yo · ${esc(left.stance || '—')} · ${formatNumber(left.reach_inches, '"')} reach</span>
+        <span>${esc(right.record)} · ${right.age ?? '?'}yo · ${esc(right.stance || '—')} · ${formatNumber(right.reach_inches, '"')} reach</span>
+      </div>
+
+      <div class="probability-row fighter-probability-row">
+        <div class="probability-side">
+          <span>${esc(left.name)}</span>
+          <strong>${prediction.model_prob_f1.toFixed(1)}%</strong>
+        </div>
+        <div class="probability-bar">
+          <div class="probability-fill left" style="width:${prediction.model_prob_f1}%"></div>
+          <div class="probability-fill right" style="width:${prediction.model_prob_f2}%"></div>
+        </div>
+        <div class="probability-side align-right">
+          <span>${esc(right.name)}</span>
+          <strong>${prediction.model_prob_f2.toFixed(1)}%</strong>
+        </div>
+      </div>
+
+      <div class="fighter-matchup-meta">
+        <span class="mp-meta-chip pick">Pick: ${esc(prediction.model_pick)}</span>
+        <span class="mp-meta-chip">Edge ${formatSignedPercent(prediction.edge)}</span>
+        <span class="mp-meta-chip">Confidence ${esc(prediction.confidence_score)}</span>
+        ${thinData}
+      </div>
+
+      <table class="mp-stats-table">
+        <tbody>
+          ${COMPARE_METRICS.map(metric => renderCompareRow(left, right, metric)).join('')}
+        </tbody>
+      </table>
+
+      <div class="mp-recent">
+        <div class="mp-recent-col">${renderRecentFights(left.fight_history, left.name)}</div>
+        <div class="mp-recent-label">Recent</div>
+        <div class="mp-recent-col right">${renderRecentFights(right.fight_history, right.name)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderRecentFights(fights, fighterName) {
+  const recent = (fights || []).slice(0, 4);
+  if (!recent.length) return '<div class="mp-no-data">No recent fights</div>';
+  return recent.map(fight => {
+    const cls = fight.result === 'W' ? 'mp-r-w' : fight.result === 'L' ? 'mp-r-l' : 'mp-r-nc';
+    const odds = fight.closing_odds ? `<span class="mp-r-odds">${esc(fight.closing_odds)}</span>` : '';
+    return `<div class="mp-recent-row">
+      <span class="mp-r-badge ${cls}">${esc(fight.result || '—')}</span>
+      <span class="mp-r-opp">${esc(fight.opponent || '—')}</span>
+      ${odds}
+    </div>`;
+  }).join('');
+}
+
+function setLoading(active) {
+  $loading.classList.toggle('hidden', !active);
+}
+
+function showError(message) {
+  $error.textContent = message;
+  $error.classList.remove('hidden');
+}
+
+function hideError() {
+  $error.classList.add('hidden');
+}
+
+function formatNumber(value, suffix = '') {
+  if (value === null || value === undefined) return '—';
+  return `${Number(value).toFixed(1).replace(/\.0$/, '')}${suffix}`;
+}
+
+function formatInt(value) {
+  if (value === null || value === undefined) return '—';
+  return `${value}`;
+}
+
+function formatPercent(value) {
+  if (value === null || value === undefined) return '—';
+  return `${Number(value).toFixed(1)}%`;
+}
+
+function formatSignedPercent(value) {
+  if (value === null || value === undefined) return '—';
+  return `${value > 0 ? '+' : ''}${Number(value).toFixed(1)}%`;
+}
 
 function esc(s) {
-  if (!s) return '';
+  if (s === null || s === undefined) return '';
   const d = document.createElement('div');
   d.textContent = String(s);
   return d.innerHTML;
 }
 
 function escAttr(s) {
-  if (!s) return '';
+  if (s === null || s === undefined) return '';
   return String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
