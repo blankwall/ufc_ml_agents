@@ -168,6 +168,86 @@ python scripts/backtest_manual_card.py \
   --output-csv data/predictions/royval_kape_20251213_results_with_model.csv
 ```
 
+### Sergey enrichment sidecar
+
+Export Sergey Postgres enrichment data into a separate local SQLite sidecar:
+
+```bash
+.venv/bin/python scripts/export_sergey_sidecar.py
+.venv/bin/python scripts/build_sergey_fight_map.py
+```
+
+This writes `data/enrichment/sergey_sidecar.sqlite` with:
+- `fighters` — current and peak ELO plus identity/link fields
+- `fights` — pre-fight red/blue ELO snapshots and fight context
+- `assessments` — small manual 1-10 contextual ratings like fight IQ and pace retention
+- `dfs_fighter_data` — sparse event-specific matchup/context tags
+- `fight_identity_map` — main DB fight IDs mapped to Sergey fight IDs for ELO/trait joins
+
+## MCP server for agentic analysis
+
+The repo includes a stdio MCP server for context-driven agent workflows:
+
+```bash
+uv sync
+.venv/bin/python -m mcp_server.ufc_context_server
+```
+
+It exposes tools for:
+- deterministic context packets
+- cited context reviews
+- combined-evidence validation
+- fighter ELO history from the Sergey sidecar
+- read-only SQL over `context_pool`, `trait_snapshots`, `sergey_sidecar`, and the main fighter DB
+- whitelisted backtest/doc file reads
+
+Typical MCP entrypoints:
+
+```text
+list_data_sources
+describe_database
+run_readonly_sql
+search_context_targets
+get_context_packet
+review_context
+validate_combined_context
+read_backtest_file
+get_fighter_elo_history
+```
+
+### `get_fighter_elo_history`
+
+Returns a fighter's pre-fight ELO timeline straight from the Sergey sidecar:
+
+```python
+get_fighter_elo_history("Khabib Nurmagomedov", window=5)
+# window accepts a positive integer or "all" (default)
+```
+
+Each fight in the response includes:
+
+| Field | Description |
+|---|---|
+| `fight_date` | ISO date of the fight |
+| `event_name` | UFC event name |
+| `opponent_name` | Opponent's full name |
+| `result` | `win` / `loss` / `draw` / `no_contest` / `unknown` |
+| `method` | Finish method (e.g. "Decision", "Rear Naked Choke") |
+| `division` | Weight class |
+| `fighter_pre_elo` | Fighter's ELO snapshot *before* the fight |
+| `opponent_pre_elo` | Opponent's ELO snapshot *before* the fight |
+| `elo_diff` | `fighter_pre_elo − opponent_pre_elo` (positive = ELO advantage) |
+
+The response also carries `elo_current`, `elo_peak`, and `total_fights_in_db` for the resolved fighter.
+
+**Caveats:**
+- Coverage is limited to fights in the Sergey sidecar with a UFC promotion tag.
+- Pre-fight ELO snapshots may be `null` for older fights where Sergey had incomplete data.
+- Fighters with common surnames (e.g. "jones") may trigger an `ambiguous` response listing candidates — retry with the full name.
+- Fighters absent from the sidecar return `mapped: false`.
+
+The SQL surface is intentionally read-only and the file reader is limited to whitelisted analysis paths.
+
 ## Does it work?
 
 Here's an example of the system running end-to-end on a real UFC card (UFC Fight Night: Royval vs. Kape, December 13, 2025):
