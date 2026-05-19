@@ -40,6 +40,39 @@ def default_results_path_for_odds(odds_path: Path) -> Path:
         return Path(__file__).resolve().parent / "backtest_2025_results.csv"
     return Path(__file__).resolve().parent / "backtest_results.csv"
 
+
+def _relative_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def _first_present(row: pd.Series, *columns: str, default=None):
+    for column in columns:
+        value = row.get(column)
+        if value is not None and not pd.isna(value):
+            return value
+    return default
+
+
+def odds_provenance(row: pd.Series, *, odds_path: Path, source_line: int) -> dict:
+    """Carry optional odds source metadata through the generated results CSV."""
+    optional_fields = {
+        "odds_source_file": _first_present(row, "odds_source_file", "source_file", default=_relative_path(odds_path)),
+        "odds_source_line": _first_present(row, "odds_source_line", "source_row", default=source_line),
+        "odds_source_type": _first_present(row, "odds_source_type", "source_type"),
+        "odds_source_row": _first_present(row, "odds_source_row", "source_key"),
+        "source_event_id": _first_present(row, "source_event_id"),
+        "source_url": _first_present(row, "source_url"),
+        "scraped_at": _first_present(row, "scraped_at"),
+        "bookmaker": _first_present(row, "bookmaker"),
+        "odds_timestamp": _first_present(row, "odds_timestamp"),
+        "odds_is_opening_line": _first_present(row, "odds_is_opening_line", "is_opening_line"),
+        "odds_is_closing_line": _first_present(row, "odds_is_closing_line", "is_closing_line"),
+    }
+    return {key: (None if pd.isna(value) else value) for key, value in optional_fields.items()}
+
 def load_config(config_path: Path | str) -> dict:
     """Load backtest config from JSON file."""
     config_path = Path(config_path)
@@ -103,6 +136,11 @@ _NAME_FIXES: dict[str, str] = {
     "casey oneill":           "Casey O'Neill",
     "azamt bekoev":           "Azamat Bekoev",
     "lupita godinez":         "Loopy Godinez",
+    "michael aswell":         "Michael Aswell Jr.",
+    "cameron rowston":        "Cam Rowston",
+    "don mar fan":            "Dom Mar Fan",
+    # Sergey sidecar / alternate-source name for the same fighter.
+    "konklak suphisara":      "Loma Lookboonmee",
 }
 
 
@@ -120,6 +158,15 @@ def _names_match(a: str, b: str) -> bool:
     a_canon = _normalize_name(_NAME_FIXES.get(a.lower(), a))
     b_canon = _normalize_name(_NAME_FIXES.get(b.lower(), b))
     return a_canon == b_canon
+
+
+def _fight_lookup_key_candidates(fighter1: str, fighter2: str) -> list[frozenset[str]]:
+    """Return raw and alias-canonical lookup keys for a fighter pair."""
+    raw_key = frozenset([fighter1.lower(), fighter2.lower()])
+    canon1 = _NAME_FIXES.get(fighter1.lower(), fighter1).lower()
+    canon2 = _NAME_FIXES.get(fighter2.lower(), fighter2).lower()
+    canonical_key = frozenset([canon1, canon2])
+    return [raw_key] if canonical_key == raw_key else [raw_key, canonical_key]
 
 
 def _resolve_fighter_for_backtest(session, name: str):
@@ -620,6 +667,7 @@ def main():
 
     for idx, row in past_fights.iterrows():
         date = row["date"].strftime("%Y-%m-%d")
+        provenance = odds_provenance(row, odds_path=csv_path, source_line=int(idx) + 2)
         # Use the fight date as the feature cutoff.  get_fight_history uses a strict
         # < comparison, so same-event fights (stored with the same date) are excluded
         # automatically — no need to subtract a day.  This matches the site's behaviour.
@@ -650,14 +698,15 @@ def main():
             if not args.quiet:
                 print("  Prediction failed")
             results.append({
-                'date': date, 'fighter1': f1, 'fighter2': f2,
+                'date': date, 'main_fight_id': None, 'fighter1': f1, 'fighter2': f2,
                 'odds1': odds1, 'odds2': odds2,
                 'prob1': None, 'prob2': None, 'pick': None,
                 'pick_odds': None, 'pick_prob': None,
                 'ev1': None, 'ev2': None,
                 'winner': None, 'pick_correct': None, 'actual_pnl': None,
                 'bet': False, 'skip_reason': 'prediction_failed',
-                'error': True
+                'error': True,
+                **provenance,
             })
             continue
 
@@ -682,8 +731,11 @@ def main():
             pick_ev = ev2
 
         # Look up actual winner — prefer DB (exact rematch-aware), fall back to CSV winner column
-        key = frozenset([f1.lower(), f2.lower()])
-        fight_list = winner_lookup.get(key, [])
+        fight_list = []
+        for key in _fight_lookup_key_candidates(f1, f2):
+            fight_list = winner_lookup.get(key, [])
+            if fight_list:
+                break
         if len(fight_list) == 1:
             fight_result = fight_list[0]
         elif len(fight_list) > 1:
@@ -693,6 +745,7 @@ def main():
             )
         else:
             fight_result = None
+        main_fight_id = fight_result.get("fight_id") if fight_result else None
         winner = fight_result["winner"] if fight_result else None
 
         # Fallback: use winner column from the odds CSV (already resolved by rebuild script)
@@ -727,7 +780,7 @@ def main():
         is_female = bool(wc and wc.lower().startswith('women'))
 
         results.append({
-            'date': date, 'fighter1': f1, 'fighter2': f2,
+            'date': date, 'main_fight_id': main_fight_id, 'fighter1': f1, 'fighter2': f2,
             'odds1': odds1, 'odds2': odds2,
             'prob1': prob_f1, 'prob2': prob_f2,
             'pick': pick, 'pick_odds': pick_odds, 'pick_prob': pick_prob,
@@ -735,6 +788,7 @@ def main():
             'winner': winner, 'pick_correct': pick_correct, 'actual_pnl': actual_pnl,
             'bet': bet, 'skip_reason': None if bet else bet_reason,
             'error': False, 'female': is_female,
+            **provenance,
         })
 
     pred_session.close()

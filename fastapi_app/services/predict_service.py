@@ -36,6 +36,7 @@ USER_EVENTS_DIR  = ROOT_DIR / "data" / "user_events"
 OUTCOMES_CSV     = ODDS_DIR / "outcomes.csv"
 CACHE_FILE       = ODDS_DIR / "predictions_cache.json"
 MODEL_DIR        = ROOT_DIR / "models" / "saved"
+CACHE_VERSION    = "v2"
 
 UD_THRESHOLD     = 0.40   # market_prob below this → underdog blend
 BLEND_WEIGHT     = 0.65   # ud_v1 weight
@@ -95,6 +96,9 @@ FIGHTER_ALIASES: dict[str, str] = {
     "Michael Aswell":         "Michael Aswell Jr.",
     "Cameron Rowston":        "Cam Rowston",
     "Don Mar Fan":            "Dom Mar Fan",
+    "Juan Martinetti":        "Adrian Luna Martinetti",
+    # Sergey sidecar / alternate-source name for the same fighter.
+    "Konklak Suphisara":      "Loma Lookboonmee",
 }
 
 
@@ -217,25 +221,32 @@ def _parse_event_date_any(s: str) -> Optional[datetime]:
         return None
 
 
+def _prediction_cache_namespace() -> str:
+    """Namespace prediction cache entries by app/cache semantics version."""
+    return CACHE_VERSION
+
+
 def _cache_key_for_prediction(fight_key: str, *, as_of: Optional[datetime], event_date: str) -> str:
     """Use date-anchored keys for history and roll future-fight cache daily."""
+    namespace = _prediction_cache_namespace()
     event_dt = _parse_event_date_any(event_date)
     if event_dt is not None and event_dt.date() > _now().date():
-        return f"{fight_key}|future|{event_dt.strftime('%Y-%m-%d')}|{_now().strftime('%Y-%m-%d')}"
+        return f"{namespace}|{fight_key}|future|{event_dt.strftime('%Y-%m-%d')}|{_now().strftime('%Y-%m-%d')}"
 
     if as_of is not None:
-        return f"{fight_key}|{as_of.strftime('%Y-%m-%d')}"
+        return f"{namespace}|{fight_key}|{as_of.strftime('%Y-%m-%d')}"
 
-    return fight_key
+    return f"{namespace}|{fight_key}"
 
 
 def _prune_stale_future_cache(cache: dict) -> tuple[dict, bool]:
-    """Drop prior-day future-fight cache entries so they recompute daily."""
+    """Drop old-namespace and prior-day future cache entries."""
+    namespace_prefix = f"{_prediction_cache_namespace()}|"
     today_key = f"|{_now().strftime('%Y-%m-%d')}"
     pruned = {
         key: value
         for key, value in cache.items()
-        if "|future|" not in key or key.endswith(today_key)
+        if key.startswith(namespace_prefix) and ("|future|" not in key or key.endswith(today_key))
     }
     return pruned, len(pruned) != len(cache)
 
