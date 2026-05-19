@@ -7,7 +7,12 @@ from mcp_server.ufc_context_server import (
     DEFAULT_SERGEY_DB,
     allowed_file,
     ensure_read_only_query,
+    get_fight_elo_context,
+    get_fight_historical_patterns,
+    get_fight_model_market,
+    get_fight_style_flags,
     get_fighter_elo_history,
+    get_context_packet,
     resolve_whitelisted_file,
     _parse_elo_window,
 )
@@ -148,3 +153,45 @@ def test_get_fighter_elo_history_includes_metadata_fields():
     assert "elo_peak" in result
     assert "fighter_id" in result
     assert isinstance(result["fighter_id"], int)
+
+
+def test_get_fight_model_market_for_known_context_row():
+    result = get_fight_model_market(fight_pool_id=443)
+    assert result["fight_pool_id"] == 443
+    assert result["fighter1"] == "Dominick Reyes"
+    assert "pick_prob" in result
+    assert "odds_provenance" in result
+
+
+def test_get_fight_historical_patterns_for_known_context_row():
+    result = get_fight_historical_patterns(fight_pool_id=443)
+    assert result["fight_pool_id"] == 443
+    assert "pattern_score_v0" in result
+    assert isinstance(result["patterns"], list)
+    assert result["pattern_score_v0"]["score"] >= 0
+
+
+def test_get_fight_style_flags_for_known_context_row():
+    result = get_fight_style_flags(fight_pool_id=443)
+    assert result["fight_pool_id"] == 443
+    assert "flags" in result
+    assert "support" in result["flags"]
+    assert "risk" in result["flags"]
+
+
+def test_missing_context_target_raises_value_error_instead_of_exiting():
+    with pytest.raises(ValueError, match="No context-pool row found"):
+        get_fight_elo_context(
+            fighter1="Alex Perez",
+            fighter2="Su Mudaerji",
+            date="2026-05-30",
+        )
+
+
+def test_get_context_packet_missing_target_raises_value_error_instead_of_exiting():
+    with pytest.raises(ValueError, match="No context-pool row found"):
+        get_context_packet(
+            fighter1="Alex Perez",
+            fighter2="Su Mudaerji",
+            date="2026-05-30",
+        )

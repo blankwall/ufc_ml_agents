@@ -22,14 +22,39 @@ if str(ROOT_DIR) not in sys.path:
 from mcp.server.fastmcp import FastMCP
 
 from backtest.context_agent_review import build_llm_review, build_review, load_evidence
-from backtest.context_packet import DEFAULT_POOL, build_packet, find_target
+from backtest.context_packet import (
+    DEFAULT_POOL,
+    build_flags,
+    build_packet,
+    build_pattern_score,
+    fetch_similar_rows,
+    fetch_trait_delta_evidence,
+    find_target,
+    pattern_payload,
+    support_level,
+)
+from backtest.historical_evidence import (
+    TRAIT_LABELS,
+    find_similar_elo_gap_fights as build_similar_elo_gap_fights,
+    find_similar_fighter_profiles as build_similar_fighter_profiles,
+    find_similar_market_fights as build_similar_market_fights,
+    find_trait_matchup_examples as build_trait_matchup_examples,
+    get_historical_pattern_summary as build_historical_pattern_summary,
+)
 from backtest.elo_analysis import DEFAULT_ALIAS_SOURCES, load_aliases, normalize_name
+from fastapi_app.services.fighter_snapshot import build_fighter_snapshot
+
 from backtest.validate_combined_evidence import (
     RULES,
     build_rule_rows,
     enrich_with_main_db,
     fetch_rows as fetch_combined_rows,
     matching_rows_for_rule,
+)
+from mcp_server.fight_init import (
+    get_deterministic_signal_filter as build_deterministic_signal_filter,
+    get_elo_market_signal as build_elo_market_signal,
+    init_fight_analysis as build_init_fight_analysis,
 )
 
 DEFAULT_CONTEXT_POOL = DEFAULT_POOL
@@ -127,15 +152,304 @@ def resolve_fight_pool_id(
         return fight_pool_id
     if not fighter1 or not fighter2:
         raise ValueError("Pass fight_pool_id or both fighter1 and fighter2.")
-    target, _ = find_target(
+    try:
+        target, _ = find_target(
+            conn,
+            fighter1=fighter1,
+            fighter2=fighter2,
+            date=date,
+            season=season,
+            aliases=aliases(),
+        )
+    except SystemExit as exc:
+        raise ValueError(str(exc)) from None
+    return int(target["id"])
+
+
+def resolve_target_row(
+    conn: sqlite3.Connection,
+    *,
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+) -> dict[str, Any]:
+    resolved_id = resolve_fight_pool_id(
         conn,
+        fight_pool_id=fight_pool_id,
         fighter1=fighter1,
         fighter2=fighter2,
         date=date,
         season=season,
-        aliases=aliases(),
     )
-    return int(target["id"])
+    row = conn.execute(
+        "SELECT * FROM backtest_fight_pool WHERE id = ?",
+        (resolved_id,),
+    ).fetchone()
+    if row is None:
+        raise ValueError(f"fight_pool_id not found: {resolved_id}")
+    return dict(row)
+
+
+def fight_locator_payload(target: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "fight_pool_id": target["id"],
+        "date": target["date"],
+        "season": target["season"],
+        "fighter1": target["fighter1"],
+        "fighter2": target["fighter2"],
+        "fight": f"{target['fighter1']} vs {target['fighter2']}",
+        "pick": target["pick"],
+        "source_row_key": target.get("source_row_key"),
+    }
+
+
+def _elo_implied_probability(elo_diff: float | None) -> float | None:
+    if elo_diff is None:
+        return None
+    return round(1 / (1 + 10 ** (-float(elo_diff) / 400)), 4)
+
+
+def _metric_delta_payload(analysis: dict[str, Any]) -> dict[str, Any] | None:
+    prediction = analysis.get("prediction") or {}
+    fighters = analysis.get("fighters") or {}
+    pick = prediction.get("pick") or {}
+    pick_slot = pick.get("slot")
+    if pick_slot not in {"fighter1", "fighter2"}:
+        return None
+    opponent_slot = "fighter2" if pick_slot == "fighter1" else "fighter1"
+    pick_snapshot = fighters.get(pick_slot) or {}
+    opponent_snapshot = fighters.get(opponent_slot) or {}
+    pick_quality = pick_snapshot.get("qualitative") or {}
+    opponent_quality = opponent_snapshot.get("qualitative") or {}
+    if not pick_quality.get("available") or not opponent_quality.get("available"):
+        return None
+
+    deltas: dict[str, Any] = {}
+    for diff_field in TRAIT_LABELS:
+        base_field = diff_field.removesuffix("_diff")
+        pick_value = pick_quality.get(base_field)
+        opponent_value = opponent_quality.get(base_field)
+        deltas[diff_field] = None if pick_value is None or opponent_value is None else float(pick_value) - float(opponent_value)
+
+    return {
+        "trait_version": pick_quality.get("trait_version") or opponent_quality.get("trait_version"),
+        "fighter_name": pick.get("fighter_name"),
+        "opponent_name": (opponent_snapshot.get("identity") or {}).get("resolved_name"),
+        "fight_count": pick_quality.get("fight_count"),
+        "opponent_fight_count": opponent_quality.get("fight_count"),
+        "trait_confidence": pick_quality.get("trait_confidence"),
+        "opponent_trait_confidence": opponent_quality.get("trait_confidence"),
+        "deltas": deltas,
+        "validation_notes": {
+            field: {"status": "dynamic_snapshot_delta"}
+            for field in deltas
+        },
+        "interpretation_note": (
+            "Synthetic trait deltas were derived from the latest point-in-time fighter snapshots. "
+            "Positive ability-score deltas favor the model pick; positive risk-score deltas mean the pick carries more of that risk."
+        ),
+    }
+
+
+def _dynamic_synthetic_target(
+    *,
+    fighter1: str,
+    fighter2: str,
+    date: str | None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
+) -> tuple[dict[str, Any], dict[str, Any] | None, dict[str, Any]]:
+    analysis = build_init_fight_analysis(
+        fighter1=fighter1,
+        fighter2=fighter2,
+        fight_date=date,
+        fighter1_odds=fighter1_odds,
+        fighter2_odds=fighter2_odds,
+    )
+    if analysis.get("status") != "ok":
+        raise ValueError(f"Dynamic fight init failed: {analysis.get('validation')}")
+
+    prediction = analysis["prediction"]
+    market = analysis["market"]
+    fighters = analysis["fighters"]
+    resolution = analysis["resolution"]
+    pick = prediction["pick"]
+    pick_slot = pick["slot"]
+    opponent_slot = "fighter2" if pick_slot == "fighter1" else "fighter1"
+    pick_snapshot = fighters[pick_slot] or {}
+    opponent_snapshot = fighters[opponent_slot] or {}
+    pick_elo = (pick_snapshot.get("elo") or {}).get("elo_current")
+    opponent_elo = (opponent_snapshot.get("elo") or {}).get("elo_current")
+    pick_elo_diff = None if pick_elo is None or opponent_elo is None else pick_elo - opponent_elo
+    elo_prob = _elo_implied_probability(pick_elo_diff)
+    model_minus_elo = None if elo_prob is None else round(pick["probability"] - elo_prob, 4)
+    market_minus_elo = None if elo_prob is None or pick.get("market_probability") is None else round(pick["market_probability"] - elo_prob, 4)
+    parsed_date = (resolution.get("fight_date") or {}).get("parsed") or date
+    season = int(parsed_date[:4]) if parsed_date and len(parsed_date) >= 4 and parsed_date[:4].isdigit() else None
+    f1_name = (resolution["fighter1"].get("resolved_name") or fighter1)
+    f2_name = (resolution["fighter2"].get("resolved_name") or fighter2)
+
+    target = {
+        "id": f"dynamic:{f1_name}:{f2_name}:{parsed_date or 'latest'}",
+        "source_table": "dynamic_synthetic_target",
+        "season": season,
+        "source_results": "dynamic_init",
+        "source_row_key": None,
+        "date": parsed_date or "dynamic-latest",
+        "fighter1": f1_name,
+        "fighter2": f2_name,
+        "pick": pick["fighter_name"],
+        "winner": None,
+        "pick_prob": pick["probability"],
+        "pick_odds": market["odds"].get(pick_slot),
+        "pick_correct": None,
+        "actual_pnl": None,
+        "bet": None,
+        "skip_reason": "dynamic_synthetic_target_no_config_decision",
+        "female": prediction.get("fighter_metadata", {}).get("is_wmma"),
+        "edge": pick.get("edge"),
+        "join_status": "matched" if pick_elo_diff is not None else "dynamic_missing_elo",
+        "join_method": "dynamic_fighter_snapshot",
+        "fighter1_elo": (fighters["fighter1"].get("elo") or {}).get("elo_current") if fighters.get("fighter1") else None,
+        "fighter2_elo": (fighters["fighter2"].get("elo") or {}).get("elo_current") if fighters.get("fighter2") else None,
+        "pick_elo": pick_elo,
+        "opponent_elo": opponent_elo,
+        "pick_elo_diff": pick_elo_diff,
+        "abs_elo_diff": None if pick_elo_diff is None else abs(pick_elo_diff),
+        "model_agrees_with_elo": None if pick_elo_diff is None else pick_elo_diff > 0,
+        "pick_prior_fight_count": (pick_snapshot.get("record") or {}).get("fight_count_as_of"),
+        "opponent_prior_fight_count": (opponent_snapshot.get("record") or {}).get("fight_count_as_of"),
+        "market_implied_prob": pick.get("market_probability"),
+        "elo_implied_prob": elo_prob,
+        "model_minus_elo_prob": model_minus_elo,
+        "market_minus_elo_prob": market_minus_elo,
+        "model_market_elo_triangle": None,
+    }
+    if model_minus_elo is not None and market_minus_elo is not None:
+        if model_minus_elo < 0 and market_minus_elo < 0:
+            target["model_market_elo_triangle"] = "model_and_market_under_elo"
+        elif model_minus_elo > 0 and market_minus_elo > 0:
+            target["model_market_elo_triangle"] = "model_and_market_over_elo"
+        elif model_minus_elo >= 0 and market_minus_elo < 0:
+            target["model_market_elo_triangle"] = "model_over_market_under_elo"
+        else:
+            target["model_market_elo_triangle"] = "model_under_market_over_elo"
+
+    return target, _metric_delta_payload(analysis), analysis
+
+
+def _historical_elo_fighter_neighbors(
+    *,
+    target_snapshot: dict[str, Any],
+    as_of_date: str | None,
+    limit: int,
+) -> dict[str, Any]:
+    target_elo = (target_snapshot.get("elo") or {}).get("elo_current")
+    if target_elo is None:
+        return {
+            "available": False,
+            "reason": "Target fighter does not have current ELO in the Sergey sidecar.",
+            "examples": [],
+        }
+
+    sidecar_path = resolve_database_path("sergey_sidecar")
+    conn = readonly_connection(sidecar_path)
+    try:
+        date_clause = "AND event_date <= ?" if as_of_date else ""
+        params: list[Any] = [target_elo]
+        if as_of_date:
+            params.append(as_of_date)
+        params.append(target_elo)
+        params.append(limit)
+        rows = conn.execute(
+            f"""
+            WITH fighter_states AS (
+                SELECT
+                    fight_id,
+                    event_date,
+                    event_name,
+                    fighter_red_id AS fighter_id,
+                    fighter_red_name AS fighter_name,
+                    fighter_red_elo AS fighter_pre_elo,
+                    fighter_blue_name AS opponent_name,
+                    fighter_blue_elo AS opponent_pre_elo,
+                    winner_id,
+                    winner_name,
+                    short_method,
+                    division
+                FROM fights
+                WHERE promotion LIKE '%Ultimate Fighting%'
+                  AND fighter_red_elo IS NOT NULL
+                UNION ALL
+                SELECT
+                    fight_id,
+                    event_date,
+                    event_name,
+                    fighter_blue_id AS fighter_id,
+                    fighter_blue_name AS fighter_name,
+                    fighter_blue_elo AS fighter_pre_elo,
+                    fighter_red_name AS opponent_name,
+                    fighter_red_elo AS opponent_pre_elo,
+                    winner_id,
+                    winner_name,
+                    short_method,
+                    division
+                FROM fights
+                WHERE promotion LIKE '%Ultimate Fighting%'
+                  AND fighter_blue_elo IS NOT NULL
+            )
+            SELECT *,
+                   ABS(fighter_pre_elo - ?) AS elo_distance,
+                   fighter_pre_elo - opponent_pre_elo AS fight_elo_diff
+            FROM fighter_states
+            WHERE fighter_pre_elo IS NOT NULL
+              {date_clause}
+            ORDER BY ABS(fighter_pre_elo - ?), event_date DESC, fight_id DESC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+    finally:
+        conn.close()
+
+    examples = []
+    for row in rows:
+        if row["winner_id"] == row["fighter_id"] or (
+            row["winner_name"] and normalize_name(row["winner_name"]) == normalize_name(row["fighter_name"])
+        ):
+            result = "win"
+        elif row["winner_name"]:
+            result = "loss"
+        else:
+            result = "unknown"
+        examples.append(
+            {
+                "fighter_name": row["fighter_name"],
+                "fight_date": row["event_date"],
+                "event_name": row["event_name"],
+                "opponent_name": row["opponent_name"],
+                "result": result,
+                "method": row["short_method"],
+                "division": row["division"],
+                "fighter_pre_elo": row["fighter_pre_elo"],
+                "opponent_pre_elo": row["opponent_pre_elo"],
+                "fight_elo_diff": row["fight_elo_diff"],
+                "elo_distance": row["elo_distance"],
+                "provenance": {
+                    "source_table": "sergey_sidecar.fights",
+                    "source_key": str(row["fight_id"]),
+                },
+            }
+        )
+
+    return {
+        "available": True,
+        "target_elo": target_elo,
+        "as_of_date": as_of_date,
+        "examples": examples,
+    }
 
 
 def allowed_file(path: Path) -> bool:
@@ -289,6 +603,190 @@ def search_context_targets(
 
 
 @mcp.tool()
+def find_similar_elo_gap_fights(
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
+    elo_gap: float | None = None,
+    pick_prob: float | None = None,
+    edge: float | None = None,
+    limit: int = 8,
+    include_pending: bool = False,
+) -> dict[str, Any]:
+    """Return structured historical comps for a target or requested ELO gap."""
+    if limit <= 0 or limit > 50:
+        raise ValueError("limit must be between 1 and 50.")
+    conn = readonly_connection(resolve_database_path("context_pool"))
+    try:
+        target = None
+        if fight_pool_id is not None:
+            target = resolve_target_row(
+                conn,
+                fight_pool_id=fight_pool_id,
+                season=season,
+            )
+        elif fighter1 and fighter2:
+            target, _, _ = _dynamic_synthetic_target(
+                fighter1=fighter1,
+                fighter2=fighter2,
+                date=date,
+                fighter1_odds=fighter1_odds,
+                fighter2_odds=fighter2_odds,
+            )
+        return build_similar_elo_gap_fights(
+            conn,
+            target=target,
+            elo_gap=elo_gap,
+            pick_prob=pick_prob,
+            edge=edge,
+            limit=limit,
+            include_pending=include_pending,
+        )
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def find_similar_market_fights(
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
+    pick_odds: float | None = None,
+    market_implied_prob: float | None = None,
+    edge: float | None = None,
+    pick_prob: float | None = None,
+    limit: int = 8,
+    include_pending: bool = False,
+) -> dict[str, Any]:
+    """Return structured historical comps for a target or requested market profile."""
+    if limit <= 0 or limit > 50:
+        raise ValueError("limit must be between 1 and 50.")
+    conn = readonly_connection(resolve_database_path("context_pool"))
+    try:
+        target = None
+        if fight_pool_id is not None:
+            target = resolve_target_row(
+                conn,
+                fight_pool_id=fight_pool_id,
+                season=season,
+            )
+        elif fighter1 and fighter2:
+            target, _, _ = _dynamic_synthetic_target(
+                fighter1=fighter1,
+                fighter2=fighter2,
+                date=date,
+                fighter1_odds=fighter1_odds,
+                fighter2_odds=fighter2_odds,
+            )
+        return build_similar_market_fights(
+            conn,
+            target=target,
+            pick_odds=pick_odds,
+            market_implied_prob=market_implied_prob,
+            edge=edge,
+            pick_prob=pick_prob,
+            limit=limit,
+            include_pending=include_pending,
+        )
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def find_trait_matchup_examples(
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
+    archetype: str | None = None,
+    limit: int = 8,
+    include_pending: bool = False,
+    min_trait_gap: float = 8.0,
+) -> dict[str, Any]:
+    """Return trait/archetype historical examples with structured provenance."""
+    if limit <= 0 or limit > 50:
+        raise ValueError("limit must be between 1 and 50.")
+    conn = readonly_connection(resolve_database_path("context_pool"))
+    try:
+        target = None
+        target_payload = None
+        if fight_pool_id is not None:
+            target = resolve_target_row(
+                conn,
+                fight_pool_id=fight_pool_id,
+                season=season,
+            )
+        elif fighter1 and fighter2 and archetype is None:
+            target, target_payload, _ = _dynamic_synthetic_target(
+                fighter1=fighter1,
+                fighter2=fighter2,
+                date=date,
+                fighter1_odds=fighter1_odds,
+                fighter2_odds=fighter2_odds,
+            )
+        return build_trait_matchup_examples(
+            conn,
+            target=target,
+            target_payload=target_payload,
+            archetype=archetype,
+            limit=limit,
+            include_pending=include_pending,
+            min_trait_gap=min_trait_gap,
+        )
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def get_historical_pattern_summary(
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
+) -> dict[str, Any]:
+    """Return a structured historical pattern summary for one fight."""
+    conn = readonly_connection(resolve_database_path("context_pool"))
+    try:
+        if fight_pool_id is not None:
+            target = resolve_target_row(conn, fight_pool_id=fight_pool_id, season=season)
+            analysis = None
+        elif fighter1 and fighter2:
+            target, _, analysis = _dynamic_synthetic_target(
+                fighter1=fighter1,
+                fighter2=fighter2,
+                date=date,
+                fighter1_odds=fighter1_odds,
+                fighter2_odds=fighter2_odds,
+            )
+        else:
+            raise ValueError("Pass fight_pool_id or both fighter1 and fighter2.")
+        result = build_historical_pattern_summary(conn, target=target)
+        if analysis is not None:
+            result["dynamic_source"] = {
+                "source": "init_fight_analysis",
+                "request": analysis["request"],
+                "market_provenance": analysis["market"].get("provenance"),
+            }
+        return result
+    finally:
+        conn.close()
+
+
+@mcp.tool()
 def get_context_packet(
     fighter1: str,
     fighter2: str,
@@ -302,14 +800,17 @@ def get_context_packet(
     pool_path = resolve_database_path("context_pool")
     conn = readonly_connection(pool_path)
     try:
-        target, candidate_count = find_target(
-            conn,
-            fighter1=fighter1,
-            fighter2=fighter2,
-            date=date,
-            season=season,
-            aliases=aliases(),
-        )
+        try:
+            target, candidate_count = find_target(
+                conn,
+                fighter1=fighter1,
+                fighter2=fighter2,
+                date=date,
+                season=season,
+                aliases=aliases(),
+            )
+        except SystemExit as exc:
+            raise ValueError(str(exc)) from None
         return build_packet(
             conn,
             target=target,
@@ -317,6 +818,336 @@ def get_context_packet(
             similar_limit=similar_limit,
             pool_path=pool_path,
         )
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def get_fight_basics(
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+) -> dict[str, Any]:
+    """Return the core identifying/model fields for one fight row."""
+    conn = readonly_connection(resolve_database_path("context_pool"))
+    try:
+        target = resolve_target_row(
+            conn,
+            fight_pool_id=fight_pool_id,
+            fighter1=fighter1,
+            fighter2=fighter2,
+            date=date,
+            season=season,
+        )
+        return {
+            **fight_locator_payload(target),
+            "winner": target.get("winner"),
+            "pick_correct": target.get("pick_correct"),
+            "actual_pnl": target.get("actual_pnl"),
+        }
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def get_fight_model_market(
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+) -> dict[str, Any]:
+    """Return model probability, odds, edge, and pricing fields for one fight."""
+    conn = readonly_connection(resolve_database_path("context_pool"))
+    try:
+        target = resolve_target_row(
+            conn,
+            fight_pool_id=fight_pool_id,
+            fighter1=fighter1,
+            fighter2=fighter2,
+            date=date,
+            season=season,
+        )
+        return {
+            **fight_locator_payload(target),
+            "pick_prob": target.get("pick_prob"),
+            "pick_odds": target.get("pick_odds"),
+            "market_implied_prob": target.get("market_implied_prob"),
+            "edge": target.get("edge"),
+            "elo_implied_prob": target.get("elo_implied_prob"),
+            "model_minus_elo_prob": target.get("model_minus_elo_prob"),
+            "market_minus_elo_prob": target.get("market_minus_elo_prob"),
+            "model_market_elo_triangle": target.get("model_market_elo_triangle"),
+            "current_decision": "bet" if target.get("bet") else "skip",
+            "skip_reason": target.get("skip_reason"),
+            "odds_provenance": {
+                "odds_source_file": target.get("odds_source_file"),
+                "odds_source_line": target.get("odds_source_line"),
+                "odds_source_type": target.get("odds_source_type"),
+                "odds_source_row": target.get("odds_source_row"),
+                "source_event_id": target.get("source_event_id"),
+                "source_url": target.get("source_url"),
+                "scraped_at": target.get("scraped_at"),
+                "bookmaker": target.get("bookmaker"),
+                "odds_timestamp": target.get("odds_timestamp"),
+                "odds_is_opening_line": target.get("odds_is_opening_line"),
+                "odds_is_closing_line": target.get("odds_is_closing_line"),
+            },
+        }
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def init_fight_analysis(
+    fighter1: str,
+    fighter2: str,
+    fight_date: str | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
+) -> dict[str, Any]:
+    """Resolve fighters, normalize market odds, and run a fresh dynamic prediction."""
+    return build_init_fight_analysis(
+        fighter1=fighter1,
+        fighter2=fighter2,
+        fight_date=fight_date,
+        fighter1_odds=fighter1_odds,
+        fighter2_odds=fighter2_odds,
+    )
+
+
+@mcp.tool()
+def get_deterministic_signal_filter(
+    fighter1: str,
+    fighter2: str,
+    fight_date: str | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
+) -> dict[str, Any]:
+    """Run the fast deterministic ELO/cardio screening filter without a deep-dive evidence chain."""
+    return build_deterministic_signal_filter(
+        fighter1=fighter1,
+        fighter2=fighter2,
+        fight_date=fight_date,
+        fighter1_odds=fighter1_odds,
+        fighter2_odds=fighter2_odds,
+    )
+
+
+@mcp.tool()
+def get_elo_market_signal(
+    fighter1: str,
+    fighter2: str,
+    fight_date: str | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
+) -> dict[str, Any]:
+    """Summarize current ELO edge, price relationship, and matching historical ROI buckets."""
+    return build_elo_market_signal(
+        fighter1=fighter1,
+        fighter2=fighter2,
+        fight_date=fight_date,
+        fighter1_odds=fighter1_odds,
+        fighter2_odds=fighter2_odds,
+    )
+
+
+@mcp.tool()
+def get_fight_elo_context(
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+) -> dict[str, Any]:
+    """Return fight-row ELO context fields when present."""
+    conn = readonly_connection(resolve_database_path("context_pool"))
+    try:
+        target = resolve_target_row(
+            conn,
+            fight_pool_id=fight_pool_id,
+            fighter1=fighter1,
+            fighter2=fighter2,
+            date=date,
+            season=season,
+        )
+        pick_elo_diff = target.get("pick_elo_diff")
+        return {
+            **fight_locator_payload(target),
+            "fighter1_elo": target.get("fighter1_elo"),
+            "fighter2_elo": target.get("fighter2_elo"),
+            "pick_elo": target.get("pick_elo"),
+            "opponent_elo": target.get("opponent_elo"),
+            "pick_elo_diff": pick_elo_diff,
+            "abs_elo_diff": target.get("abs_elo_diff"),
+            "support_level": support_level(pick_elo_diff),
+            "model_agrees_with_elo": target.get("model_agrees_with_elo"),
+            "join_status": target.get("join_status"),
+            "join_method": target.get("join_method"),
+        }
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def get_fight_opponent_quality(
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+) -> dict[str, Any]:
+    """Return opponent-quality and prior-fight context for one fight."""
+    conn = readonly_connection(resolve_database_path("context_pool"))
+    try:
+        target = resolve_target_row(
+            conn,
+            fight_pool_id=fight_pool_id,
+            fighter1=fighter1,
+            fighter2=fighter2,
+            date=date,
+            season=season,
+        )
+        return {
+            **fight_locator_payload(target),
+            "pick_prior_fight_count": target.get("pick_prior_fight_count"),
+            "opponent_prior_fight_count": target.get("opponent_prior_fight_count"),
+            "pick_avg_prior_opponent_elo": target.get("pick_avg_prior_opponent_elo"),
+            "opponent_avg_prior_opponent_elo": target.get("opponent_avg_prior_opponent_elo"),
+            "pick_recent3_prior_opponent_elo": target.get("pick_recent3_prior_opponent_elo"),
+            "opponent_recent3_prior_opponent_elo": target.get("opponent_recent3_prior_opponent_elo"),
+            "pick_best_win_opponent_elo": target.get("pick_best_win_opponent_elo"),
+            "opponent_best_win_opponent_elo": target.get("opponent_best_win_opponent_elo"),
+            "pick_opponent_quality_diff": target.get("pick_opponent_quality_diff"),
+            "pick_recent_opponent_quality_diff": target.get("pick_recent_opponent_quality_diff"),
+            "pick_best_win_quality_diff": target.get("pick_best_win_quality_diff"),
+            "pick_current_vs_peak_decline": target.get("pick_current_vs_peak_decline"),
+            "opponent_current_vs_peak_decline": target.get("opponent_current_vs_peak_decline"),
+            "pick_decline_diff": target.get("pick_decline_diff"),
+            "pick_recent_fights": json.loads(target.get("pick_recent_fights_json") or "[]"),
+            "opponent_recent_fights": json.loads(target.get("opponent_recent_fights_json") or "[]"),
+        }
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def get_fight_trait_deltas(
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+) -> dict[str, Any]:
+    """Return structured trait-delta evidence for one fight."""
+    conn = readonly_connection(resolve_database_path("context_pool"))
+    try:
+        target = resolve_target_row(
+            conn,
+            fight_pool_id=fight_pool_id,
+            fighter1=fighter1,
+            fighter2=fighter2,
+            date=date,
+            season=season,
+        )
+        trait_delta = fetch_trait_delta_evidence(conn, target)
+        return {
+            **fight_locator_payload(target),
+            "trait_delta": trait_delta,
+        }
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def get_fight_historical_patterns(
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+) -> dict[str, Any]:
+    """Return applicable historical pattern stats and derived pattern score."""
+    conn = readonly_connection(resolve_database_path("context_pool"))
+    try:
+        target = resolve_target_row(
+            conn,
+            fight_pool_id=fight_pool_id,
+            fighter1=fighter1,
+            fighter2=fighter2,
+            date=date,
+            season=season,
+        )
+        patterns = pattern_payload(conn, target)
+        pattern_score = build_pattern_score(target, patterns)
+        return {
+            **fight_locator_payload(target),
+            "pattern_score_v0": pattern_score,
+            "patterns": patterns,
+        }
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def get_fight_style_flags(
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+) -> dict[str, Any]:
+    """Return support/risk flags derived from fight-row context and patterns."""
+    conn = readonly_connection(resolve_database_path("context_pool"))
+    try:
+        target = resolve_target_row(
+            conn,
+            fight_pool_id=fight_pool_id,
+            fighter1=fighter1,
+            fighter2=fighter2,
+            date=date,
+            season=season,
+        )
+        patterns = pattern_payload(conn, target)
+        trait_delta = fetch_trait_delta_evidence(conn, target)
+        return {
+            **fight_locator_payload(target),
+            "flags": build_flags(target, patterns, trait_delta),
+        }
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def get_fight_nearest_examples(
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+    limit: int = 10,
+) -> dict[str, Any]:
+    """Return nearest historical examples shaped for qualitative comparison."""
+    if limit <= 0 or limit > 50:
+        raise ValueError("limit must be between 1 and 50.")
+    conn = readonly_connection(resolve_database_path("context_pool"))
+    try:
+        target = resolve_target_row(
+            conn,
+            fight_pool_id=fight_pool_id,
+            fighter1=fighter1,
+            fighter2=fighter2,
+            date=date,
+            season=season,
+        )
+        rows = fetch_similar_rows(conn, target, limit=limit)
+        return {
+            **fight_locator_payload(target),
+            "warning": "Nearest examples are illustrative only; use aggregate pattern stats for stronger historical support.",
+            "examples": rows,
+        }
     finally:
         conn.close()
 
@@ -475,11 +1306,11 @@ def _parse_elo_window(window: str | int) -> int | None:
 
 def _fuzzy_fighter_ids(
     conn: sqlite3.Connection,
-    normalized: str,
+    normalized_names: set[str],
     *,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
-    """Return candidate fighters whose normalised name contains *normalized*.
+    """Return candidate fighters whose normalised name matches any normalized variant.
 
     We compare against the Sergey `fighters` table which stores mixed-case
     original names.  We normalise on the fly in Python so that accent-folding
@@ -491,7 +1322,8 @@ def _fuzzy_fighter_ids(
     ).fetchall()
     matches = []
     for row in rows:
-        if normalized in normalize_name(row["full_name"]):
+        row_name = normalize_name(row["full_name"])
+        if any(name and (name in row_name or row_name == name) for name in normalized_names):
             matches.append(
                 {
                     "fighter_id": row["fighter_id"],
@@ -548,16 +1380,22 @@ def get_fighter_elo_history(
     normalized = normalize_name(fighter_name)
     if not normalized:
         raise ValueError("fighter_name must not be empty.")
+    canonical_name = aliases().get(normalized, normalized)
+    normalized_variants = {normalized, canonical_name}
+    normalized_variants.update(
+        alias for alias, canonical in aliases().items() if canonical == canonical_name
+    )
 
     sidecar_path = resolve_database_path("sergey_sidecar")
     conn = readonly_connection(sidecar_path)
     try:
-        candidates = _fuzzy_fighter_ids(conn, normalized)
+        candidates = _fuzzy_fighter_ids(conn, normalized_variants)
 
         if len(candidates) == 0:
             return {
                 "fighter_name": fighter_name,
                 "normalized_name": normalized,
+                "resolved_name": canonical_name,
                 "mapped": False,
                 "window": "all" if row_limit is None else row_limit,
                 "returned_fights": 0,
@@ -578,6 +1416,7 @@ def get_fighter_elo_history(
                 return {
                     "fighter_name": fighter_name,
                     "normalized_name": normalized,
+                    "resolved_name": canonical_name,
                     "mapped": False,
                     "window": "all" if row_limit is None else row_limit,
                     "returned_fights": 0,
@@ -690,6 +1529,84 @@ def get_fighter_elo_history(
         "returned_fights": len(history),
         "total_fights_in_db": total,
         "fights": history,
+    }
+
+
+@mcp.tool()
+def get_fighter_snapshot(
+    fighter_name: str,
+    as_of_date: str | None = None,
+    recent_elo_fights: int = 2,
+) -> dict[str, Any]:
+    """Return structured fighter state for MCP init flows.
+
+    The snapshot keeps the main DB fighter name canonical while resolving sidecar
+    variants behind the scenes for ELO and trait enrichment.  When `as_of_date`
+    is provided, completed fight history is filtered strictly before that date to
+    mirror the app's point-in-time semantics.
+    """
+    return build_fighter_snapshot(
+        fighter_name,
+        as_of=as_of_date,
+        recent_elo_fights=recent_elo_fights,
+    )
+
+
+@mcp.tool()
+def find_similar_fighter_profiles(
+    fighter_name: str,
+    as_of_date: str | None = None,
+    limit: int = 8,
+    min_fight_count: int = 3,
+) -> dict[str, Any]:
+    """Return historical fighter analogs by qualitative traits, quantitative stats, and ELO state."""
+    if limit <= 0 or limit > 50:
+        raise ValueError("limit must be between 1 and 50.")
+    snapshot = build_fighter_snapshot(
+        fighter_name,
+        as_of=as_of_date,
+        recent_elo_fights=2,
+    )
+    traits_path = resolve_database_path("trait_snapshots")
+    conn = readonly_connection(traits_path)
+    try:
+        profile_neighbors = build_similar_fighter_profiles(
+            conn,
+            target_snapshot=snapshot,
+            as_of_date=as_of_date,
+            limit=limit,
+            min_fight_count=min_fight_count,
+        )
+    finally:
+        conn.close()
+
+    return {
+        "query": {
+            "fighter_name": fighter_name,
+            "as_of_date": as_of_date,
+            "limit": limit,
+            "min_fight_count": min_fight_count,
+        },
+        "target_snapshot": {
+            "resolved": snapshot.get("resolved"),
+            "identity": snapshot.get("identity"),
+            "record": snapshot.get("record"),
+            "elo": {
+                key: (snapshot.get("elo") or {}).get(key)
+                for key in ("available", "elo_current", "elo_peak", "elo_decline_from_peak", "elo_current_source")
+            },
+        },
+        "profile_neighbors": profile_neighbors,
+        "historical_elo_neighbors": _historical_elo_fighter_neighbors(
+            target_snapshot=snapshot,
+            as_of_date=as_of_date,
+            limit=limit,
+        ),
+        "provenance": {
+            "profile_neighbors": "trait_snapshots.fighter_trait_snapshots",
+            "historical_elo_neighbors": "sergey_sidecar.fights",
+            "target_snapshot": "fastapi_app.services.fighter_snapshot.build_fighter_snapshot",
+        },
     }
 
 
