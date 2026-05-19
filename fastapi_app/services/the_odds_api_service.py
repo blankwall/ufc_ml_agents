@@ -11,6 +11,14 @@ from pathlib import Path
 from typing import Any
 
 import requests
+from fastapi_app.services.runtime_status import (
+    configure_job,
+    get_job_status,
+    mark_check,
+    mark_run_finished,
+    mark_run_started,
+)
+from services.sherdog_recovery_service import recover_missing_fighters_from_odds, recovery_enabled
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 ODDS_DIR = ROOT_DIR / "data" / "future_fight_odds"
@@ -58,6 +66,8 @@ CSV_FIELDS = [
 ]
 
 logger = logging.getLogger(__name__)
+
+JOB_NAME = "the_odds_api_sync"
 
 
 def _utc_now() -> datetime:
@@ -173,6 +183,27 @@ def _load_sync_state() -> dict[str, Any]:
 
 def _save_sync_state(state: dict[str, Any]) -> None:
     _write_json(STATE_PATH, state)
+
+
+def get_health_status() -> dict[str, Any]:
+    configure_job(JOB_NAME, enabled=scheduler_enabled())
+    state = _load_sync_state()
+    return {
+        **get_job_status(JOB_NAME),
+        "state_file": str(STATE_PATH.relative_to(ROOT_DIR)),
+        "persisted_last_run_started_at": state.get("last_run_started_at"),
+        "persisted_last_run_finished_at": state.get("last_run_finished_at"),
+        "persisted_last_success_at": state.get("last_success_at"),
+        "persisted_last_result": {
+            "payload_events": state.get("payload_events"),
+            "new_rows_added": state.get("new_rows_added"),
+            "updated_rows": state.get("updated_rows"),
+            "deactivated_rows": state.get("deactivated_rows"),
+            "skipped_existing": state.get("skipped_existing"),
+            "skipped_invalid": state.get("skipped_invalid"),
+            "sherdog_recovery": state.get("sherdog_recovery"),
+        },
+    }
 
 
 def _bookmaker_rank(bookmaker: dict[str, Any]) -> tuple[int, str]:
@@ -694,7 +725,10 @@ def sync_new_the_odds_api_events(api_key: str | None = None, *, dry_run: bool = 
     if not api_key:
         raise RuntimeError(f"{API_KEY_ENV} is required")
 
+    configure_job(JOB_NAME, enabled=scheduler_enabled())
+    mark_run_started(JOB_NAME, trigger="manual" if dry_run else "scheduled")
     started_at = _utc_now()
+    logger.info("Starting The Odds API sync dry_run=%s", dry_run)
     payload, headers = fetch_odds_payload(api_key)
     raw_snapshot = _save_raw_snapshot(payload, headers)
 
@@ -830,11 +864,28 @@ def sync_new_the_odds_api_events(api_key: str | None = None, *, dry_run: bool = 
         "dry_run": dry_run,
     }
 
+    sherdog_recovery: dict[str, Any] | None = None
     if not dry_run:
         _save_store(store)
         _write_csv_rows(OUTPUT_CSV, export_rows)
+        if recovery_enabled():
+            try:
+                sherdog_recovery = recover_missing_fighters_from_odds(trigger="the_odds_api_sync")
+            except Exception as exc:
+                logger.exception("Sherdog recovery run failed after The Odds API sync")
+                sherdog_recovery = {"status": "error", "error": str(exc)}
+        state["sherdog_recovery"] = sherdog_recovery
         _save_sync_state(state)
 
+    mark_run_finished(JOB_NAME, success=True, summary=state)
+    logger.info(
+        "The Odds API sync finished payload_events=%s new_rows_added=%s updated_rows=%s deactivated_rows=%s sherdog_recovered=%s",
+        state["payload_events"],
+        state["new_rows_added"],
+        state.get("updated_rows", 0),
+        state.get("deactivated_rows", 0),
+        (state.get("sherdog_recovery") or {}).get("recovered", 0) if isinstance(state.get("sherdog_recovery"), dict) else 0,
+    )
     return state
 
 
@@ -855,6 +906,8 @@ def sync_due(now: datetime | None = None) -> bool:
 
 
 def sync_if_due() -> dict[str, Any] | None:
+    configure_job(JOB_NAME, enabled=scheduler_enabled())
+    mark_check(JOB_NAME)
     if not scheduler_enabled() or not sync_due():
         return None
     logger.info("Running scheduled The Odds API sync")
@@ -874,5 +927,6 @@ async def run_sync_loop() -> None:
         try:
             await asyncio.to_thread(sync_if_due)
         except Exception:
+            mark_run_finished(JOB_NAME, success=False, error="Scheduled The Odds API sync failed")
             logger.exception("Scheduled The Odds API sync failed")
         await asyncio.sleep(check_seconds)

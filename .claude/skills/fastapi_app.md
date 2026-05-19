@@ -89,12 +89,15 @@ If `THE_ODDS_API_KEY` is set, `main.py` also starts a background sync loop that 
 
 There is also an optional **completed UFCStats sync** service in `fastapi_app/services/ufcstats_sync_service.py`. When `UFCSTATS_AUTO_SYNC=1`, it polls recent completed UFCStats events, runs a dry-run ingest first, creates a single DB backup for the run, commits only safe unseen events, then validates DB winners against UFCStats fight-details pages before marking the event synced in `data/ufcstats_sync_state.json`.
 
+There is now an automatic **Sherdog missing-fighter recovery** pass in `fastapi_app/services/sherdog_recovery_service.py`. After a successful The Odds API sync, the app scans the current odds pool for fighters that still fail `_resolve_fighter()`, searches Sherdog Fight Finder by name, scrapes the matched fighter page, and inserts a minimal Sherdog-backed fighter row into `data/ufc_database.db`. Recovery state is written to `data/future_fight_odds/sherdog_recovery.json`. This flow is intended to eliminate rare `Fighter(s) not found` errors quickly without pretending the model made a real neutral prediction.
+
 Important UI behavior:
 
 - Event cards render from the `/api/events` response only; the browser does not run model inference.
 - Filters in `events.js` mirror betting config thresholds and bet sizing buckets.
 - The "Add Event" modal posts BFO/UFCStats URLs to scraper endpoints and then reloads `/api/events`.
 - Missing fighters surface as per-fight `error` values from `predict_service`, not as a whole-page failure.
+- `GET /api/events/unresolved-fighters` returns only fights whose event-loop prediction failed with `model_source="not_found"` so downstream workflows can isolate missing-fighter cases.
 
 ---
 
@@ -117,6 +120,7 @@ Behavior:
 - Scores with `_score_row()` from `predict_service.py`
 - Applies `_evaluate_bet()` against `config/betting_config.json`
 - Adds confidence score via `backtest/confidence_profile.py`
+- If either fighter cannot be resolved in the DB, the endpoint still returns `404 Fighter(s) not found...`; missing-fighter auto-recovery happens asynchronously through the Sherdog enrichment flow, not inline during `/api/predict`.
 
 Use this endpoint for direct API prediction. Use `/api/events` for card-level predictions from stored odds files.
 

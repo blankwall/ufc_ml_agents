@@ -21,6 +21,13 @@ from sqlalchemy.orm import sessionmaker
 from database.schema import Event
 from scrapers.event_populator import EventPopulator, PopulatorOptions
 from scrapers.event_scraper import EventScraper
+from fastapi_app.services.runtime_status import (
+    configure_job,
+    get_job_status,
+    mark_check,
+    mark_run_finished,
+    mark_run_started,
+)
 
 CONFIG_PATH = ROOT_DIR / "config" / "config.yaml"
 DB_PATH = ROOT_DIR / "data" / "ufc_database.db"
@@ -41,6 +48,8 @@ DEFAULT_MIN_FIGHTS = 5
 DEFAULT_MAX_EVENTS_PER_RUN = 1
 
 logger = logging.getLogger(__name__)
+
+JOB_NAME = "ufcstats_completed_sync"
 
 _engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
 _Session = sessionmaker(bind=_engine)
@@ -94,6 +103,26 @@ def _load_state() -> dict[str, Any]:
 
 def _save_state(state: dict[str, Any]) -> None:
     _write_json(STATE_PATH, state)
+
+
+def get_health_status() -> dict[str, Any]:
+    configure_job(JOB_NAME, enabled=scheduler_enabled())
+    state = _load_state()
+    return {
+        **get_job_status(JOB_NAME),
+        "state_file": str(STATE_PATH.relative_to(ROOT_DIR)),
+        "persisted_last_run_started_at": state.get("last_run_started_at"),
+        "persisted_last_run_finished_at": state.get("last_run_finished_at"),
+        "persisted_last_success_at": state.get("last_success_at"),
+        "persisted_last_result": {
+            "recent_events_seen": state.get("recent_events_seen"),
+            "candidates_considered": state.get("candidates_considered"),
+            "synced_events": state.get("synced_events"),
+            "dry_run_failed": state.get("dry_run_failed"),
+            "validation_failed": state.get("validation_failed"),
+        },
+        "recent_failed_events": _recent_failed_events(state),
+    }
 
 
 def _int_env(name: str, default: int, *, minimum: int = 1) -> int:
@@ -213,6 +242,40 @@ def _build_populator() -> EventPopulator:
     return populator
 
 
+def _retry_command(event: dict[str, str]) -> str:
+    return (
+        ".venv/bin/python scrapers/event_populator.py "
+        f"--event-id {event['event_id']} "
+        "--include-fight-stats "
+        "--force-refresh-fighters "
+        "--validate "
+        "--validate-details"
+    )
+
+
+def _recent_failed_events(state: dict[str, Any], *, limit: int = 3) -> list[dict[str, Any]]:
+    failures: list[dict[str, Any]] = []
+    for event_id, payload in state.get("events", {}).items():
+        if not isinstance(payload, dict):
+            continue
+        if payload.get("status") in {"synced", None}:
+            continue
+        failures.append(
+            {
+                "event_id": event_id,
+                "event_name": payload.get("event_name"),
+                "event_date": payload.get("event_date"),
+                "status": payload.get("status"),
+                "reason": payload.get("reason"),
+                "last_attempt_at": payload.get("last_attempt_at"),
+                "validation": payload.get("validation"),
+                "retry_command": payload.get("retry_command"),
+            }
+        )
+    failures.sort(key=lambda item: item.get("last_attempt_at") or "", reverse=True)
+    return failures[:limit]
+
+
 def _dry_run_event(event: dict[str, str]) -> dict[str, Any]:
     populator = _build_populator()
     dry_run_summary = populator.populate_event_from_url(
@@ -232,6 +295,7 @@ def _dry_run_event(event: dict[str, str]) -> dict[str, Any]:
         "status": "dry_run_ok" if is_safe else "dry_run_failed",
         "reason": failure_reason,
         "dry_run_summary": dry_run_summary,
+        "retry_command": _retry_command(event),
     }
 
 
@@ -256,12 +320,16 @@ def _commit_validated_event(event: dict[str, str], *, dry_run_summary: dict[str,
         "dry_run_summary": dry_run_summary,
         "commit_summary": commit_summary,
         "validation": validation,
+        "retry_command": _retry_command(event),
     }
     return result
 
 
 def sync_completed_ufcstats_events(*, dry_run: bool = False) -> dict[str, Any]:
+    configure_job(JOB_NAME, enabled=scheduler_enabled())
+    mark_run_started(JOB_NAME, trigger="manual" if dry_run else "scheduled")
     started_at = _utc_now()
+    logger.info("Starting UFCStats completed-event sync dry_run=%s", dry_run)
     state = _load_state()
     known_event_ids = _known_event_ids_from_db()
     recent_events = _recent_completed_events(now=started_at)
@@ -294,6 +362,7 @@ def sync_completed_ufcstats_events(*, dry_run: bool = False) -> dict[str, Any]:
                 "last_attempt_at": _iso_z(_utc_now()),
                 "reason": result.get("reason"),
                 "validation": result.get("validation"),
+                "retry_command": result.get("retry_command"),
             }
         else:
             safe_candidates.append((event, result["dry_run_summary"]))
@@ -323,6 +392,7 @@ def sync_completed_ufcstats_events(*, dry_run: bool = False) -> dict[str, Any]:
                 "last_attempt_at": _iso_z(_utc_now()),
                 "reason": result.get("reason"),
                 "validation": result.get("validation"),
+                "retry_command": result.get("retry_command"),
             }
 
     finished_at = _utc_now()
@@ -344,6 +414,15 @@ def sync_completed_ufcstats_events(*, dry_run: bool = False) -> dict[str, Any]:
     if not dry_run:
         state.update(payload)
         _save_state(state)
+    mark_run_finished(JOB_NAME, success=True, summary=payload)
+    logger.info(
+        "UFCStats completed-event sync finished recent_events_seen=%s candidates=%s synced=%s dry_run_failed=%s validation_failed=%s",
+        payload["recent_events_seen"],
+        payload["candidates_considered"],
+        payload["synced_events"],
+        payload["dry_run_failed"],
+        payload["validation_failed"],
+    )
     return payload
 
 
@@ -362,6 +441,8 @@ def sync_due(now: datetime | None = None) -> bool:
 
 
 def sync_if_due() -> dict[str, Any] | None:
+    configure_job(JOB_NAME, enabled=scheduler_enabled())
+    mark_check(JOB_NAME)
     if not scheduler_enabled() or not sync_due():
         return None
     logger.info("Running scheduled UFCStats completed-event sync")
@@ -381,5 +462,6 @@ async def run_sync_loop() -> None:
         try:
             await asyncio.to_thread(sync_if_due)
         except Exception:
+            mark_run_finished(JOB_NAME, success=False, error="Scheduled UFCStats completed-event sync failed")
             logger.exception("Scheduled UFCStats completed-event sync failed")
         await asyncio.sleep(check_seconds)

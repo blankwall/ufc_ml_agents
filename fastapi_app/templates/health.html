@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UFC ML · Health</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css?v=8" />
+  <link rel="stylesheet" href="/static/css/health.css?v=1" />
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <span class="logo-text">UFC<strong>ML</strong></span>
+    </div>
+    <nav class="header-nav">
+      <a href="/events" class="nav-link">Events</a>
+      <a href="/bets" class="nav-link">Bets</a>
+      <a href="/fighter" class="nav-link">Fighter</a>
+    </nav>
+    <div class="header-meta">
+      <span class="badge">Runtime Health</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero-card">
+    <div>
+      <div class="eyebrow">System status</div>
+      <h1>Background job health</h1>
+      <p class="hero-copy">Live runtime status for schedulers and recovery flows. JSON remains available at <code>/api/health</code>.</p>
+    </div>
+    <div class="hero-status {{ 'is-ok' if payload.status == 'ok' else 'is-bad' }}">
+      {{ payload.status|upper }}
+    </div>
+  </section>
+
+  <section class="summary-grid">
+    <article class="summary-card">
+      <div class="summary-label">Started</div>
+      <div class="summary-value">{{ app_health.started_at or '—' }}</div>
+    </article>
+    <article class="summary-card">
+      <div class="summary-label">Now</div>
+      <div class="summary-value">{{ app_health.now or '—' }}</div>
+    </article>
+    <article class="summary-card">
+      <div class="summary-label">Uptime</div>
+      <div class="summary-value">{{ app_health.uptime_seconds }}s</div>
+    </article>
+    <article class="summary-card">
+      <div class="summary-label">Tracked jobs</div>
+      <div class="summary-value">{{ background_jobs|length }}</div>
+    </article>
+  </section>
+
+  <section class="jobs-grid">
+    {% for job_name, job in background_jobs.items() %}
+    <article class="job-card">
+      <div class="job-card-header">
+        <div>
+          <div class="job-title">{{ job_name.replace('_', ' ') }}</div>
+          <div class="job-subtitle">{{ job.state_file or 'In-memory runtime job' }}</div>
+        </div>
+        <div class="status-pills">
+          <span class="pill {{ 'pill-green' if job.enabled else 'pill-muted' }}">
+            {{ 'enabled' if job.enabled else 'disabled' }}
+          </span>
+          <span class="pill {{ 'pill-blue' if job.task_active else 'pill-muted' }}">
+            {{ 'active' if job.task_active else 'idle' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="metric-grid">
+        <div class="metric">
+          <div class="metric-label">Checks</div>
+          <div class="metric-value">{{ job.checks_since_launch or 0 }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Runs</div>
+          <div class="metric-value">{{ job.runs_since_launch or 0 }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Successes</div>
+          <div class="metric-value metric-good">{{ job.successes_since_launch or 0 }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Failures</div>
+          <div class="metric-value metric-bad">{{ job.failures_since_launch or 0 }}</div>
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-item"><span>Last check</span><strong>{{ job.last_check_at or '—' }}</strong></div>
+        <div class="detail-item"><span>Last run start</span><strong>{{ job.last_run_started_at or job.persisted_last_run_started_at or '—' }}</strong></div>
+        <div class="detail-item"><span>Last run finish</span><strong>{{ job.last_run_finished_at or job.persisted_last_run_finished_at or '—' }}</strong></div>
+        <div class="detail-item"><span>Last success</span><strong>{{ job.last_success_at or job.persisted_last_success_at or '—' }}</strong></div>
+        <div class="detail-item"><span>Last error</span><strong>{{ job.last_error_at or '—' }}</strong></div>
+        <div class="detail-item"><span>Trigger</span><strong>{{ job.last_trigger or '—' }}</strong></div>
+        <div class="detail-item"><span>Stop reason</span><strong>{{ job.task_stop_reason or '—' }}</strong></div>
+        {% if job.tracked_fighters is defined %}
+        <div class="detail-item"><span>Tracked fighters</span><strong>{{ job.tracked_fighters }}</strong></div>
+        {% endif %}
+      </div>
+
+      {% if job.last_error %}
+      <div class="message-block message-error">
+        <div class="message-title">Last error</div>
+        <pre>{{ job.last_error }}</pre>
+      </div>
+      {% endif %}
+
+      {% if job.last_summary or job.persisted_last_result %}
+      <div class="message-block">
+        <div class="message-title">Latest summary</div>
+        <div class="summary-list">
+          {% for key, value in (job.last_summary or job.persisted_last_result).items() %}
+          <div class="summary-row">
+            <span>{{ key.replace('_', ' ') }}</span>
+            <strong>{{ value if value is not none else '—' }}</strong>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if job.recent_failed_events %}
+      <div class="message-block">
+        <div class="message-title">Recent failed events</div>
+        <div class="failure-list">
+          {% for failure in job.recent_failed_events %}
+          <div class="failure-card">
+            <div class="summary-row">
+              <span>{{ failure.event_name or failure.event_id }}</span>
+              <strong>{{ failure.status or 'failed' }}</strong>
+            </div>
+            {% if failure.reason %}
+            <div class="failure-reason">{{ failure.reason }}</div>
+            {% endif %}
+            {% if failure.retry_command %}
+            <pre class="command-block">{{ failure.retry_command }}</pre>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </section>
+</main>
+</body>
+</html>

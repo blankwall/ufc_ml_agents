@@ -10,6 +10,7 @@ Use this skill when changing:
 - `fastapi_app/routers/predict.py`
 - `fastapi_app/static/js/events.js`
 - odds-loading or The Odds API event shaping
+- missing-fighter recovery / Sherdog enrichment
 - betting-rule display and edge/market probability rendering
 
 ---
@@ -30,6 +31,7 @@ Focused fast checks:
 .venv/bin/pytest -q tests/test_skip_codes_exhaustive.py
 .venv/bin/pytest -q tests/test_bet_sizing_buckets.py
 .venv/bin/pytest -q tests/test_the_odds_api_sync.py
+.venv/bin/pytest -q tests/test_sherdog_scraper.py tests/test_sherdog_recovery_service.py
 ```
 
 If you want broad coverage but not the browser/live-site check:

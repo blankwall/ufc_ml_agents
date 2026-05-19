@@ -541,12 +541,46 @@ def _build_bets_payload(events: list[dict]) -> list[dict]:
     return _group_bet_entries(entries)
 
 
+def _extract_unresolved_fighters(error: Optional[str]) -> list[str]:
+    if not error:
+        return []
+    _, _, raw_names = str(error).partition(":")
+    if not raw_names:
+        return []
+    return [name.strip() for name in raw_names.split(",") if name.strip()]
+
+
+def _build_unresolved_fighter_payload(events: list[dict]) -> list[dict]:
+    unresolved = []
+    for event in events:
+        for fight in event.get("fights", []):
+            if fight.get("model_source") != "not_found":
+                continue
+            unresolved.append({
+                "event_name": event.get("event_name"),
+                "event_date": event.get("event_date"),
+                "source_type": event.get("source_type"),
+                "fighter1": fight.get("fighter1"),
+                "fighter2": fight.get("fighter2"),
+                "matchup": f"{fight.get('fighter1')} vs {fight.get('fighter2')}",
+                "error": fight.get("error"),
+                "unresolved_fighters": _extract_unresolved_fighters(fight.get("error")),
+            })
+    return unresolved
+
+
 # ── endpoint ──────────────────────────────────────────────────────────────────
 
 @router.get("/events")
 async def api_events():
     """Return all events with fight predictions and outcome results."""
     return get_events_data()
+
+
+@router.get("/events/unresolved-fighters")
+async def api_unresolved_fighters():
+    """Return only event fights blocked by unresolved fighter names."""
+    return _build_unresolved_fighter_payload(get_events_data())
 
 
 @router.get("/config")

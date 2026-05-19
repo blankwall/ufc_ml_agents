@@ -180,6 +180,14 @@ def test_sync_completed_ufcstats_events_restores_backup_on_validation_failure(mo
     assert restore_calls == ["data/backups/safe.db"]
     state = json.loads(state_path.read_text())
     assert state["events"]["evt-123"]["status"] == "validation_failed_restored"
+    assert state["events"]["evt-123"]["retry_command"] == (
+        ".venv/bin/python scrapers/event_populator.py "
+        "--event-id evt-123 "
+        "--include-fight-stats "
+        "--force-refresh-fighters "
+        "--validate "
+        "--validate-details"
+    )
 
 
 def test_scheduler_disabled_by_default(monkeypatch):

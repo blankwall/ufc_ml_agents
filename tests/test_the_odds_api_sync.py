@@ -15,6 +15,7 @@ sys.path.insert(0, str(_ROOT / "fastapi_app"))
 
 from fastapi_app.routers import events as events_router  # noqa: E402
 from fastapi_app.services import predict_service  # noqa: E402
+from fastapi_app.services import sherdog_recovery_service  # noqa: E402
 from fastapi_app.services import the_odds_api_service as odds_service  # noqa: E402
 
 
@@ -62,6 +63,12 @@ def test_the_odds_api_sync_adds_only_unknown_fights(monkeypatch, tmp_path):
     monkeypatch.setattr(odds_service, "OUTPUT_CSV", output_csv)
     monkeypatch.setattr(odds_service, "STATE_PATH", state_path)
     monkeypatch.setattr(odds_service, "ROOT_DIR", tmp_path)
+    monkeypatch.setattr(odds_service, "recovery_enabled", lambda: True)
+    monkeypatch.setattr(
+        odds_service,
+        "recover_missing_fighters_from_odds",
+        lambda **_kwargs: {"recovered": 1, "queued": 1, "trigger": "the_odds_api_sync"},
+    )
 
     payload = [
         {
@@ -139,6 +146,7 @@ def test_the_odds_api_sync_adds_only_unknown_fights(monkeypatch, tmp_path):
 
     state = json.loads(state_path.read_text())
     assert state["new_rows_added"] == 1
+    assert state["sherdog_recovery"]["recovered"] == 1
     assert Path(tmp_path / state["raw_snapshot"]).exists()
     assert state["store_json"] == "data/future_fight_odds/the_odds_api_events.json"
 
@@ -1138,7 +1146,7 @@ def test_future_prediction_cache_key_rolls_daily(monkeypatch):
         event_date="2026-06-02",
     )
 
-    assert key == "ilia topuria_vs_islam makhachev|future|2026-06-02|2026-05-18"
+    assert key == "v2|ilia topuria_vs_islam makhachev|future|2026-06-02|2026-05-18"
 
 
 def test_run_prediction_loop_ignores_previous_day_future_cache(monkeypatch):
@@ -1163,7 +1171,7 @@ def test_run_prediction_loop_ignores_previous_day_future_cache(monkeypatch):
         ]
     )
 
-    stale_key = "ilia topuria_vs_islam makhachev|future|2026-06-02|2026-05-17"
+    stale_key = "v2|ilia topuria_vs_islam makhachev|future|2026-06-02|2026-05-17"
     cache = {
         stale_key: {
             "model_prob_f1": 0.5329,
@@ -1208,5 +1216,5 @@ def test_run_prediction_loop_ignores_previous_day_future_cache(monkeypatch):
     fight = events_map["the_odds_api|2026-06-02"]["fights"][0]
     assert cache_dirty is True
     assert fight["model_prob_f1"] == 51.2
-    assert cache["ilia topuria_vs_islam makhachev|future|2026-06-02|2026-05-18"]["model_prob_f1"] == 0.512
+    assert cache["v2|ilia topuria_vs_islam makhachev|future|2026-06-02|2026-05-18"]["model_prob_f1"] == 0.512
     assert stale_key in cache

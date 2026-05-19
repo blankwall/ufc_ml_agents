@@ -23,6 +23,7 @@ Do not revive archived one-off ingestion scripts unless you are explicitly doing
 | 2025 holdout odds | Tracked CSV | `backtest/odds/ufc_2025_odds.csv` |
 | 2026/live-year odds input | Generated CSV | `backtest/rebuild_2026_odds.py` -> `backtest/odds/ufc_2026_odds.csv` |
 | Historical BFO odds research CSV | BestFightOdds scraper | `scrapers/bestfightodds_scraper.py` -> `data/odds/historical_odds.csv` |
+| Missing fighter recovery | Sherdog Fight Finder + fighter pages | `fastapi_app/services/sherdog_recovery_service.py` + `scrapers/sherdog_scraper.py` |
 | Feature contract | Model export | `schema/feature_schema.json` |
 
 The configured database is `data/ufc_database.db` through `config/config.yaml`. Ignore the root-level `ufc_database.db` if present.
@@ -130,6 +131,39 @@ Feature creation rules:
 - Model feature columns are the remaining columns, sorted deterministically in `FeaturePipeline.prepare_features()`.
 
 Important ingestion requirement: event dates must parse cleanly. Bad or missing dates can break point-in-time feature history.
+
+---
+
+## Supplemental Sherdog Recovery Flow
+
+When a fighter appears in the live odds pool but cannot be resolved against the DB, the app now has a supplemental Sherdog recovery path:
+
+```text
+The Odds API sync
+  -> writes the_odds_api_new_events.csv
+  -> runs sherdog_recovery_service.recover_missing_fighters_from_odds()
+  -> scans current odds rows for unresolved fighter names
+  -> searches Sherdog Fight Finder by name
+  -> scrapes the matched Sherdog fighter page
+  -> inserts a minimal fighter row into data/ufc_database.db
+```
+
+What gets recovered:
+- fighter name
+- DOB / age
+- height / weight
+- wins / losses from Sherdog profile totals
+- source URL
+
+What does **not** get recovered automatically:
+- UFCStats-style detailed striking/grappling averages
+- full fight/event/fight-stats ingestion into DB tables
+
+State and artifacts:
+- `data/future_fight_odds/sherdog_recovery.json` — queue/recovery status
+- `data/raw/sherdog/` — cached Fight Finder and fighter-page HTML
+
+Operational rule: keep `/api/predict` returning `fighter not found` for unresolved names. The Sherdog recovery flow is asynchronous enrichment intended to make those errors rare after odds syncs, not to hide them at request time.
 
 ---
 
