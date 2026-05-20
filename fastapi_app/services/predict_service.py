@@ -29,6 +29,7 @@ from sqlalchemy.orm import sessionmaker
 from features.matchup_features import MatchupFeatureExtractor
 from database.schema import Event as _Event, Fight as _Fight
 from models.utils import resolve_model_dir
+from fastapi_app.services.bet_evaluator import evaluate_bet_decision
 from fastapi_app.services.the_odds_api_service import get_bet_placed_map
 
 ODDS_DIR         = ROOT_DIR / "data" / "future_fight_odds"
@@ -37,6 +38,7 @@ OUTCOMES_CSV     = ODDS_DIR / "outcomes.csv"
 CACHE_FILE       = ODDS_DIR / "predictions_cache.json"
 MODEL_DIR        = ROOT_DIR / "models" / "saved"
 CACHE_VERSION    = "v2"
+_CONFIG_PATH     = ROOT_DIR / "config" / "betting_config.json"
 
 UD_THRESHOLD     = 0.40   # market_prob below this → underdog blend
 BLEND_WEIGHT     = 0.65   # ud_v1 weight
@@ -522,6 +524,19 @@ def _save_cache(cache: dict) -> None:
     CACHE_FILE.write_text(json.dumps(cache, indent=2))
 
 
+def _load_betting_filters() -> dict:
+    if not _CONFIG_PATH.exists():
+        return {}
+    try:
+        cfg = json.loads(_CONFIG_PATH.read_text())
+        return {
+            "filters": cfg.get("filters", {}),
+            "wmma": cfg.get("wmma_rules", {}),
+        }
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
 # ── shared DB session factory ─────────────────────────────────────────────────
 
 def _open_session():
@@ -549,6 +564,9 @@ def _run_prediction_loop(
     cache_dirty = False
     events_map: dict[str, dict] = {}
     tracked_bets = get_bet_placed_map()
+    cfg = _load_betting_filters()
+    filters = cfg.get("filters", {})
+    wmma_rules = cfg.get("wmma", {})
 
     # norm_key → real event name (outcomes have the authoritative UFC names)
     fightkey_to_ev_name: dict[str, str] = {}
@@ -659,6 +677,16 @@ def _run_prediction_loop(
         # ── compute P&L / correctness ─────────────────────────────────────────
         model_prob = pred.get("model_prob_f1")
         model_pick = correct = pnl = edge = None
+        bet_eval = {
+            "bet": None,
+            "skip_code": None,
+            "skip_reason": None,
+            "decision_source": None,
+            "review_bucket": None,
+            "review_tier": None,
+            "review_label": None,
+            "pick_elo_diff": None,
+        }
 
         if model_prob is not None:
             model_pick = f1_name if model_prob >= 0.5 else f2_name
@@ -666,6 +694,26 @@ def _run_prediction_loop(
             pick_model_prob = model_prob if model_prob >= 0.5 else 1 - model_prob
             pick_mkt_prob   = mkt_prob   if model_prob >= 0.5 else 1 - mkt_prob
             edge = round((pick_model_prob - pick_mkt_prob) * 100, 1)
+            pick_odds_int = int(f1_odds) if model_prob >= 0.5 and pd.notna(f1_odds) else (
+                int(f2_odds) if model_prob < 0.5 and pd.notna(f2_odds) else None
+            )
+            pick_slot = "fighter1" if model_prob >= 0.5 else "fighter2"
+            if pred.get("f1_db_name") and pred.get("f2_db_name"):
+                bet_eval = evaluate_bet_decision(
+                    fighter1_name=pred["f1_db_name"],
+                    fighter2_name=pred["f2_db_name"],
+                    pick_slot=pick_slot,
+                    pick_model_prob=pick_model_prob,
+                    pick_mkt_prob=pick_mkt_prob,
+                    pick_odds=pick_odds_int,
+                    is_favorite=pick_odds_int is not None and pick_odds_int < 0,
+                    is_wmma=pred.get("is_wmma") is True,
+                    f1_count=pred.get("f1_fight_count", 0),
+                    f2_count=pred.get("f2_fight_count", 0),
+                    filters=filters,
+                    wmma_rules=wmma_rules,
+                    as_of_date=as_of,
+                )
 
             if winner:
                 w_norm  = _normalize_name(winner)
@@ -705,6 +753,14 @@ def _run_prediction_loop(
             "f1_fight_count": pred.get("f1_fight_count"),
             "f2_fight_count": pred.get("f2_fight_count"),
             "is_wmma":        pred.get("is_wmma"),
+            "bet":            bet_eval.get("bet"),
+            "skip_code":      bet_eval.get("skip_code"),
+            "skip_reason":    bet_eval.get("skip_reason"),
+            "decision_source": bet_eval.get("decision_source"),
+            "review_bucket":  bet_eval.get("review_bucket"),
+            "review_tier":    bet_eval.get("review_tier"),
+            "review_label":   bet_eval.get("review_label"),
+            "pick_elo_diff":  bet_eval.get("pick_elo_diff"),
         }
 
         ev_name_real = fightkey_to_ev_name.get(fkey, ev_name)

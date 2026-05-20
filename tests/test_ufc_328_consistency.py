@@ -25,6 +25,7 @@ import os
 import re
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from typing import List, Optional
 
 import pytest
@@ -46,6 +47,7 @@ EDGE_TOL   = 0.5    # percentage points
 
 @dataclass
 class FightCard:
+    event_date:      str
     fighter1:        str
     fighter2:        str
     f1_odds:         int
@@ -78,6 +80,26 @@ def _parse_edge(text: str) -> Optional[float]:
     return float(m.group(1)) if m else None
 
 
+def _normalize_fight_date(event_date: str) -> str:
+    """Convert tab/display event date into the ISO date /api/predict expects."""
+    if not event_date:
+        return EVENT_DATE
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", event_date):
+        return event_date
+
+    cleaned = re.sub(r"(\d+)(st|nd|rd|th)\b", r"\1", event_date.strip())
+    base_year = datetime.now().year
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", EVENT_DATE):
+        base_year = int(EVENT_DATE[:4])
+
+    for fmt in ("%B %d", "%b %d"):
+        try:
+            return datetime.strptime(cleaned, fmt).replace(year=base_year).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return EVENT_DATE
+
+
 def _scrape_event_via_browser(page, event_name: str, event_date: str) -> List[FightCard]:
     page.goto(f"{SITE_URL}/events", wait_until="networkidle")
 
@@ -105,6 +127,7 @@ def _scrape_event_via_browser(page, event_name: str, event_date: str) -> List[Fi
                 for t in page.query_selector_all(".event-tab")
             )
         )
+    selected_event_date = (target.get_attribute("data-event-date") or "").strip() or event_date
     target.click()
     page.wait_for_selector(".fight-card", timeout=10_000)
     # Brief settle for any client-side filtering pass.
@@ -142,6 +165,7 @@ def _scrape_event_via_browser(page, event_name: str, event_date: str) -> List[Fi
         edge = _parse_edge(edge_el.inner_text()) if edge_el else None
 
         cards.append(FightCard(
+            event_date=selected_event_date,
             fighter1=f1_name, fighter2=f2_name,
             f1_odds=f1_odds, f2_odds=f2_odds,
             f1_market_prob=f1_mkt, f2_market_prob=f2_mkt,
@@ -166,7 +190,7 @@ def _api_predict(card: FightCard) -> dict:
             "fighter2":      card.fighter2,
             "fighter1_odds": card.f1_odds,
             "fighter2_odds": card.f2_odds,
-            "fight_date":    EVENT_DATE,
+            "fight_date":    _normalize_fight_date(card.event_date),
         },
         timeout=30,
     )

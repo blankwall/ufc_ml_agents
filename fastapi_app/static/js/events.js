@@ -86,6 +86,7 @@ function _applyConfigDefaults(cfg) {
 
 /* ── Bet decision: unified filter + multiplier ─────────────────────────────── */
 function getBetDecision(f) {
+  if (f.decision_source === 'golden_elo_reopen') return { visible: true, multiplier: null };
   if (!f.model_prob_f1) return { visible: !f.error, multiplier: null };
 
   // Thin data filter
@@ -351,7 +352,7 @@ function renderTabs() {
     const roi = filteredRoi(ev);
     const cls = roi !== null ? (roi > 0 ? 'pos' : roi < 0 ? 'neg' : '') : '';
     const roiStr = roi !== null ? (roi >= 0 ? `+${roi}%` : `${roi}%`) : '?';
-    const label = shortEventName(ev.event_name);
+    const label = shortEventName(ev.event_name, ev.event_date);
     const userCls = ev.source_type === 'user_added' ? ' user-added' : '';
     return `<button class="event-tab${userCls}" onclick="selectEvent(${i})" id="etab-${i}"
       data-event-name="${escAttr(ev.event_name || '')}"
@@ -367,12 +368,39 @@ function filteredRoi(ev) {
   return summarizeFights(ev.fights).roi;
 }
 
-function shortEventName(name) {
+function shortEventName(name, eventDate) {
   // "UFC 324: Gaethje vs. Pimblett" → "UFC 324"
   if (!name) return 'Event';
+  const dateLabel = shortEventDate(eventDate);
+  if (name.startsWith('UFC Fight Night:')) {
+    const matchup = name.split(':', 2)[1]?.trim() || 'Fight Night';
+    return `FN: ${truncateLabel(matchup, 22)}${dateLabel ? ` · ${dateLabel}` : ''}`;
+  }
+  if (name.startsWith('MMA Card') && dateLabel) {
+    return `MMA Card · ${dateLabel}`;
+  }
   const colon = name.indexOf(':');
   if (colon !== -1) return name.slice(0, colon).trim();
-  return name.length > 18 ? name.slice(0, 18) + '…' : name;
+  return truncateLabel(name, 18);
+}
+
+function shortEventDate(dateStr) {
+  if (!dateStr) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr.slice(5);
+  }
+
+  const cleaned = String(dateStr).replace(/(\d+)(st|nd|rd|th)\b/i, '$1').trim();
+  const match = cleaned.match(/^([A-Za-z]+)\s+(\d{1,2})$/);
+  if (match) {
+    return `${match[1].slice(0, 3)} ${match[2]}`;
+  }
+  return truncateLabel(cleaned, 10);
+}
+
+function truncateLabel(text, maxLen) {
+  if (!text) return '';
+  return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
 }
 
 /* ── Select + render event panel ────────────────────────────────────────────── */
@@ -541,12 +569,16 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
   const edgeMeta = edgeFmt
     ? `<span class="fight-meta-item">Edge: <span class="meta-val meta-edge ${edgeClass}">${edgeFmt}</span></span>`
     : '';
+  const reviewMeta = f.review_label
+    ? `<span class="fight-meta-item">Signal: <span class="meta-val">${escHtml(f.review_label)}</span>${f.pick_elo_diff !== null && f.pick_elo_diff !== undefined ? ` <span class="meta-subtle">(ELO ${f.pick_elo_diff > 0 ? '+' : ''}${f.pick_elo_diff})</span>` : ''}</span>`
+    : '';
 
   const errorNote = f.error
     ? `<div class="fight-error">⚠ ${f.error}</div>`
     : '';
 
   const noBetBadge = visible ? '' : `<span class="no-bet-badge">no bet</span>`;
+  const goldenEloBadge = f.review_tier ? `<span class="bet-size-badge bet-size-low">Golden ELO T${f.review_tier}</span>` : '';
 
   // Bet-size badge (1x, 1.5x, 2x) — only for visible fights with a multiplier
   let betSizeBadge = '';
@@ -572,6 +604,7 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
           </div>
         </div>
         ${noBetBadge}
+        ${goldenEloBadge}
         ${betSizeBadge}
       </div>
 
@@ -589,6 +622,7 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
         ${pnlMeta}
         ${betMeta}
         ${edgeMeta}
+        ${reviewMeta}
         ${srcMeta}
         ${fightsMeta}
       </div>

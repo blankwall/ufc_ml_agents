@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -42,7 +43,16 @@ def test_predict_response_hides_internal_confidence_metadata(monkeypatch):
     monkeypatch.setattr(
         predict_router,
         "_evaluate_bet",
-        lambda **_kwargs: {"bet": True, "skip_code": None, "skip_reason": None},
+        lambda **_kwargs: {
+            "bet": True,
+            "skip_code": None,
+            "skip_reason": None,
+            "decision_source": "golden_elo_reopen",
+            "review_bucket": "golden_elo_not_expensive",
+            "review_tier": 2,
+            "review_label": "Golden ELO Tier 2 · Historical 20-7 · +17.2% ROI",
+            "pick_elo_diff": 118.0,
+        },
     )
     monkeypatch.setattr(
         predict_router,
@@ -70,8 +80,55 @@ def test_predict_response_hides_internal_confidence_metadata(monkeypatch):
 
     assert result["confidence_score"] == 4
     assert result["confidence_historical_win_rate"] == 58.7
+    assert result["decision_source"] == "golden_elo_reopen"
+    assert result["review_tier"] == 2
+    assert result["review_label"] == "Golden ELO Tier 2 · Historical 20-7 · +17.2% ROI"
+    assert result["pick_elo_diff"] == 118.0
     assert "confidence_method" not in result
     assert "confidence_prob_min" not in result
     assert "confidence_prob_max" not in result
     assert "confidence_avg_prob" not in result
     assert "confidence_sample_size" not in result
+
+
+def test_evaluate_bet_forwards_as_of_date(monkeypatch):
+    captured = {}
+
+    monkeypatch.setattr(
+        predict_router,
+        "_load_betting_filters",
+        lambda: {"filters": {}, "wmma": {}},
+    )
+
+    def fake_evaluate_bet_decision(**kwargs):
+        captured.update(kwargs)
+        return {
+            "bet": True,
+            "skip_code": None,
+            "skip_reason": None,
+            "decision_source": "golden_elo_reopen",
+            "review_bucket": "golden_elo_not_expensive",
+            "review_tier": 2,
+            "review_label": "Golden ELO Tier 2 · Historical 8-1 · +41.9% ROI",
+            "pick_elo_diff": 118.0,
+        }
+
+    monkeypatch.setattr(predict_router, "evaluate_bet_decision", fake_evaluate_bet_decision)
+
+    as_of = datetime(2026, 2, 1)
+    result = predict_router._evaluate_bet(
+        fighter1_name="Alexander Volkanovski",
+        fighter2_name="Diego Lopes",
+        pick_slot="fighter1",
+        pick_model_prob=0.58,
+        pick_mkt_prob=0.52,
+        pick_odds=-120,
+        is_favorite=True,
+        is_wmma=False,
+        f1_count=10,
+        f2_count=8,
+        as_of_date=as_of,
+    )
+
+    assert result["decision_source"] == "golden_elo_reopen"
+    assert captured["as_of_date"] == as_of

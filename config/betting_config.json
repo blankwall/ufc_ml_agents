@@ -22,6 +22,18 @@
     "base_unit": 100
   },
 
+  "golden_elo_reopen": {
+    "enabled": true,
+    "confidence_min": 0.50,
+    "confidence_max": 0.65,
+    "min_pick_odds": -300,
+    "min_pick_elo_diff": 50,
+    "tier_2_min_elo_diff": 100,
+    "min_trait_confidence": 0.60,
+    "trait_support_min_diff": 10,
+    "tier_3_cardio_min_diff": 10
+  },
+
   "wmma_rules": {
     "enabled": true,
     "min_edge": 0.10,

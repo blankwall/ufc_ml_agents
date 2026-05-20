@@ -47,6 +47,8 @@ data/processed/*.csv
 data/predictions/
 *.sqlite
 *.sqlite3
+data/enrichment/*.sqlite-shm
+data/enrichment/*.sqlite-wal
 
 # Scraper cache (large HTML files, re-fetched on demand)
 .cache/
