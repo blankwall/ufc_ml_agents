@@ -179,6 +179,11 @@ def _cohort_stats(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     }
 
 
+def _row_number(row: dict[str, Any], key: str, default: float) -> float:
+    value = row.get(key)
+    return default if value is None else float(value)
+
+
 def _golden_historical_stats(tier: int | str, cfg: dict[str, Any], *, context_pool_path: Path = CONTEXT_POOL_PATH) -> dict[str, Any] | None:
     if not context_pool_path.exists():
         return None
@@ -235,7 +240,19 @@ def _review_historical_stats(review_bucket: str, cfg: dict[str, Any], *, context
     if not rows:
         return None
 
-    if review_bucket == "favorite_negative_elo_midprice_no_offset":
+    if review_bucket == "neutral_elo_favorite":
+        matched = [
+            row for row in rows
+            if _row_number(row, "pick_odds", 0) < 0
+            and -50 < _row_number(row, "pick_elo_diff", 9999) < 50
+        ]
+    elif review_bucket == "neutral_elo_underdog":
+        matched = [
+            row for row in rows
+            if _row_number(row, "pick_odds", 0) > 0
+            and -50 < _row_number(row, "pick_elo_diff", 9999) < 50
+        ]
+    elif review_bucket == "favorite_negative_elo_midprice_no_offset":
         matched = [
             row for row in rows
             if -300 < (row.get("pick_odds") or 0) < 0
@@ -447,6 +464,15 @@ def evaluate_golden_elo_reopen(
             review_bucket = "favorite_negative_elo_no_offset"
             review_tier = "F"
             review_base = "Favorite Negative ELO Caution"
+    elif -50 < pick_elo_diff < 50:
+        if is_favorite:
+            review_bucket = "neutral_elo_favorite"
+            review_tier = "F0"
+            review_base = "Neutral ELO Favorite"
+        elif pick_odds is not None and pick_odds > 0:
+            review_bucket = "neutral_elo_underdog"
+            review_tier = "D0"
+            review_base = "Neutral ELO Underdog"
 
     review_stats = None
     review_label = None

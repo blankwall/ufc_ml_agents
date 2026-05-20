@@ -344,6 +344,46 @@ def _write_favorite_caution_pool(path: Path):
     conn.close()
 
 
+def _write_neutral_elo_pool(path: Path):
+    if path.exists():
+        path.unlink()
+    conn = sqlite3.connect(path)
+    conn.executescript(
+        """
+        CREATE TABLE backtest_fight_pool (
+            id INTEGER PRIMARY KEY,
+            pick_correct INTEGER,
+            bet INTEGER,
+            pick_prob REAL,
+            pick_elo_diff REAL,
+            pick_odds INTEGER,
+            actual_pnl REAL
+        );
+        CREATE TABLE evidence_items (
+            id INTEGER PRIMARY KEY,
+            fight_pool_id INTEGER NOT NULL,
+            evidence_type TEXT NOT NULL,
+            data_json TEXT
+        );
+        """
+    )
+    conn.executemany(
+        """
+        INSERT INTO backtest_fight_pool (id, pick_correct, bet, pick_prob, pick_elo_diff, pick_odds, actual_pnl)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (1, 1, 0, 0.65, -40, -160, 0.62),
+            (2, 1, 0, 0.62, 20, -140, 0.71),
+            (3, 0, 0, 0.61, -35, -180, -1.00),
+            (4, 1, 0, 0.55, -40, 120, 1.20),
+            (5, 0, 0, 0.54, 30, 135, -1.00),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+
 def test_golden_elo_reopen_returns_tier_3_with_trait_and_cardio_support(tmp_path):
     sidecar = tmp_path / "sergey_sidecar.sqlite"
     pool = tmp_path / "context_pool.sqlite"
@@ -577,3 +617,49 @@ def test_midpriced_negative_elo_favorite_without_offset_gets_fade_label(tmp_path
     assert result["review_bucket"] == "favorite_negative_elo_midprice_no_offset"
     assert result["review_tier"] == "F-"
     assert result["review_label"] == "Favorite ELO Fade · Historical 1-1 · -22.0% ROI"
+
+
+def test_neutral_elo_favorite_gets_historical_label(tmp_path):
+    sidecar = tmp_path / "sergey_sidecar.sqlite"
+    pool = tmp_path / "context_pool.sqlite"
+    _write_sidecar(sidecar, pick_elo=1360, opp_elo=1400)
+    _write_neutral_elo_pool(pool)
+
+    result = svc.evaluate_golden_elo_reopen(
+        fighter1_name="Pick Fighter",
+        fighter2_name="Opp Fighter",
+        pick_slot="fighter1",
+        pick_model_prob=0.649,
+        pick_odds=-163,
+        sidecar_path=sidecar,
+        context_pool_path=pool,
+    )
+
+    assert result["reopen"] is False
+    assert result["pick_elo_diff"] == -40.0
+    assert result["review_bucket"] == "neutral_elo_favorite"
+    assert result["review_tier"] == "F0"
+    assert result["review_label"] == "Neutral ELO Favorite · Historical 2-1 · +11.0% ROI"
+
+
+def test_neutral_elo_underdog_gets_historical_label(tmp_path):
+    sidecar = tmp_path / "sergey_sidecar.sqlite"
+    pool = tmp_path / "context_pool.sqlite"
+    _write_sidecar(sidecar, pick_elo=1360, opp_elo=1400)
+    _write_neutral_elo_pool(pool)
+
+    result = svc.evaluate_golden_elo_reopen(
+        fighter1_name="Pick Fighter",
+        fighter2_name="Opp Fighter",
+        pick_slot="fighter1",
+        pick_model_prob=0.54,
+        pick_odds=120,
+        sidecar_path=sidecar,
+        context_pool_path=pool,
+    )
+
+    assert result["reopen"] is False
+    assert result["pick_elo_diff"] == -40.0
+    assert result["review_bucket"] == "neutral_elo_underdog"
+    assert result["review_tier"] == "D0"
+    assert result["review_label"] == "Neutral ELO Underdog · Historical 1-1 · +10.0% ROI"
