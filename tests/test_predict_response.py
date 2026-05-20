@@ -8,6 +8,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "fastapi_app"))
 
 from fastapi_app.routers import predict as predict_router  # noqa: E402
+from fastapi_app.services import bet_evaluator  # noqa: E402
 
 
 class _DummySession:
@@ -205,3 +206,42 @@ def test_predict_response_keeps_pick_elo_diff_on_static_skip(monkeypatch):
     assert result["review_bucket"] == "elo_against_50"
     assert result["review_tier"] == 1
     assert result["review_label"] == "ELO Against Tier 1 · Historical 50-25 · +27.1% ROI"
+
+
+def test_evaluate_bet_decision_preserves_review_only_bucket(monkeypatch):
+    monkeypatch.setattr(
+        bet_evaluator,
+        "evaluate_golden_elo_reopen",
+        lambda **_kwargs: {
+            "reopen": False,
+            "review_bucket": "elo_against_tier_1a",
+            "review_tier": "-1A",
+            "review_label": "ELO Against Tier -1A · Historical 12-3 · +49.1% ROI",
+            "review_stats": {"wins": 12, "losses": 3, "roi_pct": 49.1},
+            "pick_elo_diff": -60.0,
+        },
+    )
+
+    result = bet_evaluator.evaluate_bet_decision(
+        fighter1_name="Pick Fighter",
+        fighter2_name="Opp Fighter",
+        pick_slot="fighter1",
+        pick_model_prob=0.70,
+        pick_mkt_prob=0.68,
+        pick_odds=-180,
+        is_favorite=True,
+        is_wmma=False,
+        f1_count=10,
+        f2_count=10,
+        filters={"favorite_confidence_min": 0.65, "edge_min": 0.04},
+        wmma_rules={},
+        as_of_date="2026-02-01",
+    )
+
+    assert result["bet"] is False
+    assert result["decision_source"] == "static_skip"
+    assert result["skip_code"] == "F3"
+    assert result["review_bucket"] == "elo_against_tier_1a"
+    assert result["review_tier"] == "-1A"
+    assert result["review_label"] == "ELO Against Tier -1A · Historical 12-3 · +49.1% ROI"
+    assert result["pick_elo_diff"] == -60.0

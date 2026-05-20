@@ -77,20 +77,16 @@ def evaluate_bet_decision(
     )
     payload = {
         "decision_source": "static_config" if result["bet"] else "static_skip",
-        "review_bucket": None,
-        "review_tier": None,
-        "review_label": None,
-        "review_stats": None,
+        "review_bucket": golden.get("review_bucket"),
+        "review_tier": golden.get("review_tier"),
+        "review_label": golden.get("review_label"),
+        "review_stats": golden.get("review_stats"),
         "pick_elo_diff": golden.get("pick_elo_diff"),
     }
     if not result["bet"] and golden.get("reopen"):
         payload.update(
             {
                 "decision_source": "golden_elo_reopen",
-                "review_bucket": golden.get("review_bucket"),
-                "review_tier": golden.get("review_tier"),
-                "review_label": golden.get("review_label"),
-                "review_stats": golden.get("review_stats"),
             }
         )
         result = {"bet": True, "skip_code": None, "skip_reason": None}
