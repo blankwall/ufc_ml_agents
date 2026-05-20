@@ -235,7 +235,27 @@ def _review_historical_stats(review_bucket: str, cfg: dict[str, Any], *, context
     if not rows:
         return None
 
-    if review_bucket == "elo_against_100":
+    if review_bucket == "favorite_negative_elo_midprice_no_offset":
+        matched = [
+            row for row in rows
+            if -300 < (row.get("pick_odds") or 0) < 0
+            and (row.get("pick_elo_diff") or 9999) <= -50
+            and not (
+                _trait_confident(row, cfg)
+                and _has_offset_trait_support(row.get("deltas") or {}, cfg)
+            )
+        ]
+    elif review_bucket == "favorite_negative_elo_no_offset":
+        matched = [
+            row for row in rows
+            if (row.get("pick_odds") or 0) < 0
+            and (row.get("pick_elo_diff") or 9999) <= -50
+            and not (
+                _trait_confident(row, cfg)
+                and _has_offset_trait_support(row.get("deltas") or {}, cfg)
+            )
+        ]
+    elif review_bucket == "elo_against_100":
         matched = [row for row in rows if (row.get("pick_elo_diff") or 9999) <= -100]
     elif review_bucket == "elo_against_tier_1a":
         matched = [
@@ -397,6 +417,8 @@ def evaluate_golden_elo_reopen(
         and _trait_confident(traits, cfg)
         and _has_offset_trait_support(traits, cfg)
     )
+    is_favorite = pick_odds is not None and pick_odds < 0
+    is_midpriced_favorite = pick_odds is not None and -300 < pick_odds < 0
 
     review_bucket = None
     review_tier = None
@@ -417,6 +439,14 @@ def evaluate_golden_elo_reopen(
             review_bucket = "trait_offset_elo_against"
             review_tier = 3
             review_base = "Trait Offset Tier 3"
+        elif is_midpriced_favorite:
+            review_bucket = "favorite_negative_elo_midprice_no_offset"
+            review_tier = "F-"
+            review_base = "Favorite ELO Fade"
+        elif is_favorite:
+            review_bucket = "favorite_negative_elo_no_offset"
+            review_tier = "F"
+            review_base = "Favorite Negative ELO Caution"
 
     review_stats = None
     review_label = None
