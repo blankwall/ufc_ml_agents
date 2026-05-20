@@ -241,3 +241,20 @@ def test_golden_elo_reopen_falls_back_cleanly_when_data_missing(tmp_path):
 
     assert result["reopen"] is False
     assert result["pick_elo_diff"] is None
+
+
+def test_golden_elo_returns_pick_elo_diff_even_when_outside_reopen_band(tmp_path):
+    sidecar = tmp_path / "sergey_sidecar.sqlite"
+    _write_sidecar(sidecar)
+
+    result = svc.evaluate_golden_elo_reopen(
+        fighter1_name="Pick Fighter",
+        fighter2_name="Opp Fighter",
+        pick_slot="fighter2",
+        pick_model_prob=0.716,
+        pick_odds=-250,
+        sidecar_path=sidecar,
+    )
+
+    assert result["reopen"] is False
+    assert result["pick_elo_diff"] == -100.0

@@ -22,6 +22,7 @@ class GoldenFight:
     f1_odds: int | None
     f2_odds: int | None
     decision_source: str
+    review_bucket: str | None
     review_tier: int
     review_label: str
     pick_elo_diff: float | None
@@ -58,6 +59,7 @@ def _collect_golden_fights(events_payload: list[dict]) -> list[GoldenFight]:
                     f1_odds=fight.get("f1_odds"),
                     f2_odds=fight.get("f2_odds"),
                     decision_source=fight.get("decision_source"),
+                    review_bucket=fight.get("review_bucket"),
                     review_tier=fight.get("review_tier"),
                     review_label=fight.get("review_label", ""),
                     pick_elo_diff=fight.get("pick_elo_diff"),
@@ -65,6 +67,14 @@ def _collect_golden_fights(events_payload: list[dict]) -> list[GoldenFight]:
                 )
             )
     return golden_fights
+
+
+def _expected_bucket_for_tier(tier: int) -> str:
+    if tier == 3:
+        return "golden_elo_plus_cardio"
+    if tier == 2:
+        return "golden_elo_plus_trait_support"
+    return "golden_elo_not_expensive"
 
 
 def _normalize_predict_date(event_date: str) -> str | None:
@@ -127,6 +137,7 @@ def test_local_events_api_exposes_golden_elo_fields(golden_fights: list[GoldenFi
         assert fight.bet is True
         assert fight.decision_source == "golden_elo_reopen"
         assert fight.review_tier in {1, 2, 3}
+        assert fight.review_bucket == _expected_bucket_for_tier(fight.review_tier)
         assert fight.review_label.startswith(f"Golden ELO Tier {fight.review_tier}")
         assert "Historical " in fight.review_label
         assert "ROI" in fight.review_label
@@ -150,11 +161,30 @@ def test_local_predict_matches_events_golden_elo_decision(sample_golden_fight: G
     response.raise_for_status()
     payload = response.json()
 
+    for key in (
+        "fighter1",
+        "fighter2",
+        "model_prob_f1",
+        "market_prob_f1",
+        "edge",
+        "bet",
+        "decision_source",
+        "review_bucket",
+        "review_tier",
+        "review_label",
+        "pick_elo_diff",
+        "confidence_score",
+        "confidence_historical_win_rate",
+    ):
+        assert key in payload, f"Missing key {key} in /api/predict response"
+
     assert payload["bet"] is True
     assert payload["decision_source"] == "golden_elo_reopen"
+    assert payload["review_bucket"] == sample_golden_fight.review_bucket
     assert payload["review_tier"] == sample_golden_fight.review_tier
     assert payload["review_label"] == sample_golden_fight.review_label
     assert payload["pick_elo_diff"] == sample_golden_fight.pick_elo_diff
+    assert payload["review_bucket"] == _expected_bucket_for_tier(payload["review_tier"])
 
 
 def test_local_events_page_renders_golden_elo_badge(sample_golden_fight: GoldenFight):

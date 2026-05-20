@@ -306,14 +306,6 @@ def evaluate_golden_elo_reopen(
     main_db_path: Path = MAIN_DB_PATH,
 ) -> dict[str, Any]:
     cfg = load_golden_elo_config()
-    if not cfg.get("enabled", True):
-        return {"reopen": False, "pick_elo_diff": None}
-
-    if not (cfg["confidence_min"] <= pick_model_prob < cfg["confidence_max"]):
-        return {"reopen": False, "pick_elo_diff": None}
-    if pick_odds is None or pick_odds <= cfg["min_pick_odds"]:
-        return {"reopen": False, "pick_elo_diff": None}
-
     pick_name = fighter1_name if pick_slot == "fighter1" else fighter2_name
     opp_name = fighter2_name if pick_slot == "fighter1" else fighter1_name
     pick_elo = _current_elo(pick_name, sidecar_path=sidecar_path)
@@ -322,6 +314,12 @@ def evaluate_golden_elo_reopen(
         return {"reopen": False, "pick_elo_diff": None}
 
     pick_elo_diff = round(pick_elo - opp_elo, 1)
+    if not cfg.get("enabled", True):
+        return {"reopen": False, "pick_elo_diff": pick_elo_diff}
+    if not (cfg["confidence_min"] <= pick_model_prob < cfg["confidence_max"]):
+        return {"reopen": False, "pick_elo_diff": pick_elo_diff}
+    if pick_odds is None or pick_odds <= cfg["min_pick_odds"]:
+        return {"reopen": False, "pick_elo_diff": pick_elo_diff}
     if pick_elo_diff < cfg["min_pick_elo_diff"]:
         return {"reopen": False, "pick_elo_diff": pick_elo_diff}
 

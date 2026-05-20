@@ -132,3 +132,75 @@ def test_evaluate_bet_forwards_as_of_date(monkeypatch):
 
     assert result["decision_source"] == "golden_elo_reopen"
     assert captured["as_of_date"] == as_of
+
+
+def test_predict_response_keeps_pick_elo_diff_on_static_skip(monkeypatch):
+    monkeypatch.setattr(predict_router, "_Session", lambda: _DummySession())
+    monkeypatch.setattr(
+        predict_router,
+        "_resolve_fighter",
+        lambda _session, name: SimpleNamespace(
+            id=1 if "Victor" in name else 2,
+            name=name,
+            wins=10,
+            losses=2,
+            draws=0,
+        ),
+    )
+    monkeypatch.setattr(predict_router, "MatchupFeatureExtractor", lambda _session: object())
+    monkeypatch.setattr(
+        predict_router,
+        "_score_row",
+        lambda *_args, **_kwargs: {"model_prob_f1": 0.284, "model_source": "general"},
+    )
+    monkeypatch.setattr(
+        predict_router,
+        "_fight_count_as_of",
+        lambda _session, fighter_id, _as_of: 7 if fighter_id == 1 else 12,
+    )
+    monkeypatch.setattr(predict_router, "_matchup_wmma_flag", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(
+        predict_router,
+        "_evaluate_bet",
+        lambda **_kwargs: {
+            "bet": False,
+            "skip_code": "F3",
+            "skip_reason": "Favorite low edge",
+            "decision_source": "static_skip",
+            "review_bucket": None,
+            "review_tier": None,
+            "review_label": None,
+            "pick_elo_diff": -81.0,
+        },
+    )
+    monkeypatch.setattr(
+        predict_router,
+        "describe_confidence",
+        lambda _pick_prob: {
+            "confidence_score": 8,
+            "confidence_method": "backtest_pick_prob_decile",
+            "confidence_prob_min": 68.0,
+            "confidence_prob_max": 73.0,
+            "confidence_historical_win_rate": 74.4,
+            "confidence_sample_size": 42,
+        },
+    )
+
+    result = asyncio.run(
+        predict_router.predict_fight(
+            predict_router.PredictRequest(
+                fighter1="Victor Henry",
+                fighter2="Bryce Mitchell",
+                fighter1_odds=200,
+                fighter2_odds=-250,
+                fight_date="2026-06-06",
+            )
+        )
+    )
+
+    assert result["bet"] is False
+    assert result["decision_source"] == "static_skip"
+    assert result["skip_code"] == "F3"
+    assert result["pick_elo_diff"] == -81.0
+    assert result["review_tier"] is None
+    assert result["review_label"] is None
