@@ -118,6 +118,69 @@ def _write_traits(path: Path):
     conn.close()
 
 
+def _write_negative_traits(path: Path):
+    if path.exists():
+        path.unlink()
+    conn = sqlite3.connect(path)
+    conn.executescript(
+        """
+        CREATE TABLE fighter_trait_snapshots (
+            snapshot_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            main_fight_id INTEGER NOT NULL,
+            as_of_date TEXT NOT NULL,
+            fighter_id INTEGER NOT NULL,
+            fighter_name TEXT NOT NULL,
+            opponent_id INTEGER NOT NULL,
+            opponent_name TEXT NOT NULL,
+            cardio_score REAL,
+            defensive_exposure_score REAL,
+            striking_efficiency_score REAL,
+            trait_confidence REAL NOT NULL
+        );
+        CREATE VIEW v_trait_pair_deltas AS
+        SELECT
+            a.main_fight_id,
+            a.as_of_date,
+            a.fighter_id,
+            a.fighter_name,
+            a.opponent_id,
+            a.opponent_name,
+            a.cardio_score - b.cardio_score AS cardio_score_diff,
+            a.defensive_exposure_score - b.defensive_exposure_score AS defensive_exposure_score_diff,
+            a.striking_efficiency_score - b.striking_efficiency_score AS striking_efficiency_score_diff,
+            a.trait_confidence,
+            b.trait_confidence AS opponent_trait_confidence
+        FROM fighter_trait_snapshots a
+        JOIN fighter_trait_snapshots b
+          ON b.main_fight_id = a.main_fight_id
+         AND b.fighter_id = a.opponent_id;
+        """
+    )
+    conn.executemany(
+        """
+        INSERT INTO fighter_trait_snapshots (
+            main_fight_id,
+            as_of_date,
+            fighter_id,
+            fighter_name,
+            opponent_id,
+            opponent_name,
+            cardio_score,
+            defensive_exposure_score,
+            striking_efficiency_score,
+            trait_confidence
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (20, "2026-01-31", 1, "Pick Fighter", 2, "Opp Fighter", 50, 50, 48, 0.85),
+            (20, "2026-01-31", 2, "Opp Fighter", 1, "Pick Fighter", 65, 38, 60, 0.90),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+
 def _write_pool(path: Path):
     if path.exists():
         path.unlink()
@@ -258,3 +321,35 @@ def test_golden_elo_returns_pick_elo_diff_even_when_outside_reopen_band(tmp_path
 
     assert result["reopen"] is False
     assert result["pick_elo_diff"] == -100.0
+    assert result["review_bucket"] == "elo_against_100"
+    assert result["review_tier"] == 2
+
+
+def test_negative_elo_with_trait_support_sets_trait_offset_review_bucket(tmp_path):
+    sidecar = tmp_path / "sergey_sidecar.sqlite"
+    pool = tmp_path / "context_pool.sqlite"
+    main_db = tmp_path / "ufc_database.db"
+    traits = tmp_path / "trait_snapshots.sqlite"
+    _write_sidecar(sidecar)
+    _write_pool(pool)
+    _write_main_db(main_db)
+    _write_negative_traits(traits)
+
+    result = svc.evaluate_golden_elo_reopen(
+        fighter1_name="Pick Fighter",
+        fighter2_name="Opp Fighter",
+        pick_slot="fighter2",
+        pick_model_prob=0.716,
+        pick_odds=-250,
+        as_of_date="2026-02-01",
+        sidecar_path=sidecar,
+        context_pool_path=pool,
+        main_db_path=main_db,
+        trait_snapshot_path=traits,
+    )
+
+    assert result["reopen"] is False
+    assert result["pick_elo_diff"] == -100.0
+    assert result["review_bucket"] == "trait_offset_elo_against"
+    assert result["review_tier"] == 3
+    assert result["review_label"].startswith("Trait Offset Tier 3")

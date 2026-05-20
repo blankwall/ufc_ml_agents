@@ -167,9 +167,9 @@ def test_predict_response_keeps_pick_elo_diff_on_static_skip(monkeypatch):
             "skip_code": "F3",
             "skip_reason": "Favorite low edge",
             "decision_source": "static_skip",
-            "review_bucket": None,
-            "review_tier": None,
-            "review_label": None,
+            "review_bucket": "elo_against_50",
+            "review_tier": 1,
+            "review_label": "ELO Against Tier 1 · Historical 50-25 · +27.1% ROI",
             "pick_elo_diff": -81.0,
         },
     )
@@ -202,5 +202,6 @@ def test_predict_response_keeps_pick_elo_diff_on_static_skip(monkeypatch):
     assert result["decision_source"] == "static_skip"
     assert result["skip_code"] == "F3"
     assert result["pick_elo_diff"] == -81.0
-    assert result["review_tier"] is None
-    assert result["review_label"] is None
+    assert result["review_bucket"] == "elo_against_50"
+    assert result["review_tier"] == 1
+    assert result["review_label"] == "ELO Against Tier 1 · Historical 50-25 · +27.1% ROI"
