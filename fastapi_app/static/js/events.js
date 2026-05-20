@@ -569,8 +569,11 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
   const edgeMeta = edgeFmt
     ? `<span class="fight-meta-item">Edge: <span class="meta-val meta-edge ${edgeClass}">${edgeFmt}</span></span>`
     : '';
+  const eloMeta = f.pick_elo_diff !== null && f.pick_elo_diff !== undefined
+    ? `<span class="fight-meta-item">ELO Diff: <span class="meta-val ${f.pick_elo_diff > 0 ? 'pos' : f.pick_elo_diff < 0 ? 'neg' : ''}">${f.pick_elo_diff > 0 ? '+' : ''}${f.pick_elo_diff}</span></span>`
+    : '';
   const reviewMeta = f.review_label
-    ? `<span class="fight-meta-item">Signal: <span class="meta-val">${escHtml(f.review_label)}</span>${f.pick_elo_diff !== null && f.pick_elo_diff !== undefined ? ` <span class="meta-subtle">(ELO ${f.pick_elo_diff > 0 ? '+' : ''}${f.pick_elo_diff})</span>` : ''}</span>`
+    ? `<span class="fight-meta-item">Signal: <span class="meta-val">${escHtml(f.review_label)}</span></span>`
     : '';
 
   const errorNote = f.error
@@ -622,6 +625,7 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
         ${pnlMeta}
         ${betMeta}
         ${edgeMeta}
+        ${eloMeta}
         ${reviewMeta}
         ${srcMeta}
         ${fightsMeta}

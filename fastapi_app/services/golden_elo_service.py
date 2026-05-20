@@ -150,6 +150,14 @@ def _has_cardio_support(deltas: dict[str, Any], cfg: dict[str, Any]) -> bool:
     return (deltas.get("cardio_score_diff") or 0) >= float(cfg.get("tier_3_cardio_min_diff", 10))
 
 
+def _has_offset_trait_support(deltas: dict[str, Any], cfg: dict[str, Any]) -> bool:
+    threshold = float(cfg.get("trait_support_min_diff", 10))
+    return (
+        (deltas.get("cardio_score_diff") or 0) >= threshold
+        or (deltas.get("striking_efficiency_score_diff") or 0) >= threshold
+    )
+
+
 def _trait_confident(row: dict[str, Any], cfg: dict[str, Any]) -> bool:
     minimum = float(cfg.get("min_trait_confidence", 0.60))
     return (row.get("trait_confidence") or 0) >= minimum and (row.get("opponent_trait_confidence") or 0) >= minimum
@@ -171,7 +179,7 @@ def _cohort_stats(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     }
 
 
-def _golden_historical_stats(tier: int, cfg: dict[str, Any], *, context_pool_path: Path = CONTEXT_POOL_PATH) -> dict[str, Any] | None:
+def _golden_historical_stats(tier: int | str, cfg: dict[str, Any], *, context_pool_path: Path = CONTEXT_POOL_PATH) -> dict[str, Any] | None:
     if not context_pool_path.exists():
         return None
     rows = _historical_rows(str(context_pool_path), context_pool_path.stat().st_mtime_ns, True)
@@ -193,6 +201,13 @@ def _golden_historical_stats(tier: int, cfg: dict[str, Any], *, context_pool_pat
             and _trait_confident(row, cfg)
             and _has_primary_trait_support(row.get("deltas") or {}, cfg)
         ]
+    elif tier == "1A":
+        matched = [
+            row for row in rows
+            if float(cfg["min_pick_elo_diff"]) <= (row.get("pick_elo_diff") or -9999) < float(cfg["tier_2_min_elo_diff"])
+            and _trait_confident(row, cfg)
+            and _has_primary_trait_support(row.get("deltas") or {}, cfg)
+        ]
     else:
         matched = [
             row for row in rows
@@ -203,7 +218,15 @@ def _golden_historical_stats(tier: int, cfg: dict[str, Any], *, context_pool_pat
 
 def _review_historical_stats(review_bucket: str, cfg: dict[str, Any], *, context_pool_path: Path = CONTEXT_POOL_PATH) -> dict[str, Any] | None:
     if review_bucket.startswith("golden_elo_"):
-        tier = 3 if review_bucket == "golden_elo_plus_cardio" else 2 if review_bucket == "golden_elo_plus_trait_support" else 1
+        tier: int | str = (
+            3
+            if review_bucket == "golden_elo_plus_cardio"
+            else 2
+            if review_bucket == "golden_elo_plus_trait_support"
+            else "1A"
+            if review_bucket == "golden_elo_tier_1a"
+            else 1
+        )
         return _golden_historical_stats(tier, cfg, context_pool_path=context_pool_path)
 
     if not context_pool_path.exists():
@@ -214,12 +237,19 @@ def _review_historical_stats(review_bucket: str, cfg: dict[str, Any], *, context
 
     if review_bucket == "elo_against_100":
         matched = [row for row in rows if (row.get("pick_elo_diff") or 9999) <= -100]
+    elif review_bucket == "elo_against_tier_1a":
+        matched = [
+            row for row in rows
+            if -100 < (row.get("pick_elo_diff") or 9999) <= -50
+            and _trait_confident(row, cfg)
+            and _has_offset_trait_support(row.get("deltas") or {}, cfg)
+        ]
     elif review_bucket == "trait_offset_elo_against":
         matched = [
             row for row in rows
             if (row.get("pick_elo_diff") or 9999) <= -50
             and _trait_confident(row, cfg)
-            and _has_primary_trait_support(row.get("deltas") or {}, cfg)
+            and _has_offset_trait_support(row.get("deltas") or {}, cfg)
         ]
     else:
         matched = [row for row in rows if (row.get("pick_elo_diff") or 9999) <= -50]
@@ -362,6 +392,11 @@ def evaluate_golden_elo_reopen(
         and traits
         and _has_cardio_support(traits, cfg)
     )
+    has_offset_trait_support = bool(
+        traits
+        and _trait_confident(traits, cfg)
+        and _has_offset_trait_support(traits, cfg)
+    )
 
     review_bucket = None
     review_tier = None
@@ -374,7 +409,11 @@ def evaluate_golden_elo_reopen(
             review_bucket = "elo_against_100"
             review_tier = 2
             review_base = "ELO Against Tier 2"
-        if has_trait_support:
+        if has_offset_trait_support and pick_elo_diff > -100:
+            review_bucket = "elo_against_tier_1a"
+            review_tier = "-1A"
+            review_base = "ELO Against Tier -1A"
+        elif has_offset_trait_support:
             review_bucket = "trait_offset_elo_against"
             review_tier = 3
             review_base = "Trait Offset Tier 3"
@@ -394,6 +433,7 @@ def evaluate_golden_elo_reopen(
             "review_stats": review_stats,
             "trait_support": has_trait_support,
             "cardio_support": has_cardio_support,
+            "offset_trait_support": has_offset_trait_support,
         }
     if not (cfg["confidence_min"] <= pick_model_prob < cfg["confidence_max"]):
         if review_bucket:
@@ -408,6 +448,7 @@ def evaluate_golden_elo_reopen(
             "review_stats": review_stats,
             "trait_support": has_trait_support,
             "cardio_support": has_cardio_support,
+            "offset_trait_support": has_offset_trait_support,
         }
     if pick_odds is None or pick_odds <= cfg["min_pick_odds"]:
         if review_bucket:
@@ -422,6 +463,7 @@ def evaluate_golden_elo_reopen(
             "review_stats": review_stats,
             "trait_support": has_trait_support,
             "cardio_support": has_cardio_support,
+            "offset_trait_support": has_offset_trait_support,
         }
     if pick_elo_diff < cfg["min_pick_elo_diff"]:
         if review_bucket:
@@ -436,12 +478,17 @@ def evaluate_golden_elo_reopen(
             "review_stats": review_stats,
             "trait_support": has_trait_support,
             "cardio_support": has_cardio_support,
+            "offset_trait_support": has_offset_trait_support,
         }
 
     tier = 1
     review_bucket = "golden_elo_not_expensive"
     review_base = "Golden ELO Tier 1"
-    if pick_elo_diff >= cfg["tier_2_min_elo_diff"] and has_trait_support:
+    if pick_elo_diff < cfg["tier_2_min_elo_diff"] and has_trait_support:
+        tier = "1A"
+        review_bucket = "golden_elo_tier_1a"
+        review_base = "Golden ELO Tier 1A"
+    elif pick_elo_diff >= cfg["tier_2_min_elo_diff"] and has_trait_support:
         tier = 2
         review_bucket = "golden_elo_plus_trait_support"
         review_base = "Golden ELO Tier 2"
@@ -461,4 +508,5 @@ def evaluate_golden_elo_reopen(
         "review_stats": stats,
         "trait_support": has_trait_support,
         "cardio_support": has_cardio_support,
+        "offset_trait_support": has_offset_trait_support,
     }

@@ -23,7 +23,7 @@ class GoldenFight:
     f2_odds: int | None
     decision_source: str
     review_bucket: str | None
-    review_tier: int
+    review_tier: int | str
     review_label: str
     pick_elo_diff: float | None
     bet: bool
@@ -69,11 +69,13 @@ def _collect_golden_fights(events_payload: list[dict]) -> list[GoldenFight]:
     return golden_fights
 
 
-def _expected_bucket_for_tier(tier: int) -> str:
+def _expected_bucket_for_tier(tier: int | str) -> str:
     if tier == 3:
         return "golden_elo_plus_cardio"
     if tier == 2:
         return "golden_elo_plus_trait_support"
+    if tier == "1A":
+        return "golden_elo_tier_1a"
     return "golden_elo_not_expensive"
 
 
@@ -136,7 +138,7 @@ def test_local_events_api_exposes_golden_elo_fields(golden_fights: list[GoldenFi
     for fight in golden_fights:
         assert fight.bet is True
         assert fight.decision_source == "golden_elo_reopen"
-        assert fight.review_tier in {1, 2, 3}
+        assert fight.review_tier in {1, "1A", 2, 3}
         assert fight.review_bucket == _expected_bucket_for_tier(fight.review_tier)
         assert fight.review_label.startswith(f"Golden ELO Tier {fight.review_tier}")
         assert "Historical " in fight.review_label
@@ -209,7 +211,7 @@ def test_local_events_page_renders_golden_elo_badge(sample_golden_fight: GoldenF
             assert f"Golden ELO T{sample_golden_fight.review_tier}" in text
             assert sample_golden_fight.review_label in text
             if sample_golden_fight.pick_elo_diff is not None:
-                elo_pattern = rf"ELO\s+\+?{re.escape(str(sample_golden_fight.pick_elo_diff).rstrip('0').rstrip('.'))}"
+                elo_pattern = rf"ELO Diff:\s*\+?{re.escape(str(sample_golden_fight.pick_elo_diff).rstrip('0').rstrip('.'))}"
                 assert re.search(elo_pattern, text), text
         finally:
             browser.close()
