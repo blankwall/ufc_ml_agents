@@ -133,6 +133,47 @@ def _predict_review_fields(bet_eval: dict) -> dict:
     }
 
 
+def _predict_decision_label(bet_eval: dict) -> str:
+    source = bet_eval.get("decision_source")
+    if source == "golden_elo_reopen":
+        return "Bet (Golden ELO)"
+    if bet_eval.get("bet"):
+        return "Bet"
+    return "Pass"
+
+
+def _predict_explanation(bet_eval: dict) -> str | None:
+    skip_code = bet_eval.get("skip_code")
+    review_label = bet_eval.get("review_label")
+    source = bet_eval.get("decision_source")
+
+    if source == "golden_elo_reopen" and review_label:
+        return f"Golden ELO reopen: {review_label}"
+
+    if skip_code == "F1":
+        return "Pass: the favorite does not clear the confidence threshold."
+    if skip_code == "F2":
+        return "Pass: the favorite price is too expensive."
+    if skip_code == "F3":
+        return "Pass: the favorite edge is too small."
+    if skip_code == "U1":
+        return "Pass: the underdog does not clear the confidence threshold."
+    if skip_code == "U2":
+        return "Pass: the underdog edge is too small."
+    if skip_code == "U3":
+        return "Pass: the underdog price is outside the allowed range."
+    if skip_code == "W1":
+        return "Pass: WMMA requires a larger edge."
+    if skip_code == "D1":
+        return "Pass: there is not enough historical fight data."
+    if skip_code == "ERR":
+        return "Pass: prediction failed."
+
+    if bet_eval.get("bet"):
+        return "Bet: the model clears the current betting rules."
+    return None
+
+
 # ── endpoint ──────────────────────────────────────────────────────────────────
 
 @router.post("/predict")
@@ -227,33 +268,29 @@ async def predict_fight(req: PredictRequest):
         )
         confidence = describe_confidence(pick_model_prob)
         review_fields = _predict_review_fields(bet_eval)
+        decision = _predict_decision_label(bet_eval)
+        explanation = _predict_explanation(bet_eval)
 
         return {
             "fighter1":           req.fighter1,
             "fighter2":           req.fighter2,
-            "fighter1_db_name":   f1.name,
-            "fighter2_db_name":   f2.name,
             "model_prob_f1":      model_prob_pct,
             "model_prob_f2":      round(100 - model_prob_pct, 1),
-            "model_source":       pred["model_source"],
             "model_pick":         model_pick,
             "market_prob_f1":     round(mkt_prob_f1 * 100, 1),
             "market_prob_f2":     round((1 - mkt_prob_f1) * 100, 1),
             "edge":               edge,
             "f1_odds":            req.fighter1_odds,
             "f2_odds":            req.fighter2_odds,
-            "f1_fight_count":     f1_count,
-            "f2_fight_count":     f2_count,
-            "f1_record":          f"{f1.wins}-{f1.losses}-{f1.draws}",
-            "f2_record":          f"{f2.wins}-{f2.losses}-{f2.draws}",
             "thin_data_warning":  f1_count < 3 or f2_count < 3,
             "is_wmma":            is_wmma,
             "confidence_score":   confidence["confidence_score"],
             "confidence_historical_win_rate": confidence["confidence_historical_win_rate"],
             "fight_date":         req.fight_date.isoformat() if req.fight_date else None,
             "bet":                bet_eval["bet"],
-            "skip_code":          bet_eval["skip_code"],
-            "skip_reason":        bet_eval["skip_reason"],
+            "skip_reason":        bet_eval.get("skip_reason"),
+            "decision":           decision,
+            "explanation":        explanation,
             "decision_source":    bet_eval.get("decision_source"),
             "review_bucket":      review_fields["review_bucket"],
             "review_tier":        review_fields["review_tier"],

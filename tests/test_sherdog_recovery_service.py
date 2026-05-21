@@ -193,3 +193,57 @@ def test_recover_missing_fighters_from_odds_records_search_miss(monkeypatch, tmp
     assert result["search_misses"] == 1
     state = json.loads(state_path.read_text())
     assert state["fighters"]["mystery prospect"]["status"] == "search_not_found"
+
+
+def test_recover_fighter_from_url_inserts_sherdog_fighter(monkeypatch, tmp_path):
+    config_path = _write_config(tmp_path)
+    state_path = tmp_path / "data" / "future_fight_odds" / "sherdog_recovery.json"
+
+    monkeypatch.setattr(recovery_service, "CONFIG_PATH", config_path)
+    monkeypatch.setattr(recovery_service, "STATE_PATH", state_path)
+    monkeypatch.setattr(sherdog_scraper, "BASE_URL", "https://www.sherdog.com")
+    monkeypatch.setattr(
+        sherdog_scraper.SherdogScraper,
+        "scrape_fighter",
+        lambda self, _url, fighter_id=None, bust_cache=False: {
+            "fighter_id": fighter_id or "390123",
+            "source": "sherdog",
+            "url": "https://www.sherdog.com/fighter/Yi-Sak-Lee-390123",
+            "scraped_at": "2026-05-19T00:00:00Z",
+            "name": "Yi Sak Lee",
+            "height": "6'0\"",
+            "weight": "185 lbs",
+            "date_of_birth": "Jan 11, 2000",
+            "age": 26,
+            "method_breakdown": {
+                "wins": {"total": 8},
+                "losses": {"total": 1},
+            },
+            "fight_history": [],
+        },
+    )
+
+    result = recovery_service.recover_fighter_from_url(
+        fighter_url="https://www.sherdog.com/fighter/Yi-Sak-Lee-390123",
+        requested_name="Yi Sak Lee",
+        trigger="pytest",
+    )
+
+    assert result["status"] == "recovered"
+    assert result["db_fighter_id"] == "sherdog:390123"
+    assert result["db_name"] == "Yi Sak Lee"
+
+    db = DatabaseManager(config_path=str(config_path))
+    session = db.get_session()
+    try:
+        recovered = session.query(Fighter).filter_by(fighter_id="sherdog:390123").first()
+        assert recovered is not None
+        assert recovered.name == "Yi Sak Lee"
+    finally:
+        session.close()
+
+    state = json.loads(state_path.read_text())
+    fighter_state = state["fighters"]["yi sak lee"]
+    assert fighter_state["status"] == "recovered"
+    assert fighter_state["fighter_url"] == "https://www.sherdog.com/fighter/Yi-Sak-Lee-390123"
+    assert fighter_state["db_fighter_id"] == "sherdog:390123"

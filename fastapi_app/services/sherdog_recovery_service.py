@@ -8,6 +8,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 if str(ROOT_DIR) not in sys.path:
@@ -154,6 +155,108 @@ def _map_recovered_fighter(scraped: dict[str, Any], *, requested_name: str) -> d
         "url": scraped.get("url"),
         "scraped_at": scraped.get("scraped_at"),
     }
+
+
+def _validate_sherdog_fighter_url(fighter_url: str) -> str:
+    value = str(fighter_url).strip()
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError("Sherdog URL must start with http:// or https://")
+    if "sherdog.com" not in parsed.netloc.lower():
+        raise ValueError("Sherdog URL must point to sherdog.com")
+    if "/fighter/" not in parsed.path:
+        raise ValueError("Sherdog URL must be a fighter profile link")
+    return value
+
+
+def recover_fighter_from_url(
+    *,
+    fighter_url: str,
+    requested_name: str | None = None,
+    dry_run: bool = False,
+    bust_cache: bool = False,
+    trigger: str = "manual_url",
+) -> dict[str, Any]:
+    configure_job(JOB_NAME, enabled=recovery_enabled())
+    mark_run_started(JOB_NAME, trigger=trigger)
+
+    fighter_url = _validate_sherdog_fighter_url(fighter_url)
+    state = _load_state()
+    state["last_run_started_at"] = _iso_z(_utc_now())
+    state["last_trigger"] = trigger
+
+    scraper = SherdogScraper(config_path=str(CONFIG_PATH))
+    db = DatabaseManager(config_path=str(CONFIG_PATH))
+    fighter_id = scraper._extract_fighter_id(fighter_url)
+    state_key = _normalize_name(requested_name or fighter_id)
+    fighter_state = state["fighters"].setdefault(state_key, {})
+    fighter_state.update(
+        {
+            "requested_name": requested_name,
+            "canonical_name": requested_name or fighter_id,
+            "fighter_url": fighter_url,
+            "last_seen_at": _iso_z(_utc_now()),
+            "status": "pending",
+        }
+    )
+
+    try:
+        scraped = scraper.scrape_fighter(fighter_url, fighter_id=fighter_id, bust_cache=bust_cache)
+        if not scraped:
+            raise ValueError("Unable to scrape Sherdog fighter page")
+
+        recovered_name = scraped.get("name") or requested_name or fighter_id
+        mapped = _map_recovered_fighter(scraped, requested_name=recovered_name)
+        fighter_state["requested_name"] = requested_name or recovered_name
+        fighter_state["canonical_name"] = recovered_name
+        fighter_state["scraped_name"] = scraped.get("name")
+        fighter_state["fighter_url"] = scraped.get("url") or fighter_url
+        fighter_state["sherdog_fighter_id"] = scraped.get("fighter_id")
+
+        result = {
+            "status": "recovered",
+            "requested_name": requested_name or recovered_name,
+            "scraped_name": scraped.get("name"),
+            "fighter_url": scraped.get("url") or fighter_url,
+            "fighter_id": mapped["fighter_id"],
+            "dry_run": dry_run,
+        }
+
+        if not dry_run:
+            session = db.get_session()
+            try:
+                fighter_obj = db.add_fighter(session, mapped)
+                session.commit()
+                fighter_state["db_fighter_pk"] = fighter_obj.id
+                fighter_state["db_fighter_id"] = fighter_obj.fighter_id
+                fighter_state["db_name"] = fighter_obj.name
+                result["db_fighter_pk"] = fighter_obj.id
+                result["db_fighter_id"] = fighter_obj.fighter_id
+                result["db_name"] = fighter_obj.name
+            finally:
+                session.close()
+
+        fighter_state["status"] = "recovered"
+        fighter_state["recovered_at"] = _iso_z(_utc_now())
+        state["last_run_finished_at"] = _iso_z(_utc_now())
+        state["last_result"] = result
+        _save_state(state)
+        mark_run_finished(JOB_NAME, success=True, summary=result)
+        return result
+    except Exception as exc:
+        fighter_state["status"] = "error"
+        fighter_state["error"] = str(exc)
+        fighter_state["last_attempt_at"] = _iso_z(_utc_now())
+        state["last_run_finished_at"] = _iso_z(_utc_now())
+        state["last_result"] = {
+            "status": "error",
+            "fighter_url": fighter_url,
+            "requested_name": requested_name,
+            "error": str(exc),
+        }
+        _save_state(state)
+        mark_run_finished(JOB_NAME, success=False, summary=state["last_result"], error=str(exc))
+        raise
 
 
 def recover_missing_fighters_from_odds(

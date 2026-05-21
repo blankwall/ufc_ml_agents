@@ -4,6 +4,7 @@ from typing import Optional
 
 from services.scraper_service import scrape_and_save, list_user_events, delete_user_event, update_results, _slug, USER_EVENTS_DIR
 from services.predict_service import analyze_event
+from services.sherdog_recovery_service import recover_fighter_from_url
 
 router = APIRouter()
 
@@ -23,6 +24,13 @@ class AnalyzeRequest(BaseModel):
     force_rescrape: bool = False  # set True to re-fetch from BFO even if cached
 
 
+class RecoverFighterRequest(BaseModel):
+    sherdog_url: str
+    requested_name: Optional[str] = None
+    dry_run: bool = False
+    bust_cache: bool = False
+
+
 # ── Scrape / manage ───────────────────────────────────────────────────────────
 
 @router.post("/add-event")
@@ -37,6 +45,23 @@ async def api_add_event(body: AddEventRequest):
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Scrape failed: {e}")
+    return result
+
+
+@router.post("/recover-fighter")
+async def api_recover_fighter(body: RecoverFighterRequest):
+    """Import a single fighter from a Sherdog profile URL into the DB."""
+    try:
+        result = recover_fighter_from_url(
+            fighter_url=body.sherdog_url,
+            requested_name=body.requested_name,
+            dry_run=body.dry_run,
+            bust_cache=body.bust_cache,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Recovery failed: {e}")
     return result
 
 

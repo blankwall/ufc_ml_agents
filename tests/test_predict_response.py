@@ -81,10 +81,21 @@ def test_predict_response_hides_internal_confidence_metadata(monkeypatch):
 
     assert result["confidence_score"] == 4
     assert result["confidence_historical_win_rate"] == 58.7
+    assert result["decision"] == "Bet (Golden ELO)"
+    assert result["explanation"] == "Golden ELO reopen: Golden ELO Tier 2 · Historical 20-7 · +17.2% ROI"
+    assert result["skip_reason"] is None
     assert result["decision_source"] == "golden_elo_reopen"
     assert result["review_tier"] == 2
     assert result["review_label"] == "Golden ELO Tier 2 · Historical 20-7 · +17.2% ROI"
     assert result["pick_elo_diff"] == 118.0
+    assert "fighter1_db_name" not in result
+    assert "fighter2_db_name" not in result
+    assert "model_source" not in result
+    assert "f1_fight_count" not in result
+    assert "f2_fight_count" not in result
+    assert "f1_record" not in result
+    assert "f2_record" not in result
+    assert "skip_code" not in result
     assert "confidence_method" not in result
     assert "confidence_prob_min" not in result
     assert "confidence_prob_max" not in result
@@ -200,9 +211,12 @@ def test_predict_response_keeps_pick_elo_diff_on_static_skip(monkeypatch):
     )
 
     assert result["bet"] is False
+    assert result["skip_reason"] == "Favorite low edge"
+    assert result["decision"] == "Pass"
+    assert result["explanation"] == "Pass: the favorite edge is too small."
     assert result["decision_source"] == "static_skip"
-    assert result["skip_code"] == "F3"
     assert result["pick_elo_diff"] == -81.0
+    assert "skip_code" not in result
     assert result["review_bucket"] is None
     assert result["review_tier"] is None
     assert result["review_label"] is None
@@ -315,6 +329,9 @@ def test_predict_response_hides_review_labels_when_bet_is_static_config(monkeypa
     )
 
     assert result["bet"] is True
+    assert result["skip_reason"] is None
+    assert result["decision"] == "Bet"
+    assert result["explanation"] == "Bet: the model clears the current betting rules."
     assert result["decision_source"] == "static_config"
     assert result["review_bucket"] is None
     assert result["review_tier"] is None
