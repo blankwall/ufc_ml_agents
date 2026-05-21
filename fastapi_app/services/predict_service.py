@@ -241,16 +241,6 @@ def _cache_key_for_prediction(fight_key: str, *, as_of: Optional[datetime], even
     return f"{namespace}|{fight_key}"
 
 
-def _event_as_of_for_prediction(event_date: str, *, has_outcome: bool) -> Optional[datetime]:
-    """Anchor live event scoring to today when a source date is stale but the fight is still unresolved."""
-    as_of = _parse_event_date_any(event_date)
-    if as_of is None:
-        return None
-    if not has_outcome and as_of.date() < _now().date():
-        return _now().replace(hour=0, minute=0, second=0, microsecond=0)
-    return as_of
-
-
 def _prune_stale_future_cache(cache: dict) -> tuple[dict, bool]:
     """Drop old-namespace and prior-day future cache entries."""
     namespace_prefix = f"{_prediction_cache_namespace()}|"
@@ -637,10 +627,9 @@ def _run_prediction_loop(
         rd     = str(out_row["round"].iloc[0]).strip()  if len(out_row) else None
 
         # Use the scheduled event date for point-in-time feature extraction so
-        # /events matches /api/predict on future fights too. If a source row
-        # is stale but the fight is still unresolved, clamp to today so the UI
-        # remains pre-fight instead of leaking newly entered results.
-        as_of = _event_as_of_for_prediction(ev_date, has_outcome=winner is not None)
+        # /events stays anchored to the card date and remains parity-safe with
+        # /api/predict for the same matchup/odds/date input.
+        as_of = _parse_event_date_any(ev_date)
 
         # Historical fights stay anchored to the event date; future fights roll
         # daily so newly ingested DB history doesn't leave /events stale.

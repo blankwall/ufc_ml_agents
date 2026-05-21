@@ -1220,7 +1220,7 @@ def test_run_prediction_loop_ignores_previous_day_future_cache(monkeypatch):
     assert stale_key in cache
 
 
-def test_run_prediction_loop_clamps_stale_unresolved_event_date_to_today(monkeypatch):
+def test_run_prediction_loop_keeps_past_event_date_for_unresolved_fight(monkeypatch):
     monkeypatch.setattr(predict_service, "_now", _fixed_now)
     monkeypatch.setattr(predict_service, "get_bet_placed_map", lambda: {})
 
@@ -1269,7 +1269,7 @@ def test_run_prediction_loop_clamps_stale_unresolved_event_date_to_today(monkeyp
         extractor=object(),
     )
 
-    assert captured["as_of_date"] == datetime(2026, 5, 18, 0, 0, 0)
+    assert captured["as_of_date"] == datetime(2026, 5, 17, 0, 0, 0)
 
 
 def test_run_prediction_loop_keeps_past_event_date_for_completed_fight(monkeypatch):
