@@ -1218,3 +1218,119 @@ def test_run_prediction_loop_ignores_previous_day_future_cache(monkeypatch):
     assert fight["model_prob_f1"] == 51.2
     assert cache["v2|ilia topuria_vs_islam makhachev|future|2026-06-02|2026-05-18"]["model_prob_f1"] == 0.512
     assert stale_key in cache
+
+
+def test_run_prediction_loop_clamps_stale_unresolved_event_date_to_today(monkeypatch):
+    monkeypatch.setattr(predict_service, "_now", _fixed_now)
+    monkeypatch.setattr(predict_service, "get_bet_placed_map", lambda: {})
+
+    odds_df = predict_service.pd.DataFrame(
+        [
+            {
+                "event_name": "UFC Vegas 117",
+                "event_date": "May 17th",
+                "event_url": "https://www.bestfightodds.com/events/ufc-vegas-117-4178",
+                "fighter1": "Daniel Santos",
+                "fighter2": "Doo Ho Choi",
+                "fighter1_odds": -132,
+                "fighter2_odds": 108,
+                "fighter1_prob": 0.542,
+                "fighter2_prob": 0.458,
+                "source_type": "user_added",
+                "source_file": "https_www_bestfightodds_com_events_ufc_vegas_117_4178.json",
+            }
+        ]
+    )
+
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        predict_service,
+        "_resolve_fighter",
+        lambda _session, name: type("Fighter", (), {"id": 1 if "Daniel" in name else 2, "name": name})(),
+    )
+
+    def fake_score_row(_session, _extractor, _f1_id, _f2_id, _mkt_prob, *, as_of_date=None):
+        captured["as_of_date"] = as_of_date
+        return {"model_prob_f1": 0.376, "model_source": "general"}
+
+    monkeypatch.setattr(predict_service, "_score_row", fake_score_row)
+    monkeypatch.setattr(
+        predict_service,
+        "_fight_count_as_of",
+        lambda _session, fighter_id, _as_of: 6 if fighter_id == 1 else 10,
+    )
+    monkeypatch.setattr(predict_service, "_is_wmma", lambda *_args, **_kwargs: False)
+
+    predict_service._run_prediction_loop(
+        odds_df=odds_df,
+        outcomes=predict_service.pd.DataFrame(),
+        cache={},
+        session=object(),
+        extractor=object(),
+    )
+
+    assert captured["as_of_date"] == datetime(2026, 5, 18, 0, 0, 0)
+
+
+def test_run_prediction_loop_keeps_past_event_date_for_completed_fight(monkeypatch):
+    monkeypatch.setattr(predict_service, "_now", _fixed_now)
+    monkeypatch.setattr(predict_service, "get_bet_placed_map", lambda: {})
+
+    odds_df = predict_service.pd.DataFrame(
+        [
+            {
+                "event_name": "UFC Vegas 117",
+                "event_date": "May 17th",
+                "event_url": "https://www.bestfightodds.com/events/ufc-vegas-117-4178",
+                "fighter1": "Daniel Santos",
+                "fighter2": "Doo Ho Choi",
+                "fighter1_odds": -132,
+                "fighter2_odds": 108,
+                "fighter1_prob": 0.542,
+                "fighter2_prob": 0.458,
+                "source_type": "user_added",
+                "source_file": "https_www_bestfightodds_com_events_ufc_vegas_117_4178.json",
+            }
+        ]
+    )
+    outcomes = predict_service.pd.DataFrame(
+        [
+            {
+                "fighter1": "Daniel Santos",
+                "fighter2": "Doo Ho Choi",
+                "winner": "Doo Ho Choi",
+                "method": "KO/TKO",
+                "round": "2",
+                "norm_key": predict_service._fight_key("Daniel Santos", "Doo Ho Choi"),
+            }
+        ]
+    )
+
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        predict_service,
+        "_resolve_fighter",
+        lambda _session, name: type("Fighter", (), {"id": 1 if "Daniel" in name else 2, "name": name})(),
+    )
+
+    def fake_score_row(_session, _extractor, _f1_id, _f2_id, _mkt_prob, *, as_of_date=None):
+        captured["as_of_date"] = as_of_date
+        return {"model_prob_f1": 0.376, "model_source": "general"}
+
+    monkeypatch.setattr(predict_service, "_score_row", fake_score_row)
+    monkeypatch.setattr(
+        predict_service,
+        "_fight_count_as_of",
+        lambda _session, fighter_id, _as_of: 6 if fighter_id == 1 else 10,
+    )
+    monkeypatch.setattr(predict_service, "_is_wmma", lambda *_args, **_kwargs: False)
+
+    predict_service._run_prediction_loop(
+        odds_df=odds_df,
+        outcomes=outcomes,
+        cache={},
+        session=object(),
+        extractor=object(),
+    )
+
+    assert captured["as_of_date"] == datetime(2026, 5, 17, 0, 0, 0)
