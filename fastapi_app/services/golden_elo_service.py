@@ -15,6 +15,11 @@ SIDECAR_PATH = ROOT_DIR / "data" / "enrichment" / "sergey_sidecar.sqlite"
 CONTEXT_POOL_PATH = ROOT_DIR / "data" / "enrichment" / "context_pool.sqlite"
 TRAIT_SNAPSHOT_PATH = ROOT_DIR / "data" / "enrichment" / "trait_snapshots.sqlite"
 MAIN_DB_PATH = ROOT_DIR / "data" / "ufc_database.db"
+POSITIVE_GOLDEN_BUCKETS = {
+    "golden_elo_not_expensive",
+    "golden_elo_plus_trait_support",
+    "golden_elo_plus_cardio",
+}
 
 
 def load_golden_elo_config() -> dict[str, Any]:
@@ -184,6 +189,35 @@ def _row_number(row: dict[str, Any], key: str, default: float) -> float:
     return default if value is None else float(value)
 
 
+def _build_review_context(
+    *,
+    pick_elo_diff: float | None,
+    review_bucket: str | None,
+    review_tier: int | str | None,
+    review_base: str | None,
+    cfg: dict[str, Any],
+    context_pool_path: Path,
+    trait_support: bool,
+    cardio_support: bool,
+    offset_trait_support: bool,
+) -> dict[str, Any]:
+    review_stats = None
+    review_label = None
+    if review_bucket:
+        review_stats = _review_historical_stats(review_bucket, cfg, context_pool_path=context_pool_path)
+        review_label = _format_label(review_base or "Review", review_stats)
+    return {
+        "pick_elo_diff": pick_elo_diff,
+        "review_bucket": review_bucket,
+        "review_tier": review_tier,
+        "review_label": review_label,
+        "review_stats": review_stats,
+        "trait_support": trait_support,
+        "cardio_support": cardio_support,
+        "offset_trait_support": offset_trait_support,
+    }
+
+
 def _golden_historical_stats(tier: int | str, cfg: dict[str, Any], *, context_pool_path: Path = CONTEXT_POOL_PATH) -> dict[str, Any] | None:
     if not context_pool_path.exists():
         return None
@@ -206,13 +240,6 @@ def _golden_historical_stats(tier: int | str, cfg: dict[str, Any], *, context_po
             and _trait_confident(row, cfg)
             and _has_primary_trait_support(row.get("deltas") or {}, cfg)
         ]
-    elif tier == "1A":
-        matched = [
-            row for row in rows
-            if float(cfg["min_pick_elo_diff"]) <= (row.get("pick_elo_diff") or -9999) < float(cfg["tier_2_min_elo_diff"])
-            and _trait_confident(row, cfg)
-            and _has_primary_trait_support(row.get("deltas") or {}, cfg)
-        ]
     else:
         matched = [
             row for row in rows
@@ -228,8 +255,6 @@ def _review_historical_stats(review_bucket: str, cfg: dict[str, Any], *, context
             if review_bucket == "golden_elo_plus_cardio"
             else 2
             if review_bucket == "golden_elo_plus_trait_support"
-            else "1A"
-            if review_bucket == "golden_elo_tier_1a"
             else 1
         )
         return _golden_historical_stats(tier, cfg, context_pool_path=context_pool_path)
@@ -389,7 +414,7 @@ def _trait_pair_delta(
     return dict(row) if row is not None else None
 
 
-def evaluate_golden_elo_reopen(
+def evaluate_elo_review_context(
     *,
     fighter1_name: str,
     fighter2_name: str,
@@ -408,7 +433,17 @@ def evaluate_golden_elo_reopen(
     pick_elo = _current_elo(pick_name, sidecar_path=sidecar_path)
     opp_elo = _current_elo(opp_name, sidecar_path=sidecar_path)
     if pick_elo is None or opp_elo is None:
-        return {"reopen": False, "pick_elo_diff": None}
+        return _build_review_context(
+            pick_elo_diff=None,
+            review_bucket=None,
+            review_tier=None,
+            review_base=None,
+            cfg=cfg,
+            context_pool_path=context_pool_path,
+            trait_support=False,
+            cardio_support=False,
+            offset_trait_support=False,
+        )
 
     pick_elo_diff = round(pick_elo - opp_elo, 1)
     traits = _trait_pair_delta(
@@ -474,77 +509,59 @@ def evaluate_golden_elo_reopen(
             review_tier = "D0"
             review_base = "Neutral ELO Underdog"
 
-    review_stats = None
-    review_label = None
     if not cfg.get("enabled", True):
-        if review_bucket:
-            review_stats = _review_historical_stats(review_bucket, cfg, context_pool_path=context_pool_path)
-            review_label = _format_label(review_base or "Review", review_stats)
-        return {
-            "reopen": False,
-            "pick_elo_diff": pick_elo_diff,
-            "review_bucket": review_bucket,
-            "review_tier": review_tier,
-            "review_label": review_label,
-            "review_stats": review_stats,
-            "trait_support": has_trait_support,
-            "cardio_support": has_cardio_support,
-            "offset_trait_support": has_offset_trait_support,
-        }
+        return _build_review_context(
+            pick_elo_diff=pick_elo_diff,
+            review_bucket=review_bucket,
+            review_tier=review_tier,
+            review_base=review_base,
+            cfg=cfg,
+            context_pool_path=context_pool_path,
+            trait_support=has_trait_support,
+            cardio_support=has_cardio_support,
+            offset_trait_support=has_offset_trait_support,
+        )
     if not (cfg["confidence_min"] <= pick_model_prob < cfg["confidence_max"]):
-        if review_bucket:
-            review_stats = _review_historical_stats(review_bucket, cfg, context_pool_path=context_pool_path)
-            review_label = _format_label(review_base or "Review", review_stats)
-        return {
-            "reopen": False,
-            "pick_elo_diff": pick_elo_diff,
-            "review_bucket": review_bucket,
-            "review_tier": review_tier,
-            "review_label": review_label,
-            "review_stats": review_stats,
-            "trait_support": has_trait_support,
-            "cardio_support": has_cardio_support,
-            "offset_trait_support": has_offset_trait_support,
-        }
+        return _build_review_context(
+            pick_elo_diff=pick_elo_diff,
+            review_bucket=review_bucket,
+            review_tier=review_tier,
+            review_base=review_base,
+            cfg=cfg,
+            context_pool_path=context_pool_path,
+            trait_support=has_trait_support,
+            cardio_support=has_cardio_support,
+            offset_trait_support=has_offset_trait_support,
+        )
     if pick_odds is None or pick_odds <= cfg["min_pick_odds"]:
-        if review_bucket:
-            review_stats = _review_historical_stats(review_bucket, cfg, context_pool_path=context_pool_path)
-            review_label = _format_label(review_base or "Review", review_stats)
-        return {
-            "reopen": False,
-            "pick_elo_diff": pick_elo_diff,
-            "review_bucket": review_bucket,
-            "review_tier": review_tier,
-            "review_label": review_label,
-            "review_stats": review_stats,
-            "trait_support": has_trait_support,
-            "cardio_support": has_cardio_support,
-            "offset_trait_support": has_offset_trait_support,
-        }
+        return _build_review_context(
+            pick_elo_diff=pick_elo_diff,
+            review_bucket=review_bucket,
+            review_tier=review_tier,
+            review_base=review_base,
+            cfg=cfg,
+            context_pool_path=context_pool_path,
+            trait_support=has_trait_support,
+            cardio_support=has_cardio_support,
+            offset_trait_support=has_offset_trait_support,
+        )
     if pick_elo_diff < cfg["min_pick_elo_diff"]:
-        if review_bucket:
-            review_stats = _review_historical_stats(review_bucket, cfg, context_pool_path=context_pool_path)
-            review_label = _format_label(review_base or "Review", review_stats)
-        return {
-            "reopen": False,
-            "pick_elo_diff": pick_elo_diff,
-            "review_bucket": review_bucket,
-            "review_tier": review_tier,
-            "review_label": review_label,
-            "review_stats": review_stats,
-            "trait_support": has_trait_support,
-            "cardio_support": has_cardio_support,
-            "offset_trait_support": has_offset_trait_support,
-        }
+        return _build_review_context(
+            pick_elo_diff=pick_elo_diff,
+            review_bucket=review_bucket,
+            review_tier=review_tier,
+            review_base=review_base,
+            cfg=cfg,
+            context_pool_path=context_pool_path,
+            trait_support=has_trait_support,
+            cardio_support=has_cardio_support,
+            offset_trait_support=has_offset_trait_support,
+        )
 
     tier = 1
     review_bucket = "golden_elo_not_expensive"
     review_base = "Golden ELO Tier 1"
-    if pick_elo_diff < cfg["tier_2_min_elo_diff"] and has_trait_support:
-        tier = "1A"
-        review_bucket = "golden_elo_tier_1a"
-        review_base = "Golden ELO Tier 1A"
-    elif pick_elo_diff >= cfg["tier_2_min_elo_diff"] and has_trait_support:
+    if pick_elo_diff >= cfg["tier_2_min_elo_diff"] and has_trait_support:
         tier = 2
         review_bucket = "golden_elo_plus_trait_support"
         review_base = "Golden ELO Tier 2"
@@ -553,16 +570,47 @@ def evaluate_golden_elo_reopen(
             review_bucket = "golden_elo_plus_cardio"
             review_base = "Golden ELO Tier 3"
 
-    stats = _review_historical_stats(review_bucket, cfg, context_pool_path=context_pool_path)
+    return _build_review_context(
+        pick_elo_diff=pick_elo_diff,
+        review_bucket=review_bucket,
+        review_tier=tier,
+        review_base=review_base,
+        cfg=cfg,
+        context_pool_path=context_pool_path,
+        trait_support=has_trait_support,
+        cardio_support=has_cardio_support,
+        offset_trait_support=has_offset_trait_support,
+    )
 
+
+def evaluate_golden_elo_reopen(
+    *,
+    fighter1_name: str,
+    fighter2_name: str,
+    pick_slot: str,
+    pick_model_prob: float,
+    pick_odds: int | None,
+    as_of_date: date | datetime | str | None = None,
+    sidecar_path: Path = SIDECAR_PATH,
+    context_pool_path: Path = CONTEXT_POOL_PATH,
+    trait_snapshot_path: Path = TRAIT_SNAPSHOT_PATH,
+    main_db_path: Path = MAIN_DB_PATH,
+    review_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    if review_context is None:
+        review_context = evaluate_elo_review_context(
+            fighter1_name=fighter1_name,
+            fighter2_name=fighter2_name,
+            pick_slot=pick_slot,
+            pick_model_prob=pick_model_prob,
+            pick_odds=pick_odds,
+            as_of_date=as_of_date,
+            sidecar_path=sidecar_path,
+            context_pool_path=context_pool_path,
+            trait_snapshot_path=trait_snapshot_path,
+            main_db_path=main_db_path,
+        )
     return {
-        "reopen": True,
-        "pick_elo_diff": pick_elo_diff,
-        "review_bucket": review_bucket,
-        "review_tier": tier,
-        "review_label": _format_label(review_base, stats),
-        "review_stats": stats,
-        "trait_support": has_trait_support,
-        "cardio_support": has_cardio_support,
-        "offset_trait_support": has_offset_trait_support,
+        **review_context,
+        "reopen": review_context.get("review_bucket") in POSITIVE_GOLDEN_BUCKETS,
     }

@@ -74,8 +74,6 @@ def _expected_bucket_for_tier(tier: int | str) -> str:
         return "golden_elo_plus_cardio"
     if tier == 2:
         return "golden_elo_plus_trait_support"
-    if tier == "1A":
-        return "golden_elo_tier_1a"
     return "golden_elo_not_expensive"
 
 
@@ -138,7 +136,7 @@ def test_local_events_api_exposes_golden_elo_fields(golden_fights: list[GoldenFi
     for fight in golden_fights:
         assert fight.bet is True
         assert fight.decision_source == "golden_elo_reopen"
-        assert fight.review_tier in {1, "1A", 2, 3}
+        assert fight.review_tier in {1, 2, 3}
         assert fight.review_bucket == _expected_bucket_for_tier(fight.review_tier)
         assert fight.review_label.startswith(f"Golden ELO Tier {fight.review_tier}")
         assert "Historical " in fight.review_label

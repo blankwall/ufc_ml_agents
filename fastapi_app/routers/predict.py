@@ -119,6 +119,20 @@ def _matchup_wmma_flag(session, fighter1_id: int, fighter2_id: int) -> Optional[
     return False
 
 
+def _predict_review_fields(bet_eval: dict) -> dict:
+    if bet_eval.get("decision_source") != "golden_elo_reopen":
+        return {
+            "review_bucket": None,
+            "review_tier": None,
+            "review_label": None,
+        }
+    return {
+        "review_bucket": bet_eval.get("review_bucket"),
+        "review_tier": bet_eval.get("review_tier"),
+        "review_label": bet_eval.get("review_label"),
+    }
+
+
 # ── endpoint ──────────────────────────────────────────────────────────────────
 
 @router.post("/predict")
@@ -212,6 +226,7 @@ async def predict_fight(req: PredictRequest):
             as_of_date=as_of,
         )
         confidence = describe_confidence(pick_model_prob)
+        review_fields = _predict_review_fields(bet_eval)
 
         return {
             "fighter1":           req.fighter1,
@@ -240,9 +255,9 @@ async def predict_fight(req: PredictRequest):
             "skip_code":          bet_eval["skip_code"],
             "skip_reason":        bet_eval["skip_reason"],
             "decision_source":    bet_eval.get("decision_source"),
-            "review_bucket":      bet_eval.get("review_bucket"),
-            "review_tier":        bet_eval.get("review_tier"),
-            "review_label":       bet_eval.get("review_label"),
+            "review_bucket":      review_fields["review_bucket"],
+            "review_tier":        review_fields["review_tier"],
+            "review_label":       review_fields["review_label"],
             "pick_elo_diff":      bet_eval.get("pick_elo_diff"),
         }
 
