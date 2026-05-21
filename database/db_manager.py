@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import json
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 import yaml
 from loguru import logger
@@ -73,6 +73,50 @@ class DatabaseManager:
     def get_session(self) -> Session:
         """Get a new database session"""
         return self.SessionLocal()
+
+    @staticmethod
+    def _swap_fighter_slot_payload(payload: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if not isinstance(payload, dict):
+            return payload
+        remapped = dict(payload)
+        remapped["fighter_1"] = payload.get("fighter_2")
+        remapped["fighter_2"] = payload.get("fighter_1")
+        return remapped
+
+    @staticmethod
+    def remap_fight_details_to_db_slots(details: Dict[str, Any], fight: Fight) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+        totals = details.get("totals") or {}
+        f1_totals = totals.get("fighter_1")
+        f2_totals = totals.get("fighter_2")
+        significant_strikes = details.get("significant_strikes")
+
+        detail_f1_id = (details.get("fighter_1_id") or "").strip()
+        detail_f2_id = (details.get("fighter_2_id") or "").strip()
+        db_f1_id = ((fight.fighter_1.fighter_id if fight.fighter_1 else None) or "").strip()
+        db_f2_id = ((fight.fighter_2.fighter_id if fight.fighter_2 else None) or "").strip()
+
+        if not detail_f1_id or not detail_f2_id or not db_f1_id or not db_f2_id:
+            return f1_totals, f2_totals, significant_strikes
+
+        if detail_f1_id == db_f1_id and detail_f2_id == db_f2_id:
+            return f1_totals, f2_totals, significant_strikes
+
+        if detail_f1_id == db_f2_id and detail_f2_id == db_f1_id:
+            return (
+                f2_totals,
+                f1_totals,
+                DatabaseManager._swap_fighter_slot_payload(significant_strikes),
+            )
+
+        logger.warning(
+            "Fight-details fighter ID mismatch for stats remap: detail ids ({}, {}) vs DB ids ({}, {}) on fight {}",
+            detail_f1_id,
+            detail_f2_id,
+            db_f1_id,
+            db_f2_id,
+            fight.fight_id,
+        )
+        return f1_totals, f2_totals, significant_strikes
     
     def _parse_height(self, height_str: str) -> Optional[float]:
         """Parse height string like '5\' 8"' to cm"""
@@ -541,18 +585,20 @@ class DatabaseManager:
                         # Check if stats already exist
                         existing_stats = session.query(FightStats).filter_by(fight_id=fight.id).first()
                         
+                        f1_totals, f2_totals, sig = self.remap_fight_details_to_db_slots(details, fight)
+
                         if existing_stats:
                             # Update existing stats
-                            existing_stats.fighter_1_totals = details.get('totals', {}).get('fighter_1')
-                            existing_stats.fighter_2_totals = details.get('totals', {}).get('fighter_2')
-                            existing_stats.significant_strikes = details.get('significant_strikes')
+                            existing_stats.fighter_1_totals = f1_totals
+                            existing_stats.fighter_2_totals = f2_totals
+                            existing_stats.significant_strikes = sig
                         else:
                             # Create new stats
                             fight_stats = FightStats(
                                 fight_id=fight.id,
-                                fighter_1_totals=details.get('totals', {}).get('fighter_1'),
-                                fighter_2_totals=details.get('totals', {}).get('fighter_2'),
-                                significant_strikes=details.get('significant_strikes')
+                                fighter_1_totals=f1_totals,
+                                fighter_2_totals=f2_totals,
+                                significant_strikes=sig
                             )
                             session.add(fight_stats)
                         
@@ -829,4 +875,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

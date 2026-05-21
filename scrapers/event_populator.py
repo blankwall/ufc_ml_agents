@@ -543,9 +543,7 @@ class EventPopulator:
             return False
 
         existing_stats = session.query(FightStats).filter_by(fight_id=fight_obj.id).first()
-        f1_totals = (details.get("totals") or {}).get("fighter_1")
-        f2_totals = (details.get("totals") or {}).get("fighter_2")
-        sig = details.get("significant_strikes")
+        f1_totals, f2_totals, sig = self.db.remap_fight_details_to_db_slots(details, fight_obj)
 
         if existing_stats:
             existing_stats.fighter_1_totals = f1_totals
@@ -694,5 +692,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
 
