@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import unicodedata
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -114,6 +115,7 @@ def _within_window(commence_dt: datetime, now: datetime | None = None) -> bool:
 
 def _normalize_name(name: str) -> str:
     value = str(name).strip().lower()
+    value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode()
     value = re.sub(r"['.`]", "", value)
     value = value.replace("-", " ")
     value = re.sub(r"\s+", " ", value)
@@ -452,7 +454,17 @@ def _event_index(store: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def _fight_index(event: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    return {fight["fight_key"]: fight for fight in event.get("fights", [])}
+    index: dict[str, dict[str, Any]] = {}
+    for fight in event.get("fights", []):
+        for key in _fight_keys_for_entry(fight):
+            index[key] = fight
+    return index
+
+
+def _fight_keys_for_entry(fight: dict[str, Any]) -> set[str]:
+    keys = {str(fight.get("fight_key", "")).strip()}
+    keys.add(fight_key(fight.get("fighter1", ""), fight.get("fighter2", "")))
+    return {key for key in keys if key and key != "_vs_"}
 
 
 def _export_store_rows(store: dict[str, Any]) -> list[dict[str, Any]]:
@@ -491,7 +503,7 @@ def _find_fight(store: dict[str, Any], *, event_date: str, fighter1: str, fighte
         if event.get("event_key") != target_event_key:
             continue
         for fight in event.get("fights", []):
-            if fight.get("fight_key") == target_fight_key:
+            if target_fight_key in _fight_keys_for_entry(fight):
                 return event, fight
     return None, None
 
@@ -585,9 +597,9 @@ def get_bet_placed_map() -> dict[tuple[str, str], dict[str, Any]]:
         event_date = str(event.get("event_date", "")).strip()
         for fight in event.get("fights", []):
             bet_placed = fight.get("bet_placed")
-            fight_id = str(fight.get("fight_key", "")).strip()
-            if event_date and fight_id and bet_placed:
-                out[(event_date, fight_id)] = bet_placed
+            if event_date and bet_placed:
+                for fight_id in _fight_keys_for_entry(fight):
+                    out[(event_date, fight_id)] = bet_placed
     return out
 
 

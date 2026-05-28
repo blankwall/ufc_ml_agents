@@ -946,6 +946,44 @@ def test_predict_service_attaches_tracked_bet_for_the_odds_api_rows(monkeypatch)
     assert fight["bet_placed"]["opponent_listed_odds"] == -125
 
 
+def test_bet_placed_map_matches_accented_store_keys(monkeypatch, tmp_path):
+    store_path = tmp_path / "the_odds_api_events.json"
+    store_path.write_text(
+        json.dumps(
+            {
+                "events": [
+                    {
+                        "event_key": "the_odds_api|2026-05-30",
+                        "event_name": "MMA Card · 2026-05-30",
+                        "event_date": "2026-05-30",
+                        "fights": [
+                            {
+                                "fight_key": "josé henrique_vs_meng ding",
+                                "fighter1": "Meng Ding",
+                                "fighter2": "José Henrique",
+                                "fighter1_odds": -124,
+                                "fighter2_odds": 102,
+                                "bet_placed": {
+                                    "fighter": "Meng Ding",
+                                    "opponent": "José Henrique",
+                                    "stake": 50,
+                                    "bet_odds": -128,
+                                },
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+    )
+    monkeypatch.setattr(odds_service, "STORE_PATH", store_path)
+
+    placed = odds_service.get_bet_placed_map()
+
+    assert ("2026-05-30", odds_service.fight_key("Meng Ding", "Jose Henrique")) in placed
+    assert placed[("2026-05-30", "jose henrique_vs_meng ding")]["fighter"] == "Meng Ding"
+
+
 def test_api_odds_history_returns_404_when_missing(monkeypatch):
     monkeypatch.setattr(events_router, "get_sampled_odds_history", lambda **_: None)
 
