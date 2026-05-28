@@ -12,6 +12,8 @@ from loguru import logger
 import yaml
 from datetime import datetime
 
+from scrapers.ufcstats_challenge import fetch_ufcstats_html, is_ufcstats_challenge
+
 
 class FighterScraper:
     """Scrapes individual fighter pages from UFCStats.com"""
@@ -62,10 +64,8 @@ class FighterScraper:
             logger.debug(f"Fetching fighters starting with '{letter.upper()}'")
             
             try:
-                response = self.session.get(url, timeout=self.timeout)
-                response.raise_for_status()
-                
-                soup = BeautifulSoup(response.content, 'lxml')
+                html_content = fetch_ufcstats_html(self.session, url, timeout=self.timeout)
+                soup = BeautifulSoup(html_content, 'lxml')
                 fighter_rows = soup.select('tr.b-statistics__table-row')
                 
                 for row in fighter_rows[1:]:  # Skip header row
@@ -119,17 +119,22 @@ class FighterScraper:
             cache_file.unlink()
             logger.debug(f"Busted cache for fighter {fighter_id}")
 
+        html_content = None
+
         # Check cache first
         if cache_file.exists() and self.config['scraping']['cache_enabled']:
             logger.debug(f"Loading fighter {fighter_id} from cache")
             with open(cache_file, 'r', encoding='utf-8') as f:
                 html_content = f.read()
-        else:
+            if is_ufcstats_challenge(html_content):
+                logger.debug(f"Ignoring cached UFCStats browser challenge for fighter {fighter_id}")
+                cache_file.unlink()
+                html_content = None
+
+        if html_content is None:
             try:
                 logger.debug(f"Fetching fighter page: {fighter_url}")
-                response = self.session.get(fighter_url, timeout=self.timeout)
-                response.raise_for_status()
-                html_content = response.text
+                html_content = fetch_ufcstats_html(self.session, fighter_url, timeout=self.timeout)
                 
                 # Save to cache
                 with open(cache_file, 'w', encoding='utf-8') as f:
@@ -450,4 +455,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

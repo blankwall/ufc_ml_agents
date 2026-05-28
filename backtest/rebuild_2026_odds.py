@@ -53,6 +53,7 @@ NAME_ALIASES: dict[str, str] = {
     "casey oneill":         "Casey O'Neill",
     "azamt bekoev":         "Azamat Bekoev",
     "lupita godinez":       "Loopy Godinez",
+    "benoit st denis":      "Benoit Saint Denis",
     "michael aswell":       "Michael Aswell Jr.",
     "lance gibson jr":      "Lance Gibson Jr.",  # normalize strips periods; this re-adds Jr. canonical
     "raul rosas jr":        "Raul Rosas Jr.",

@@ -88,6 +88,8 @@ FIGHTER_ALIASES: dict[str, str] = {
     "Carlos Leal Miranda":    "Carlos Leal",
     "Long Xiao":              "Xiao Long",
     "Lupita Godinez":         "Loopy Godinez",
+    "Benoit St. Denis":       "Benoit Saint Denis",
+    "Benoit St Denis":        "Benoit Saint Denis",
     "Kim Sang Wook":          "Sangwook Kim",
     "Jose Medina":            "Jose Daniel Medina",
     "Montserrat Rendon":      "Montse Rendon",

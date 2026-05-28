@@ -12,6 +12,8 @@ from loguru import logger
 import yaml
 from datetime import datetime
 
+from scrapers.ufcstats_challenge import fetch_ufcstats_html, is_ufcstats_challenge
+
 
 class EventScraper:
     """Scrapes UFC event pages to extract fight cards and results"""
@@ -60,9 +62,8 @@ class EventScraper:
         
         # First, get the first page to determine total number of pages
         try:
-            response = self.session.get(base_url, timeout=self.timeout)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.content, 'lxml')
+            html_content = fetch_ufcstats_html(self.session, base_url, timeout=self.timeout)
+            soup = BeautifulSoup(html_content, 'lxml')
             
             # Find pagination links to determine total pages
             pagination_links = soup.select('a.b-statistics__paginate-link')
@@ -106,10 +107,8 @@ class EventScraper:
             logger.info(f"Fetching page {page}/{max_page}...")
             
             try:
-                response = self.session.get(url, timeout=self.timeout)
-                response.raise_for_status()
-                
-                soup = BeautifulSoup(response.content, 'lxml')
+                html_content = fetch_ufcstats_html(self.session, url, timeout=self.timeout)
+                soup = BeautifulSoup(html_content, 'lxml')
                 event_rows = soup.select('tr.b-statistics__table-row')
                 
                 page_events = 0
@@ -173,17 +172,22 @@ class EventScraper:
             cache_file.unlink()
             logger.debug(f"Busted cache for event {event_id}")
 
+        html_content = None
+
         # Check cache first
         if cache_file.exists() and self.config['scraping']['cache_enabled']:
             logger.debug(f"Loading event {event_id} from cache")
             with open(cache_file, 'r', encoding='utf-8') as f:
                 html_content = f.read()
-        else:
+            if is_ufcstats_challenge(html_content):
+                logger.debug(f"Ignoring cached UFCStats browser challenge for event {event_id}")
+                cache_file.unlink()
+                html_content = None
+
+        if html_content is None:
             try:
                 logger.debug(f"Fetching event page: {event_url}")
-                response = self.session.get(event_url, timeout=self.timeout)
-                response.raise_for_status()
-                html_content = response.text
+                html_content = fetch_ufcstats_html(self.session, event_url, timeout=self.timeout)
                 
                 # Save to cache
                 with open(cache_file, 'w', encoding='utf-8') as f:
@@ -443,15 +447,20 @@ class EventScraper:
             cache_file.unlink()
             logger.debug(f"Busted cache for fight {fight_id}")
 
+        html_content = None
+
         # Check cache
         if cache_file.exists() and self.config['scraping']['cache_enabled']:
             with open(cache_file, 'r', encoding='utf-8') as f:
                 html_content = f.read()
-        else:
+            if is_ufcstats_challenge(html_content):
+                logger.debug(f"Ignoring cached UFCStats browser challenge for fight {fight_id}")
+                cache_file.unlink()
+                html_content = None
+
+        if html_content is None:
             try:
-                response = self.session.get(fight_url, timeout=self.timeout)
-                response.raise_for_status()
-                html_content = response.text
+                html_content = fetch_ufcstats_html(self.session, fight_url, timeout=self.timeout)
                 
                 with open(cache_file, 'w', encoding='utf-8') as f:
                     f.write(html_content)

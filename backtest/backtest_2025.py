@@ -136,6 +136,8 @@ _NAME_FIXES: dict[str, str] = {
     "casey oneill":           "Casey O'Neill",
     "azamt bekoev":           "Azamat Bekoev",
     "lupita godinez":         "Loopy Godinez",
+    "benoit st. denis":       "Benoit Saint Denis",
+    "benoit st denis":        "Benoit Saint Denis",
     "michael aswell":         "Michael Aswell Jr.",
     "cameron rowston":        "Cam Rowston",
     "don mar fan":            "Dom Mar Fan",

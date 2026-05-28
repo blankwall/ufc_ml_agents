@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 
 from scrapers.event_scraper import EventScraper
+from scrapers.ufcstats_challenge import fetch_ufcstats_html
 
 
 def _build_scraper():
@@ -54,6 +55,7 @@ def test_get_all_event_links_completed_parses_date_from_span(monkeypatch):
 
     class _FakeResponse:
         def __init__(self, text):
+            self.text = text
             self.content = text.encode("utf-8")
 
         def raise_for_status(self):
@@ -74,3 +76,51 @@ def test_get_all_event_links_completed_parses_date_from_span(monkeypatch):
             "location": "Las Vegas, Nevada, USA",
         }
     ]
+
+
+def test_fetch_ufcstats_html_solves_browser_challenge():
+    challenge_html = """
+    <html><body>
+    <p>Checking your browser</p>
+    <script>
+    var nonce="abc123",
+        target=new Array(1+1).join('0');
+    var xhr=new XMLHttpRequest();
+    xhr.open('POST',"/__c",true);
+    </script>
+    </body></html>
+    """
+    expected_html = "<html><body>UFC 325</body></html>"
+
+    class _FakeResponse:
+        def __init__(self, text="", status_code=200):
+            self.text = text
+            self.status_code = status_code
+
+        def raise_for_status(self):
+            return None
+
+    class _FakeSession:
+        def __init__(self):
+            self.get_calls = 0
+            self.post_data = None
+            self.post_url = None
+
+        def get(self, url, timeout):
+            self.get_calls += 1
+            return _FakeResponse(challenge_html if self.get_calls == 1 else expected_html)
+
+        def post(self, url, data, timeout, headers):
+            self.post_url = url
+            self.post_data = data
+            return _FakeResponse(status_code=204)
+
+    session = _FakeSession()
+
+    html = fetch_ufcstats_html(session, "http://ufcstats.com/event-details/test", timeout=30)
+
+    assert html == expected_html
+    assert session.get_calls == 2
+    assert session.post_url == "http://ufcstats.com/__c"
+    assert session.post_data["nonce"] == "abc123"
+    assert str(session.post_data["n"]).isdigit()
