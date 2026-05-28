@@ -975,6 +975,8 @@ def test_api_bets_groups_tracked_mma_card_bets(monkeypatch):
                     {
                         "fighter1": "Song Yadong",
                         "fighter2": "Deiveson Figueiredo",
+                        "f1_odds": 120,
+                        "f2_odds": -140,
                         "winner": "Song Yadong",
                         "edge": 8.4,
                         "bet_placed": {
@@ -990,6 +992,8 @@ def test_api_bets_groups_tracked_mma_card_bets(monkeypatch):
                     {
                         "fighter1": "Carlos Prates",
                         "fighter2": "Michael Morales",
+                        "f1_odds": 110,
+                        "f2_odds": -130,
                         "winner": None,
                         "edge": 5.1,
                         "bet_placed": {
@@ -1027,7 +1031,10 @@ def test_api_bets_groups_tracked_mma_card_bets(monkeypatch):
     assert card["total_pnl"] == 60.0
     assert card["roi"] == 150.0
     assert card["bets"][0]["bet"]["won"] is True
+    assert card["bets"][0]["bet"]["odds"] == 150
+    assert card["bets"][0]["bet"]["current_odds"] == 120
     assert card["bets"][1]["bet"]["settled"] is False
+    assert card["bets"][1]["bet"]["current_odds"] == -130
 
 
 def test_api_bets_imports_external_csv_without_touching_tracked_store(monkeypatch, tmp_path):

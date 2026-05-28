@@ -84,6 +84,7 @@ function renderCards(cards) {
             <div class="bet-subtext">vs ${bet.opponent || '--'}</div>
           </td>
           <td>${formatOdds(bet.odds)}</td>
+          <td>${formatOdds(bet.current_odds)}</td>
           <td>$${bet.stake.toFixed(2)}</td>
           <td class="${valueClass(fight.edge || 0)}">${fight.edge !== null && fight.edge !== undefined ? `${fight.edge > 0 ? '+' : ''}${fight.edge.toFixed(1)}%` : '--'}</td>
           <td class="${resultClass}">${result}</td>
@@ -112,7 +113,8 @@ function renderCards(cards) {
               <tr>
                 <th>Matchup</th>
                 <th>Bet</th>
-                <th>Odds</th>
+                <th>Bet Odds</th>
+                <th>Current Odds</th>
                 <th>Stake</th>
                 <th>Edge</th>
                 <th>Result</th>

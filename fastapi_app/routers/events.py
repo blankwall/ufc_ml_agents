@@ -156,6 +156,8 @@ def _build_bet_summary(
     opponent: Optional[str],
     stake: float,
     odds: int,
+    current_odds: Optional[int] = None,
+    opponent_current_odds: Optional[int] = None,
     listed_odds: Optional[int] = None,
     opponent_listed_odds: Optional[int] = None,
     placed_at: Optional[str] = None,
@@ -184,6 +186,8 @@ def _build_bet_summary(
         "opponent": opponent,
         "stake": stake,
         "odds": odds,
+        "current_odds": current_odds,
+        "opponent_current_odds": opponent_current_odds,
         "listed_odds": listed_odds,
         "opponent_listed_odds": opponent_listed_odds,
         "placed_at": placed_at,
@@ -194,15 +198,31 @@ def _build_bet_summary(
     }
 
 
+def _fight_odds_for_bet(fight: dict, fighter: str) -> tuple[Optional[int], Optional[int]]:
+    fighter_name = _normalize(_canonical_name(fighter))
+    fighter1_name = _normalize(_canonical_name(str(fight.get("fighter1", ""))))
+    fighter2_name = _normalize(_canonical_name(str(fight.get("fighter2", ""))))
+    fighter1_odds = fight.get("f1_odds", fight.get("fighter1_odds"))
+    fighter2_odds = fight.get("f2_odds", fight.get("fighter2_odds"))
+    if fighter_name == fighter1_name:
+        return _parse_int(fighter1_odds), _parse_int(fighter2_odds)
+    if fighter_name == fighter2_name:
+        return _parse_int(fighter2_odds), _parse_int(fighter1_odds)
+    return None, None
+
+
 def _tracked_bet_summary(fight: dict) -> Optional[dict]:
     bet = fight.get("bet_placed")
     if not bet:
         return None
+    current_odds, opponent_current_odds = _fight_odds_for_bet(fight, str(bet.get("fighter", "")))
     return _build_bet_summary(
         fighter=str(bet.get("fighter", "")),
         opponent=bet.get("opponent"),
         stake=bet.get("stake"),
         odds=bet.get("bet_odds"),
+        current_odds=current_odds,
+        opponent_current_odds=opponent_current_odds,
         listed_odds=bet.get("listed_odds"),
         opponent_listed_odds=bet.get("opponent_listed_odds"),
         placed_at=bet.get("placed_at"),
@@ -456,6 +476,8 @@ def _external_csv_bet_entries(events: list[dict]) -> list[dict]:
                 opponent=opponent,
                 stake=stake,
                 odds=odds,
+                current_odds=_parse_int(row.get("closing_odds")) or _fight_odds_for_bet(fight, bet_on)[0],
+                opponent_current_odds=_fight_odds_for_bet(fight, bet_on)[1],
                 listed_odds=odds,
                 opponent_listed_odds=_parse_int(row.get("oppenent_odds")),
                 placed_at=None,
