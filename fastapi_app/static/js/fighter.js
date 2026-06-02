@@ -365,7 +365,6 @@ function renderMatchupPanel(left, right, prediction) {
       <div class="fighter-matchup-meta">
         <span class="mp-meta-chip pick">Pick: ${esc(prediction.model_pick)}</span>
         <span class="mp-meta-chip">Edge ${formatSignedPercent(prediction.edge)}</span>
-        <span class="mp-meta-chip">Confidence ${esc(prediction.confidence_score)}</span>
         ${thinData}
       </div>
 

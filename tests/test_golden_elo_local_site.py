@@ -173,10 +173,10 @@ def test_local_predict_matches_events_golden_elo_decision(sample_golden_fight: G
         "review_tier",
         "review_label",
         "pick_elo_diff",
-        "confidence_score",
-        "confidence_historical_win_rate",
+        "historical_context",
     ):
         assert key in payload, f"Missing key {key} in /api/predict response"
+    assert set(payload["historical_context"]) == {"primary_bucket"}
 
     assert payload["bet"] is True
     assert payload["decision_source"] == "golden_elo_reopen"

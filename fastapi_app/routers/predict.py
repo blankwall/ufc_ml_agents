@@ -23,9 +23,9 @@ if str(ROOT_DIR) not in sys.path:
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backtest.confidence_profile import describe_confidence
 from database.schema import Fighter
 from services.bet_evaluator import SKIP_REASONS, evaluate_bet_decision
+from services.historical_context_service import describe_historical_context
 from services.predict_service import (
     FIGHTER_ALIASES,
     MatchupFeatureExtractor,
@@ -266,7 +266,12 @@ async def predict_fight(req: PredictRequest):
             f2_count=f2_count,
             as_of_date=as_of,
         )
-        confidence = describe_confidence(pick_model_prob)
+        historical_context = describe_historical_context(
+            pick_model_prob=pick_model_prob,
+            pick_market_prob=pick_mkt_prob,
+            pick_odds=pick_odds_int,
+            is_wmma=is_wmma,
+        )
         review_fields = _predict_review_fields(bet_eval)
         decision = _predict_decision_label(bet_eval)
         explanation = _predict_explanation(bet_eval)
@@ -284,8 +289,6 @@ async def predict_fight(req: PredictRequest):
             "f2_odds":            req.fighter2_odds,
             "thin_data_warning":  f1_count < 3 or f2_count < 3,
             "is_wmma":            is_wmma,
-            "confidence_score":   confidence["confidence_score"],
-            "confidence_historical_win_rate": confidence["confidence_historical_win_rate"],
             "fight_date":         req.fight_date.isoformat() if req.fight_date else None,
             "bet":                bet_eval["bet"],
             "skip_reason":        bet_eval.get("skip_reason"),
@@ -296,6 +299,7 @@ async def predict_fight(req: PredictRequest):
             "review_tier":        review_fields["review_tier"],
             "review_label":       review_fields["review_label"],
             "pick_elo_diff":      bet_eval.get("pick_elo_diff"),
+            "historical_context": historical_context,
         }
 
     finally:

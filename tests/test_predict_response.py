@@ -57,14 +57,9 @@ def test_predict_response_hides_internal_confidence_metadata(monkeypatch):
     )
     monkeypatch.setattr(
         predict_router,
-        "describe_confidence",
-        lambda _pick_prob: {
-            "confidence_score": 4,
-            "confidence_method": "backtest_pick_prob_decile",
-            "confidence_prob_min": 57.2,
-            "confidence_prob_max": 60.3,
-            "confidence_historical_win_rate": 58.7,
-            "confidence_sample_size": 42,
+        "describe_historical_context",
+        lambda **_kwargs: {
+            "primary_bucket": {"label": "Primary", "sample_size": 12, "win_rate": 66.7, "roi": 18.4},
         },
     )
 
@@ -79,8 +74,8 @@ def test_predict_response_hides_internal_confidence_metadata(monkeypatch):
         )
     )
 
-    assert result["confidence_score"] == 4
-    assert result["confidence_historical_win_rate"] == 58.7
+    assert result["historical_context"]["primary_bucket"]["sample_size"] == 12
+    assert set(result["historical_context"]) == {"primary_bucket"}
     assert result["decision"] == "Bet (Golden ELO)"
     assert result["explanation"] == "Golden ELO reopen: Golden ELO Tier 2 · Historical 20-7 · +17.2% ROI"
     assert result["skip_reason"] is None
@@ -100,6 +95,8 @@ def test_predict_response_hides_internal_confidence_metadata(monkeypatch):
     assert "confidence_prob_min" not in result
     assert "confidence_prob_max" not in result
     assert "confidence_avg_prob" not in result
+    assert "confidence_score" not in result
+    assert "confidence_historical_win_rate" not in result
     assert "confidence_sample_size" not in result
 
 
@@ -187,14 +184,9 @@ def test_predict_response_keeps_pick_elo_diff_on_static_skip(monkeypatch):
     )
     monkeypatch.setattr(
         predict_router,
-        "describe_confidence",
-        lambda _pick_prob: {
-            "confidence_score": 8,
-            "confidence_method": "backtest_pick_prob_decile",
-            "confidence_prob_min": 68.0,
-            "confidence_prob_max": 73.0,
-            "confidence_historical_win_rate": 74.4,
-            "confidence_sample_size": 42,
+        "describe_historical_context",
+        lambda **_kwargs: {
+            "primary_bucket": {"label": "Primary", "sample_size": 12, "win_rate": 66.7, "roi": 18.4},
         },
     )
 
@@ -216,6 +208,8 @@ def test_predict_response_keeps_pick_elo_diff_on_static_skip(monkeypatch):
     assert result["explanation"] == "Pass: the favorite edge is too small."
     assert result["decision_source"] == "static_skip"
     assert result["pick_elo_diff"] == -81.0
+    assert result["historical_context"]["primary_bucket"]["label"] == "Primary"
+    assert "confidence_sample_size" not in result
     assert "skip_code" not in result
     assert result["review_bucket"] is None
     assert result["review_tier"] is None
@@ -310,10 +304,9 @@ def test_predict_response_hides_review_labels_when_bet_is_static_config(monkeypa
     )
     monkeypatch.setattr(
         predict_router,
-        "describe_confidence",
-        lambda _pick_prob: {
-            "confidence_score": 5,
-            "confidence_historical_win_rate": 61.2,
+        "describe_historical_context",
+        lambda **_kwargs: {
+            "primary_bucket": {"label": "Primary", "sample_size": 12, "win_rate": 66.7, "roi": 18.4},
         },
     )
 
@@ -337,3 +330,5 @@ def test_predict_response_hides_review_labels_when_bet_is_static_config(monkeypa
     assert result["review_tier"] is None
     assert result["review_label"] is None
     assert result["pick_elo_diff"] == 77.0
+    assert result["historical_context"]["primary_bucket"]["label"] == "Primary"
+    assert "confidence_score" not in result
