@@ -63,6 +63,7 @@ def test_the_odds_api_sync_adds_only_unknown_fights(monkeypatch, tmp_path):
     monkeypatch.setattr(odds_service, "OUTPUT_CSV", output_csv)
     monkeypatch.setattr(odds_service, "STATE_PATH", state_path)
     monkeypatch.setattr(odds_service, "ROOT_DIR", tmp_path)
+    monkeypatch.setattr(odds_service, "_utc_now", lambda: datetime(2026, 5, 18, 12, 0, tzinfo=timezone.utc))
     monkeypatch.setattr(odds_service, "recovery_enabled", lambda: True)
     monkeypatch.setattr(
         odds_service,
@@ -247,7 +248,7 @@ def test_the_odds_api_sync_updates_existing_fight_history(monkeypatch, tmp_path)
     assert fight["odds_history"][1]["fighter1_odds"] == 125
 
 
-def test_the_odds_api_sync_deactivates_removed_fights(monkeypatch, tmp_path):
+def test_the_odds_api_sync_retains_fights_missing_from_latest_payload(monkeypatch, tmp_path):
     odds_dir = tmp_path / "data" / "future_fight_odds"
     user_dir = tmp_path / "data" / "user_events"
     raw_dir = tmp_path / "data" / "raw" / "the_odds_api"
@@ -325,16 +326,16 @@ def test_the_odds_api_sync_deactivates_removed_fights(monkeypatch, tmp_path):
     )
     result = odds_service.sync_new_the_odds_api_events(api_key="test-key")
 
-    assert result["deactivated_rows"] == 1
+    assert result["deactivated_rows"] == 0
     rows = list(csv.DictReader(output_csv.open()))
-    assert len(rows) == 1
-    assert rows[0]["fighter1"] == "Carlos Prates"
+    assert len(rows) == 2
+    assert {row["fighter1"] for row in rows} == {"Carlos Prates", "Song Yadong"}
 
     store = json.loads(store_path.read_text())
     fights = {fight["fight_key"]: fight for fight in store["events"][0]["fights"]}
-    removed = fights[odds_service.fight_key("Song Yadong", "Deiveson Figueiredo")]
-    assert removed["active"] is False
-    assert removed["removed_at"] is not None
+    retained = fights[odds_service.fight_key("Song Yadong", "Deiveson Figueiredo")]
+    assert retained["active"] is True
+    assert retained["removed_at"] is None
 
 
 def test_fetch_odds_payload_uses_default_window_params(monkeypatch):

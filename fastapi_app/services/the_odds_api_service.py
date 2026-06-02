@@ -474,8 +474,6 @@ def _export_store_rows(store: dict[str, Any]) -> list[dict[str, Any]]:
             event.get("fights", []),
             key=lambda item: (item.get("commence_time", ""), item.get("fighter1", ""), item.get("fighter2", "")),
         ):
-            if not fight.get("active", True):
-                continue
             rows.append(
                 {
                     "event_name": event.get("event_name", ""),
@@ -754,8 +752,6 @@ def sync_new_the_odds_api_events(api_key: str | None = None, *, dry_run: bool = 
     unchanged_fights = 0
     skipped_existing = 0
     skipped_invalid = 0
-    deactivated_fights = 0
-    seen_pairs: set[tuple[str, str]] = set()
     now_utc = _utc_now()
     captured_at = _iso_z(now_utc)
 
@@ -772,8 +768,6 @@ def sync_new_the_odds_api_events(api_key: str | None = None, *, dry_run: bool = 
 
         event_key = row["event_key"]
         fight_id = row["fight_key"]
-        pair_key = (event_key, fight_id)
-        seen_pairs.add(pair_key)
 
         event_entry = events_by_key.get(event_key)
         existing_fight = _fight_index(event_entry).get(fight_id) if event_entry is not None else None
@@ -840,14 +834,6 @@ def sync_new_the_odds_api_events(api_key: str | None = None, *, dry_run: bool = 
 
     for event_entry in store.get("events", []):
         event_entry["last_synced_at"] = captured_at
-        for fight_entry in event_entry.get("fights", []):
-            pair_key = (event_entry["event_key"], fight_entry["fight_key"])
-            if pair_key in seen_pairs:
-                continue
-            if fight_entry.get("active", True):
-                fight_entry["active"] = False
-                fight_entry["removed_at"] = captured_at
-                deactivated_fights += 1
 
     export_rows = _export_store_rows(store)
     export_rows.sort(key=lambda row: (row.get("event_date", ""), row.get("commence_time", ""), row.get("fighter1", ""), row.get("fighter2", "")))
@@ -863,7 +849,7 @@ def sync_new_the_odds_api_events(api_key: str | None = None, *, dry_run: bool = 
         "new_rows_added": added_fights,
         "updated_rows": updated_fights,
         "unchanged_rows": unchanged_fights,
-        "deactivated_rows": deactivated_fights,
+        "deactivated_rows": 0,
         "exported_rows": len(export_rows),
         "skipped_existing": skipped_existing,
         "skipped_invalid": skipped_invalid,
