@@ -9,6 +9,7 @@ SQLite databases, and a small set of whitelisted backtest/document files.
 from __future__ import annotations
 
 import json
+import hashlib
 import sqlite3
 import sys
 from datetime import datetime
@@ -64,9 +65,10 @@ from mcp_server.fight_init import (
 DEFAULT_CONTEXT_POOL = DEFAULT_POOL
 DEFAULT_TRAITS_DB = ROOT_DIR / "data" / "enrichment" / "trait_snapshots.sqlite"
 DEFAULT_SERGEY_DB = ROOT_DIR / "data" / "enrichment" / "sergey_sidecar.sqlite"
+DEFAULT_FUTURE_CONTEXT_DB = ROOT_DIR / "data" / "enrichment" / "future_context.sqlite"
 FRAGILITY_CASES_FILE = ROOT_DIR / "analysis" / "fragility_cases.jsonl"
 BETTING_CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
-SQLDatabase = Literal["context_pool", "trait_snapshots", "sergey_sidecar", "main"]
+SQLDatabase = Literal["context_pool", "trait_snapshots", "sergey_sidecar", "future_context", "main"]
 
 mcp = FastMCP("ufc-context-analysis", json_response=True)
 
@@ -82,6 +84,7 @@ DATABASES: dict[SQLDatabase, Path] = {
     "context_pool": DEFAULT_CONTEXT_POOL,
     "trait_snapshots": DEFAULT_TRAITS_DB,
     "sergey_sidecar": DEFAULT_SERGEY_DB,
+    "future_context": DEFAULT_FUTURE_CONTEXT_DB,
     "main": main_db_path(),
 }
 
@@ -114,6 +117,183 @@ def readonly_connection(path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _json_dump(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+
+
+def future_context_connection() -> sqlite3.Connection:
+    DEFAULT_FUTURE_CONTEXT_DB.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(DEFAULT_FUTURE_CONTEXT_DB)
+    conn.row_factory = sqlite3.Row
+    _ensure_future_context_schema(conn)
+    return conn
+
+
+def _ensure_future_context_schema(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS future_context_rows (
+            materialization_key TEXT PRIMARY KEY,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            request_signature_json TEXT NOT NULL,
+            fighter1 TEXT NOT NULL,
+            fighter2 TEXT NOT NULL,
+            fight_date TEXT,
+            fighter1_odds INTEGER,
+            fighter2_odds INTEGER,
+            pick TEXT,
+            pick_prob REAL,
+            pick_odds INTEGER,
+            market_implied_prob REAL,
+            edge REAL,
+            pricing_context_degraded INTEGER,
+            coverage_score REAL,
+            coverage_tier TEXT,
+            target_json TEXT NOT NULL,
+            trait_delta_json TEXT,
+            analysis_json TEXT,
+            packet_json TEXT,
+            materialized_row_json TEXT
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_future_context_lookup
+        ON future_context_rows(fighter1, fighter2, fight_date, fighter1_odds, fighter2_odds)
+        """
+    )
+    conn.commit()
+
+
+def _future_context_signature(target: dict[str, Any], analysis: dict[str, Any]) -> dict[str, Any]:
+    request = analysis.get("request") or {}
+    market_odds = (analysis.get("market") or {}).get("odds") or {}
+    return {
+        "fighter1": target.get("fighter1"),
+        "fighter2": target.get("fighter2"),
+        "fight_date": target.get("date"),
+        "fighter1_odds": request.get("fighter1_odds", market_odds.get("fighter1")),
+        "fighter2_odds": request.get("fighter2_odds", market_odds.get("fighter2")),
+    }
+
+
+def _future_context_key(signature: dict[str, Any]) -> str:
+    digest = hashlib.sha256(_json_dump(signature).encode("utf-8")).hexdigest()[:16]
+    return f"future:{digest}"
+
+
+def _materialize_future_context(
+    *,
+    target: dict[str, Any],
+    trait_delta: dict[str, Any] | None,
+    analysis: dict[str, Any],
+    packet: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    signature = _future_context_signature(target, analysis)
+    key = _future_context_key(signature)
+    now = datetime.now().isoformat(timespec="seconds")
+    market = analysis.get("market") or {}
+    pricing_context = market.get("pricing_context") or {}
+    coverage = packet.get("coverage") if isinstance(packet, dict) else None
+    materialized_row = packet.get("materialized_context_row") if isinstance(packet, dict) else None
+
+    conn = future_context_connection()
+    try:
+        existing = conn.execute(
+            "SELECT created_at FROM future_context_rows WHERE materialization_key = ?",
+            (key,),
+        ).fetchone()
+        created_at = existing["created_at"] if existing else now
+        conn.execute(
+            """
+            INSERT INTO future_context_rows (
+                materialization_key,
+                created_at,
+                updated_at,
+                request_signature_json,
+                fighter1,
+                fighter2,
+                fight_date,
+                fighter1_odds,
+                fighter2_odds,
+                pick,
+                pick_prob,
+                pick_odds,
+                market_implied_prob,
+                edge,
+                pricing_context_degraded,
+                coverage_score,
+                coverage_tier,
+                target_json,
+                trait_delta_json,
+                analysis_json,
+                packet_json,
+                materialized_row_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(materialization_key) DO UPDATE SET
+                updated_at = excluded.updated_at,
+                request_signature_json = excluded.request_signature_json,
+                fighter1 = excluded.fighter1,
+                fighter2 = excluded.fighter2,
+                fight_date = excluded.fight_date,
+                fighter1_odds = excluded.fighter1_odds,
+                fighter2_odds = excluded.fighter2_odds,
+                pick = excluded.pick,
+                pick_prob = excluded.pick_prob,
+                pick_odds = excluded.pick_odds,
+                market_implied_prob = excluded.market_implied_prob,
+                edge = excluded.edge,
+                pricing_context_degraded = excluded.pricing_context_degraded,
+                coverage_score = excluded.coverage_score,
+                coverage_tier = excluded.coverage_tier,
+                target_json = excluded.target_json,
+                trait_delta_json = excluded.trait_delta_json,
+                analysis_json = excluded.analysis_json,
+                packet_json = excluded.packet_json,
+                materialized_row_json = excluded.materialized_row_json
+            """,
+            (
+                key,
+                created_at,
+                now,
+                _json_dump(signature),
+                signature["fighter1"],
+                signature["fighter2"],
+                signature["fight_date"],
+                signature["fighter1_odds"],
+                signature["fighter2_odds"],
+                target.get("pick"),
+                target.get("pick_prob"),
+                target.get("pick_odds"),
+                target.get("market_implied_prob"),
+                target.get("edge"),
+                int(bool(pricing_context.get("pricing_context_degraded"))),
+                coverage.get("score") if isinstance(coverage, dict) else None,
+                coverage.get("tier") if isinstance(coverage, dict) else None,
+                _json_dump(target),
+                _json_dump(trait_delta) if trait_delta is not None else None,
+                _json_dump(analysis),
+                _json_dump(packet) if packet is not None else None,
+                _json_dump(materialized_row) if materialized_row is not None else None,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {
+        "materialization_key": key,
+        "sidecar_path": display_path(DEFAULT_FUTURE_CONTEXT_DB),
+        "created_at": created_at,
+        "updated_at": now,
+        "request_signature": signature,
+        "stored_packet": packet is not None,
+        "refresh_policy": "updated on each dynamic MCP call for this exact fighter/date/odds signature",
+    }
 
 
 def ensure_read_only_query(query: str) -> str:
@@ -1283,6 +1463,18 @@ def _build_dynamic_context_packet(
         "opponent_quality": packet["coverage"]["components"]["opponent_quality"]["evidence_type"],
         "risk_flags": packet["matchup_risk_flags"]["evidence_type"],
     }
+    future_context_key = _future_context_key(_future_context_signature(target, analysis))
+    packet["materialized_context_row"]["persisted"] = True
+    packet["materialized_context_row"]["future_context_key"] = future_context_key
+    materialization = _materialize_future_context(
+        target=target,
+        trait_delta=dynamic_trait_delta,
+        analysis=analysis,
+        packet=packet,
+    )
+    analysis["future_context_materialization"] = materialization
+    packet["future_context_materialization"] = materialization
+    packet["source"]["future_context_sidecar"] = materialization
     return packet
 
 
@@ -1422,6 +1614,12 @@ def list_data_sources() -> dict[str, Any]:
             "path": display_path(path),
             "exists": path.exists(),
         }
+    databases["future_context"] = {
+        "path": display_path(DEFAULT_FUTURE_CONTEXT_DB),
+        "exists": DEFAULT_FUTURE_CONTEXT_DB.exists(),
+        "generated": True,
+        "purpose": "Materialized dynamic future-fight rows keyed by fighter/date/odds.",
+    }
     return {
         "databases": databases,
         "core_files": sorted(display_path(path) for path in WHITELISTED_FILES),
@@ -1967,6 +2165,11 @@ def _resolve_target_or_dynamic(
         fighter1_odds=fighter1_odds,
         fighter2_odds=fighter2_odds,
     )
+    analysis["future_context_materialization"] = _materialize_future_context(
+        target=target,
+        trait_delta=trait_delta,
+        analysis=analysis,
+    )
     return target, trait_delta, analysis, lookup_error
 
 
@@ -1980,6 +2183,7 @@ def _dynamic_source_payload(analysis: dict[str, Any] | None, lookup_error: str |
         "request": analysis.get("request"),
         "market_provenance": (analysis.get("market") or {}).get("provenance"),
         "pricing_context": (analysis.get("market") or {}).get("pricing_context"),
+        "future_context_materialization": analysis.get("future_context_materialization"),
     }
 
 

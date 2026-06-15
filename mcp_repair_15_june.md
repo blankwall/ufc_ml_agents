@@ -52,6 +52,19 @@ Close the gap between directional MCP reviews and top-confidence pricing calls f
   - ELO gap.
   - Favorite/underdog profile.
 
+## Phase 4 - Future context sidecar persistence
+
+- [x] Add generated future-context sidecar storage.
+  - Persist dynamic future-fight rows to `data/enrichment/future_context.sqlite`.
+  - Key rows by fighter/date/odds signature so repeated MCP calls reuse the same materialization identity.
+  - Keep historical `context_pool.sqlite` immutable.
+- [x] Attach future-context materialization metadata to dynamic packets.
+  - Include sidecar key, path, stored-packet status, request signature, and refresh policy.
+  - Mark packet `materialized_context_row` as persisted once stored.
+- [x] Attach future-context materialization metadata to standalone helper dynamic fallbacks.
+  - Cover trait deltas, style flags, historical patterns, and nearest examples through the shared fallback path.
+- [x] Add tests for sidecar persistence and dynamic packet/helper metadata.
+
 ## Completion rule
 
 Each phase is only done when the MCP output exposes the new fields, tests cover the behavior where practical, and the branch is committed/pushed.

@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -31,8 +32,16 @@ from mcp_server.ufc_context_server import (
     _annotate_dynamic_nearest_examples,
     _dynamic_packet_coverage,
     _dynamic_matchup_risk_flags,
+    _materialize_future_context,
     _materialized_dynamic_context_row,
 )
+
+
+@pytest.fixture(autouse=True)
+def isolated_future_context_db(monkeypatch, tmp_path):
+    future_context_db = tmp_path / "future_context.sqlite"
+    monkeypatch.setattr(context_server, "DEFAULT_FUTURE_CONTEXT_DB", future_context_db)
+    monkeypatch.setitem(context_server.DATABASES, "future_context", future_context_db)
 
 
 def test_ensure_read_only_query_allows_select_and_with():
@@ -437,6 +446,79 @@ def test_materialized_dynamic_context_row_carries_sources_and_recent_fights():
     assert row["missing_field_notes"]["opponent_quality"] == "partial"
 
 
+def test_materialize_future_context_persists_sidecar_row():
+    target = {
+        "id": "dynamic:alpha:beta:2026-07-12",
+        "date": "2026-07-12",
+        "fighter1": "Alpha Fighter",
+        "fighter2": "Beta Fighter",
+        "pick": "Alpha Fighter",
+        "pick_prob": 0.61,
+        "pick_odds": -120,
+        "market_implied_prob": 0.545,
+        "edge": 0.065,
+    }
+    trait_delta = {"deltas": {"control_score_diff": 18}}
+    analysis = {
+        "request": {
+            "fighter1": "Alpha Fighter",
+            "fighter2": "Beta Fighter",
+            "fight_date": "2026-07-12",
+            "fighter1_odds": -120,
+            "fighter2_odds": 100,
+        },
+        "market": {
+            "pricing_context": {"pricing_context_degraded": False},
+        },
+    }
+    packet = {
+        "coverage": {"score": 72, "tier": "high"},
+        "materialized_context_row": {"row": {"fighter1": "Alpha Fighter"}},
+    }
+
+    result = _materialize_future_context(
+        target=target,
+        trait_delta=trait_delta,
+        analysis=analysis,
+        packet=packet,
+    )
+
+    assert result["materialization_key"].startswith("future:")
+    assert result["stored_packet"] is True
+    assert context_server.DEFAULT_FUTURE_CONTEXT_DB.exists()
+
+    conn = sqlite3.connect(context_server.DEFAULT_FUTURE_CONTEXT_DB)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute("SELECT * FROM future_context_rows").fetchone()
+    finally:
+        conn.close()
+
+    assert row["materialization_key"] == result["materialization_key"]
+    assert row["fighter1"] == "Alpha Fighter"
+    assert row["fighter2"] == "Beta Fighter"
+    assert row["fight_date"] == "2026-07-12"
+    assert row["fighter1_odds"] == -120
+    assert row["fighter2_odds"] == 100
+    assert row["pick"] == "Alpha Fighter"
+    assert row["coverage_score"] == 72
+    assert row["coverage_tier"] == "high"
+    assert row["pricing_context_degraded"] == 0
+    assert json.loads(row["trait_delta_json"])["deltas"]["control_score_diff"] == 18
+    assert row["packet_json"] is not None
+
+    queried = context_server.run_readonly_sql(
+        "future_context",
+        "SELECT fighter1, pick, coverage_score FROM future_context_rows",
+    )
+    assert queried["returned_rows"] == 1
+    assert queried["rows"][0] == {
+        "fighter1": "Alpha Fighter",
+        "pick": "Alpha Fighter",
+        "coverage_score": 72.0,
+    }
+
+
 def test_dynamic_opponent_quality_reconstructs_recent_elo_metrics():
     target = {}
     pick = {
@@ -834,7 +916,11 @@ def test_get_context_packet_missing_target_returns_dynamic_packet(monkeypatch):
     assert result["coverage"]["score_pct"] > 0
     assert result["materialized_context_row"]["row_type"] == "dynamic_context_pool_like_row"
     assert result["materialized_context_row"]["row"]["fighter1"] == "Alpha Fighter"
+    assert result["materialized_context_row"]["persisted"] is True
+    assert result["materialized_context_row"]["future_context_key"].startswith("future:")
     assert result["materialized_context_row"]["field_sources"]["model_market"]["evidence_type"] == "market_edge"
+    assert result["future_context_materialization"]["stored_packet"] is True
+    assert result["source"]["future_context_sidecar"]["materialization_key"] == result["future_context_materialization"]["materialization_key"]
     assert result["evidence_chain"]["provenance"]["target_row"] == "dynamic_synthetic_target"
     assert "historical_lookup_error" in result["source"]
     assert captured == {
@@ -901,6 +987,8 @@ def test_get_fight_trait_deltas_missing_target_uses_dynamic_fallback(monkeypatch
     assert result["trait_delta"]["deltas"]["cardio_score_diff"] == 11
     assert result["dynamic_source"]["exact_context_pool_row"] is False
     assert result["dynamic_source"]["pricing_context"]["has_real_market"] is True
+    assert result["dynamic_source"]["future_context_materialization"]["stored_packet"] is False
+    assert result["dynamic_source"]["future_context_materialization"]["materialization_key"].startswith("future:")
     assert captured["fighter1_odds"] == 120
     assert captured["fighter2_odds"] == -140
 
@@ -964,6 +1052,7 @@ def test_get_fight_nearest_examples_missing_target_uses_dynamic_fallback(monkeyp
 
     assert result["fight_pool_id"] == "dynamic:alpha:beta:2026-05-30"
     assert result["dynamic_source"]["exact_context_pool_row"] is False
+    assert result["dynamic_source"]["future_context_materialization"]["stored_packet"] is False
     assert result["retrieval_profile"]["mode"] == "dynamic_future_rerank"
     assert len(result["examples"]) == 1
     assert result["examples"][0]["retrieval_profile"]["dimensions"]["market_profile"]["matched"] is True
