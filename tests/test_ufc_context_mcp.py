@@ -25,6 +25,8 @@ from mcp_server.ufc_context_server import (
     _parse_elo_window,
     _line_sensitivity,
     _prob_to_american,
+    _dynamic_packet_coverage,
+    _materialized_dynamic_context_row,
 )
 
 
@@ -345,6 +347,86 @@ def test_get_bet_decision_waits_when_market_is_missing(monkeypatch):
     assert result["stake"]["multiplier"] is None
 
 
+def test_dynamic_packet_coverage_scores_true_and_synthetic_evidence():
+    target = {
+        "fighter1_elo": 1325,
+        "fighter2_elo": 1210,
+        "pick_current_vs_peak_decline": 12,
+        "opponent_current_vs_peak_decline": 40,
+        "pick_decline_diff": -28,
+        "pick_recent_fights_json": '[{"opponent":"One"}]',
+        "opponent_recent_fights_json": '[{"opponent":"Two"}]',
+    }
+    packet = {
+        "matching_patterns": {"items": [{"pattern_name": "elo_100_plus"}]},
+        "nearest_historical_examples": {"items": [{"fight": "A vs B"}]},
+    }
+    analysis = {
+        "market": {
+            "provenance": {"source": "user_input"},
+            "pricing_context": {
+                "has_real_market": True,
+                "has_two_sided_market": True,
+                "pricing_context_degraded": False,
+            },
+        }
+    }
+    trait_delta = {"deltas": {"cardio_score_diff": 4}}
+
+    coverage = _dynamic_packet_coverage(
+        packet=packet,
+        target=target,
+        dynamic_trait_delta=trait_delta,
+        analysis=analysis,
+    )
+
+    assert coverage["score"] == 78
+    assert coverage["tier"] == "medium"
+    assert coverage["components"]["exact_context_pool_row"]["available"] is False
+    assert coverage["components"]["real_market"]["evidence_type"] == "real_market"
+    assert coverage["components"]["trait"]["available"] is True
+    assert coverage["components"]["opponent_quality"]["score"] == 5
+    assert coverage["components"]["opponent_quality"]["evidence_type"] == "partial_dynamic_reconstruction"
+    assert "missing_exact_context_pool_row" in coverage["warnings"]
+
+
+def test_materialized_dynamic_context_row_carries_sources_and_recent_fights():
+    coverage = {
+        "score": 78,
+        "tier": "medium",
+        "components": {
+            "opponent_quality": {"evidence_type": "partial_dynamic_reconstruction", "note": "partial"},
+            "trait": {"evidence_type": "dynamic_snapshot_delta", "note": None},
+        },
+    }
+    target = {
+        "id": "dynamic:A:B:2026-07-12",
+        "source_table": "dynamic_synthetic_target",
+        "season": 2026,
+        "date": "2026-07-12",
+        "fighter1": "A",
+        "fighter2": "B",
+        "pick": "A",
+        "pick_prob": 0.58,
+        "pick_odds": 120,
+        "market_implied_prob": 0.455,
+        "edge": 0.125,
+        "pick_recent_fights_json": '[{"opponent":"One"}]',
+        "opponent_recent_fights_json": '[{"opponent":"Two"}]',
+    }
+    analysis = {"market": {"pricing_context": {"edge_type": "market_edge"}}}
+
+    row = _materialized_dynamic_context_row(target=target, analysis=analysis, coverage=coverage)
+
+    assert row["row_type"] == "dynamic_context_pool_like_row"
+    assert row["persisted"] is False
+    assert row["row"]["id"] == "dynamic:A:B:2026-07-12"
+    assert row["row"]["edge"] == 0.125
+    assert row["recent_fights"]["pick"][0]["opponent"] == "One"
+    assert row["field_sources"]["model_market"]["evidence_type"] == "market_edge"
+    assert row["missing_field_notes"]["opponent_quality"] == "partial"
+
+
 def test_get_age_experience_context_returns_direct_buckets(monkeypatch):
     def _fake_snapshot(name, *, as_of=None, recent_elo_fights=2):
         if name == "Prospect":
@@ -646,6 +728,14 @@ def test_get_context_packet_missing_target_returns_dynamic_packet(monkeypatch):
     assert result["source"]["historical_pool_role"] == "evidence_library"
     assert result["pricing_context"]["edge_type"] == "market_edge"
     assert result["model_market"]["market_provenance"]["source"] == "user_input"
+    assert result["coverage"]["components"]["real_market"]["available"] is True
+    assert result["coverage"]["components"]["elo"]["available"] is True
+    assert result["coverage"]["components"]["exact_context_pool_row"]["available"] is False
+    assert result["coverage"]["score_pct"] > 0
+    assert result["materialized_context_row"]["row_type"] == "dynamic_context_pool_like_row"
+    assert result["materialized_context_row"]["row"]["fighter1"] == "Alpha Fighter"
+    assert result["materialized_context_row"]["field_sources"]["model_market"]["evidence_type"] == "market_edge"
+    assert result["evidence_chain"]["provenance"]["target_row"] == "dynamic_synthetic_target"
     assert "historical_lookup_error" in result["source"]
     assert captured == {
         "fighter1": "No Context Alpha",

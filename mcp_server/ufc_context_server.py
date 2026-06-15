@@ -544,12 +544,20 @@ def _dynamic_synthetic_target(
         "model_agrees_with_elo": None if pick_elo_diff is None else pick_elo_diff > 0,
         "pick_prior_fight_count": (pick_snapshot.get("record") or {}).get("fight_count_as_of"),
         "opponent_prior_fight_count": (opponent_snapshot.get("record") or {}).get("fight_count_as_of"),
+        "pick_current_vs_peak_decline": (pick_snapshot.get("elo") or {}).get("elo_decline_from_peak"),
+        "opponent_current_vs_peak_decline": (opponent_snapshot.get("elo") or {}).get("elo_decline_from_peak"),
+        "pick_recent_fights_json": json.dumps(pick_snapshot.get("recent_results", [])[:5]),
+        "opponent_recent_fights_json": json.dumps(opponent_snapshot.get("recent_results", [])[:5]),
         "market_implied_prob": pick.get("market_probability"),
         "elo_implied_prob": elo_prob,
         "model_minus_elo_prob": model_minus_elo,
         "market_minus_elo_prob": market_minus_elo,
         "model_market_elo_triangle": None,
     }
+    if target["pick_current_vs_peak_decline"] is not None and target["opponent_current_vs_peak_decline"] is not None:
+        target["pick_decline_diff"] = target["pick_current_vs_peak_decline"] - target["opponent_current_vs_peak_decline"]
+    else:
+        target["pick_decline_diff"] = None
     if model_minus_elo is not None and market_minus_elo is not None:
         if model_minus_elo < 0 and market_minus_elo < 0:
             target["model_market_elo_triangle"] = "model_and_market_under_elo"
@@ -588,6 +596,238 @@ def _evidence_chain_from_flags(flags: dict[str, list[str]]) -> dict[str, Any]:
             for code in flags.get("risk", [])
         ],
     }
+
+
+def _component(
+    *,
+    available: bool,
+    weight: int,
+    source: str,
+    evidence_type: str,
+    fields: list[str],
+    score: float | None = None,
+    note: str | None = None,
+) -> dict[str, Any]:
+    component_score = weight if available else 0
+    if score is not None:
+        component_score = score
+    return {
+        "available": available,
+        "score": round(component_score, 1),
+        "weight": weight,
+        "source": source,
+        "evidence_type": evidence_type,
+        "fields": fields,
+        "note": note,
+    }
+
+
+def _coverage_tier(score: float) -> str:
+    if score >= 80:
+        return "high"
+    if score >= 60:
+        return "medium"
+    if score >= 40:
+        return "limited"
+    return "thin"
+
+
+def _dynamic_packet_coverage(
+    *,
+    packet: dict[str, Any],
+    target: dict[str, Any],
+    dynamic_trait_delta: dict[str, Any] | None,
+    analysis: dict[str, Any],
+) -> dict[str, Any]:
+    market = analysis.get("market") or {}
+    pricing_context = market.get("pricing_context") or {}
+    patterns = (packet.get("matching_patterns") or {}).get("items") or []
+    examples = (packet.get("nearest_historical_examples") or {}).get("items") or []
+    has_elo = target.get("fighter1_elo") is not None and target.get("fighter2_elo") is not None
+    has_trait = dynamic_trait_delta is not None
+    opponent_quality_fields = [
+        "pick_avg_prior_opponent_elo",
+        "opponent_avg_prior_opponent_elo",
+        "pick_recent3_prior_opponent_elo",
+        "opponent_recent3_prior_opponent_elo",
+        "pick_best_win_opponent_elo",
+        "opponent_best_win_opponent_elo",
+        "pick_opponent_quality_diff",
+        "pick_recent_opponent_quality_diff",
+        "pick_best_win_quality_diff",
+    ]
+    decline_fields = [
+        "pick_current_vs_peak_decline",
+        "opponent_current_vs_peak_decline",
+        "pick_decline_diff",
+        "pick_recent_fights_json",
+        "opponent_recent_fights_json",
+    ]
+    has_full_opponent_quality = any(target.get(field) is not None for field in opponent_quality_fields)
+    has_partial_opponent_quality = has_full_opponent_quality or any(target.get(field) not in (None, "[]") for field in decline_fields)
+    opponent_quality_score = 12 if has_full_opponent_quality else (5 if has_partial_opponent_quality else 0)
+
+    components = {
+        "exact_context_pool_row": _component(
+            available=False,
+            weight=15,
+            source="context_pool.backtest_fight_pool",
+            evidence_type="missing_target_row",
+            fields=["fight_pool_id", "source_row_key"],
+            note="Dynamic future packets intentionally do not require an exact context-pool target row.",
+        ),
+        "real_market": _component(
+            available=bool(pricing_context.get("has_real_market") and pricing_context.get("has_two_sided_market")),
+            weight=20,
+            source=(market.get("provenance") or {}).get("source") or "market_normalization",
+            evidence_type="real_market" if pricing_context.get("has_real_market") else "synthetic_market",
+            fields=["fighter1_odds", "fighter2_odds", "market_implied_prob", "edge"],
+            note=None if pricing_context.get("has_real_market") else "Odds are missing or incomplete; edge is degraded.",
+        ),
+        "elo": _component(
+            available=has_elo,
+            weight=20,
+            source="fastapi_app.services.fighter_snapshot.build_fighter_snapshot",
+            evidence_type="dynamic_snapshot",
+            fields=["fighter1_elo", "fighter2_elo", "pick_elo_diff", "elo_implied_prob"],
+        ),
+        "trait": _component(
+            available=has_trait,
+            weight=15,
+            source="trait_snapshots.fighter_trait_snapshots",
+            evidence_type="dynamic_snapshot_delta" if has_trait else "missing_trait_delta",
+            fields=["trait_deltas_v0"],
+            note=None if has_trait else "Trait deltas are unavailable for at least one fighter.",
+        ),
+        "opponent_quality": _component(
+            available=has_partial_opponent_quality,
+            weight=12,
+            score=opponent_quality_score,
+            source="dynamic_fighter_snapshot",
+            evidence_type="partial_dynamic_reconstruction" if has_partial_opponent_quality and not has_full_opponent_quality else "historical_opponent_quality",
+            fields=opponent_quality_fields + decline_fields,
+            note=(
+                "Only decline/recent-fight fields were reconstructed; opponent-ELO quality metrics remain unavailable."
+                if has_partial_opponent_quality and not has_full_opponent_quality
+                else None
+            ),
+        ),
+        "historical_comps": _component(
+            available=bool(patterns or examples),
+            weight=18,
+            source="context_pool evidence library",
+            evidence_type="historical_library_comps",
+            fields=["matching_patterns", "nearest_historical_examples"],
+            note=None if patterns or examples else "No historical pattern or nearest-example evidence returned.",
+        ),
+    }
+    score = round(sum(component["score"] for component in components.values()), 1)
+    warnings = []
+    if pricing_context.get("pricing_context_degraded"):
+        warnings.append("pricing_context_degraded")
+    for name, component in components.items():
+        if not component["available"]:
+            warnings.append(f"missing_{name}")
+
+    return {
+        "score": score,
+        "score_max": sum(component["weight"] for component in components.values()),
+        "score_pct": round(score / sum(component["weight"] for component in components.values()) * 100, 1),
+        "tier": _coverage_tier(score),
+        "components": components,
+        "warnings": warnings,
+        "interpretation": (
+            "Coverage measures how much of this dynamic future packet is true point-in-time evidence "
+            "versus synthetic reconstruction. It is not model confidence."
+        ),
+    }
+
+
+def _materialized_dynamic_context_row(
+    *,
+    target: dict[str, Any],
+    analysis: dict[str, Any],
+    coverage: dict[str, Any],
+) -> dict[str, Any]:
+    field_sources = {
+        "identity": {
+            "source": "init_fight_analysis.resolution",
+            "evidence_type": "dynamic_resolution",
+        },
+        "model_market": {
+            "source": "init_fight_analysis.prediction + market normalization",
+            "evidence_type": (analysis.get("market") or {}).get("pricing_context", {}).get("edge_type"),
+        },
+        "elo": {
+            "source": "fastapi_app.services.fighter_snapshot.build_fighter_snapshot",
+            "evidence_type": "dynamic_snapshot",
+        },
+        "opponent_quality": {
+            "source": "dynamic fighter snapshots",
+            "evidence_type": coverage["components"]["opponent_quality"]["evidence_type"],
+        },
+        "traits": {
+            "source": "trait_snapshots.fighter_trait_snapshots",
+            "evidence_type": coverage["components"]["trait"]["evidence_type"],
+        },
+    }
+    row_fields = [
+        "id",
+        "source_table",
+        "season",
+        "date",
+        "fighter1",
+        "fighter2",
+        "pick",
+        "pick_prob",
+        "pick_odds",
+        "market_implied_prob",
+        "edge",
+        "female",
+        "fighter1_elo",
+        "fighter2_elo",
+        "pick_elo",
+        "opponent_elo",
+        "pick_elo_diff",
+        "abs_elo_diff",
+        "model_agrees_with_elo",
+        "pick_prior_fight_count",
+        "opponent_prior_fight_count",
+        "pick_current_vs_peak_decline",
+        "opponent_current_vs_peak_decline",
+        "pick_decline_diff",
+        "elo_implied_prob",
+        "model_minus_elo_prob",
+        "market_minus_elo_prob",
+        "model_market_elo_triangle",
+        "skip_reason",
+    ]
+    return {
+        "row_type": "dynamic_context_pool_like_row",
+        "persisted": False,
+        "row": {field: target.get(field) for field in row_fields},
+        "recent_fights": {
+            "pick": json.loads(target.get("pick_recent_fights_json") or "[]"),
+            "opponent": json.loads(target.get("opponent_recent_fights_json") or "[]"),
+        },
+        "coverage_score": coverage["score"],
+        "coverage_tier": coverage["tier"],
+        "field_sources": field_sources,
+        "missing_field_notes": {
+            name: component["note"]
+            for name, component in coverage["components"].items()
+            if component.get("note")
+        },
+    }
+
+
+def _label_dynamic_evidence(packet: dict[str, Any]) -> None:
+    for item in (packet.get("matching_patterns") or {}).get("items") or []:
+        item["evidence_origin"] = "historical_context_pool"
+        item["target_relationship"] = "library_pattern_match"
+    for item in (packet.get("nearest_historical_examples") or {}).get("items") or []:
+        item["evidence_origin"] = "historical_context_pool"
+        item["target_relationship"] = "nearest_library_example"
 
 
 def _build_dynamic_context_packet(
@@ -646,8 +886,27 @@ def _build_dynamic_context_packet(
     packet["pricing_context"] = pricing_context
     packet["validation"] = analysis.get("validation")
     packet["dynamic_provenance"] = analysis.get("provenance")
+    _label_dynamic_evidence(packet)
+    packet["coverage"] = _dynamic_packet_coverage(
+        packet=packet,
+        target=target,
+        dynamic_trait_delta=dynamic_trait_delta,
+        analysis=analysis,
+    )
+    packet["materialized_context_row"] = _materialized_dynamic_context_row(
+        target=target,
+        analysis=analysis,
+        coverage=packet["coverage"],
+    )
     packet["historical_examples"] = packet["nearest_historical_examples"]
     packet["evidence_chain"] = _evidence_chain_from_flags(packet["flags"])
+    packet["evidence_chain"]["provenance"] = {
+        "target_row": "dynamic_synthetic_target",
+        "model_market": "init_fight_analysis",
+        "historical_patterns": "context_pool evidence library",
+        "historical_examples": "context_pool evidence library",
+        "trait_deltas": packet["coverage"]["components"]["trait"]["evidence_type"],
+    }
     return packet
 
 

@@ -20,15 +20,15 @@ Close the gap between directional MCP reviews and top-confidence pricing calls f
 
 ## Phase 2 - Dynamic packet trust score
 
-- [ ] Add coverage/confidence score to dynamic packets.
+- [x] Add coverage/confidence score to dynamic packets.
   - Exact context-pool row coverage.
   - Real market coverage.
   - ELO coverage.
   - Trait coverage.
   - Opponent-quality coverage.
   - Historical comps coverage.
-- [ ] Label true historical evidence vs synthetic reconstruction.
-- [ ] Materialize fuller future-fight context rows on demand.
+- [x] Label true historical evidence vs synthetic reconstruction.
+- [x] Materialize fuller future-fight context rows on demand.
   - Populate context-pool-like fields where possible.
   - Leave unavailable fields null with coverage notes.
 
