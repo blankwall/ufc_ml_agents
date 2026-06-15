@@ -21,7 +21,7 @@ Close the gap between directional MCP reviews and top-confidence pricing calls f
 ## Phase 2 - Dynamic packet trust score
 
 - [x] Add coverage/confidence score to dynamic packets.
-  - Exact context-pool row coverage.
+  - Exact context-pool row coverage is informational only for future fights, not a dynamic-packet warning.
   - Real market coverage.
   - ELO coverage.
   - Trait coverage.

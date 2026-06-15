@@ -384,13 +384,18 @@ def test_dynamic_packet_coverage_scores_true_and_synthetic_evidence():
     )
 
     assert coverage["score"] == 78
-    assert coverage["tier"] == "medium"
-    assert coverage["components"]["exact_context_pool_row"]["available"] is False
+    assert coverage["score_max"] == 85
+    assert coverage["score_pct"] == 91.8
+    assert coverage["tier"] == "high"
+    assert coverage["components"]["exact_context_pool_row"]["available"] is True
+    assert coverage["components"]["exact_context_pool_row"]["applicable"] is False
+    assert coverage["components"]["exact_context_pool_row"]["exact_row_present"] is False
+    assert coverage["components"]["exact_context_pool_row"]["evidence_type"] == "not_applicable_dynamic_future_packet"
     assert coverage["components"]["real_market"]["evidence_type"] == "real_market"
     assert coverage["components"]["trait"]["available"] is True
     assert coverage["components"]["opponent_quality"]["score"] == 5
     assert coverage["components"]["opponent_quality"]["evidence_type"] == "partial_dynamic_reconstruction"
-    assert "missing_exact_context_pool_row" in coverage["warnings"]
+    assert "missing_exact_context_pool_row" not in coverage["warnings"]
 
 
 def test_materialized_dynamic_context_row_carries_sources_and_recent_fights():
@@ -822,7 +827,8 @@ def test_get_context_packet_missing_target_returns_dynamic_packet(monkeypatch):
     assert result["model_market"]["market_provenance"]["source"] == "user_input"
     assert result["coverage"]["components"]["real_market"]["available"] is True
     assert result["coverage"]["components"]["elo"]["available"] is True
-    assert result["coverage"]["components"]["exact_context_pool_row"]["available"] is False
+    assert result["coverage"]["components"]["exact_context_pool_row"]["applicable"] is False
+    assert "missing_exact_context_pool_row" not in result["coverage"]["warnings"]
     assert result["coverage"]["score_pct"] > 0
     assert result["materialized_context_row"]["row_type"] == "dynamic_context_pool_like_row"
     assert result["materialized_context_row"]["row"]["fighter1"] == "Alpha Fighter"

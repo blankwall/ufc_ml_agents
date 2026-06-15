@@ -1001,12 +1001,15 @@ def _dynamic_packet_coverage(
 
     components = {
         "exact_context_pool_row": _component(
-            available=False,
-            weight=15,
+            available=True,
+            weight=0,
             source="context_pool.backtest_fight_pool",
-            evidence_type="missing_target_row",
+            evidence_type="not_applicable_dynamic_future_packet",
             fields=["fight_pool_id", "source_row_key"],
-            note="Dynamic future packets intentionally do not require an exact context-pool target row.",
+            note=(
+                "Exact context-pool target rows are not expected for future fights; use the "
+                "materialized dynamic row plus historical evidence-library comps instead."
+            ),
         ),
         "real_market": _component(
             available=bool(pricing_context.get("has_real_market") and pricing_context.get("has_two_sided_market")),
@@ -1057,24 +1060,29 @@ def _dynamic_packet_coverage(
             note=None if patterns or examples else "No historical pattern or nearest-example evidence returned.",
         ),
     }
+    components["exact_context_pool_row"]["applicable"] = False
+    components["exact_context_pool_row"]["exact_row_present"] = False
     score = round(sum(component["score"] for component in components.values()), 1)
+    score_max = sum(component["weight"] for component in components.values())
+    score_pct = round(score / score_max * 100, 1) if score_max else 100.0
     warnings = []
     if pricing_context.get("pricing_context_degraded"):
         warnings.append("pricing_context_degraded")
     for name, component in components.items():
-        if not component["available"]:
+        if component.get("applicable", True) and not component["available"]:
             warnings.append(f"missing_{name}")
 
     return {
         "score": score,
-        "score_max": sum(component["weight"] for component in components.values()),
-        "score_pct": round(score / sum(component["weight"] for component in components.values()) * 100, 1),
-        "tier": _coverage_tier(score),
+        "score_max": score_max,
+        "score_pct": score_pct,
+        "tier": _coverage_tier(score_pct),
         "components": components,
         "warnings": warnings,
         "interpretation": (
-            "Coverage measures how much of this dynamic future packet is true point-in-time evidence "
-            "versus synthetic reconstruction. It is not model confidence."
+            "Coverage measures available point-in-time evidence for a dynamic future packet. "
+            "Missing exact context-pool target rows are intentionally not penalized; the historical "
+            "pool is used as an evidence library, not as a required matchup table."
         ),
     }
 
