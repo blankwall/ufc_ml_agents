@@ -21,7 +21,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from database.schema import BettingOdds, Event, Fight, Fighter, FightStats
-from services.predict_service import FIGHTER_ALIASES, _resolve_fighter
+from services.fighter_identity import FIGHTER_ALIASES, resolve_fighter as _resolve_fighter
 from services.ai_service import analyze_matchup
 
 router = APIRouter()

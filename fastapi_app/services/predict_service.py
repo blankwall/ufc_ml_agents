@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import joblib
 import numpy as np
@@ -25,12 +25,14 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 from features.matchup_features import MatchupFeatureExtractor
 from database.schema import Event as _Event, Fight as _Fight
 from models.utils import resolve_model_dir
 from fastapi_app.services.bet_evaluator import evaluate_bet_decision
 from fastapi_app.services.the_odds_api_service import get_bet_placed_map
+from fastapi_app.services.fighter_identity import FIGHTER_ALIASES, resolve_fighter as _resolve_fighter
 
 ODDS_DIR         = ROOT_DIR / "data" / "future_fight_odds"
 USER_EVENTS_DIR  = ROOT_DIR / "data" / "user_events"
@@ -76,113 +78,6 @@ def _load_underdog_model():
     return _ud_model, _ud_scaler, _ud_features
 
 
-# ── fighter aliases (real-name → DB name or nickname stored in DB) ───────────
-# Add entries here when a CSV uses a name variant the DB doesn't recognise.
-FIGHTER_ALIASES: dict[str, str] = {
-    "Bobby Green":            "King Green",
-    "Sean Omalley":           "Sean O'Malley",
-    "Charles Johson":         "Charles Johnson",
-    "Michal Oleksiejczluk":   "Michal Oleksiejczuk",
-    "Waldo Cortes-Acosta":    "Waldo Cortes Acosta",
-    "Loneer Kavanagh":        "Lone'er Kavanagh",
-    "Carlos Leal Miranda":    "Carlos Leal",
-    "Long Xiao":              "Xiao Long",
-    "Lupita Godinez":         "Loopy Godinez",
-    "Benoit St. Denis":       "Benoit Saint Denis",
-    "Benoit St Denis":        "Benoit Saint Denis",
-    "Kim Sang Wook":          "Sangwook Kim",
-    "Jose Medina":            "Jose Daniel Medina",
-    "Montserrat Rendon":      "Montse Rendon",
-    "Azamt Bekoev":           "Azamat Bekoev",
-    "Casey Oneill":           "Casey O'Neill",
-    "Soo Young Yoo":          "SuYoung You",
-    # Outcome name mismatches (odds source vs UFC stats canonical)
-    "Michael Aswell":         "Michael Aswell Jr.",
-    "Cameron Rowston":        "Cam Rowston",
-    "Don Mar Fan":            "Dom Mar Fan",
-    "Juan Martinetti":        "Adrian Luna Martinetti",
-    # Sergey sidecar / alternate-source name for the same fighter.
-    "Konklak Suphisara":      "Loma Lookboonmee",
-}
-
-
-# ── fighter resolver ──────────────────────────────────────────────────────────
-
-def _resolve_fighter(session, name: str):
-    """
-    Best-effort fighter name → DB Fighter.
-    Normalises apostrophes, hyphens, and dots on both sides so e.g.
-    'Loneer Kavanagh' matches "Lone'er Kavanagh" and
-    'Waldo Cortes-Acosta' matches 'Waldo Cortes Acosta'.
-    """
-    import re as _re
-    from sqlalchemy import or_, text
-    from database.schema import Fighter, Fight
-
-    def _best(rows):
-        """From a list of Fighter objects pick the one with most DB fights."""
-        if len(rows) == 1:
-            return rows[0]
-        scored = []
-        for f in rows:
-            cnt = session.query(Fight).filter(
-                or_(Fight.fighter_1_id == f.id, Fight.fighter_2_id == f.id)
-            ).count()
-            scored.append((cnt, f.id, f))
-        scored.sort(key=lambda t: (-t[0], t[1]))
-        return scored[0][2]
-
-    def _strip(s: str) -> str:
-        """Remove punctuation that varies between sources."""
-        return _re.sub(r"['\.\-]", "", s).strip()
-
-    # Strategy 0: known aliases
-    lookup_name = FIGHTER_ALIASES.get(name, name)
-
-    # Strategy 1: standard ilike (exact punctuation)
-    rows = session.query(Fighter).filter(Fighter.name.ilike(f"%{lookup_name}%")).all()
-    if rows:
-        return _best(rows)
-
-    # Strategy 2: SQL-level normalisation — strip apostrophes/dots, replace hyphens with space
-    def _norm_sql(s: str) -> str:
-        return _re.sub(r"['\.]", "", s.replace("-", " ")).strip().lower()
-
-    norm = _norm_sql(lookup_name)
-    if norm:
-        sql = text(
-            "SELECT id FROM fighters "
-            "WHERE LOWER(REPLACE(REPLACE(name, '''', ''), '.', '')) "
-            "LIKE :q"
-        )
-        ids = [r[0] for r in session.execute(sql, {"q": f"%{norm}%"})]
-        if ids:
-            rows = session.query(Fighter).filter(Fighter.id.in_(ids)).all()
-            if rows:
-                return _best(rows)
-
-    # Strategy 3: first name + prefix of last name (handles typos / extra letters)
-    parts = lookup_name.split()
-    if len(parts) >= 2:
-        first = _re.sub(r"['\.\-]", "", parts[0]).lower()
-        # Try progressively shorter last-name prefixes (min 4 chars)
-        raw_last = _re.sub(r"['\.\-]", "", " ".join(parts[1:])).lower()
-        for prefix_len in range(min(len(raw_last), 8), 3, -1):
-            prefix = raw_last[:prefix_len]
-            sql = text(
-                "SELECT id FROM fighters "
-                "WHERE LOWER(REPLACE(REPLACE(name, '''', ''), '-', ' ')) LIKE :q"
-            )
-            ids = [r[0] for r in session.execute(sql, {"q": f"%{prefix}%"})]
-            if ids:
-                rows = session.query(Fighter).filter(Fighter.id.in_(ids)).all()
-                rows = [f for f in rows if first[:3] in f.name.lower().replace("'","").replace("-"," ")]
-                if rows:
-                    return _best(rows)
-
-    return None
-
-
 # ── date parsing helpers ──────────────────────────────────────────────────────
 
 def _parse_event_date(s: str) -> Optional[datetime]:
@@ -223,6 +118,22 @@ def _parse_event_date_any(s: str) -> Optional[datetime]:
         return pd.to_datetime(cleaned, errors="raise").to_pydatetime()
     except Exception:
         return None
+
+
+def _prediction_cutoff_datetime(value: date | datetime | str | None) -> Optional[datetime]:
+    """Map an explicit fight/event date to the prior-day feature snapshot cutoff."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        parsed = value.replace(tzinfo=None)
+    elif isinstance(value, date):
+        parsed = datetime.combine(value, datetime.min.time())
+    else:
+        parsed = _parse_event_date_any(str(value).strip())
+    if parsed is None:
+        return None
+    cutoff_date = parsed.date() - timedelta(days=1)
+    return datetime.combine(cutoff_date, datetime.min.time())
 
 
 def _prediction_cache_namespace() -> str:
@@ -441,6 +352,53 @@ def _load_all_odds() -> pd.DataFrame:
     return odds.reset_index(drop=True)
 
 
+def _event_date_key(value: Any) -> str:
+    dt = _parse_event_date_any(str(value)) if value is not None else None
+    return dt.strftime("%Y-%m-%d") if dt is not None else ""
+
+
+def _load_db_outcomes() -> pd.DataFrame:
+    session = _open_session()
+    try:
+        fights = session.query(_Fight).join(_Event).all()
+        rows = []
+        for fight in fights:
+            result = str(getattr(fight, "result", "") or "").strip().lower()
+            if not result:
+                continue
+
+            fighter1 = getattr(getattr(fight, "fighter_1", None), "name", "") or ""
+            fighter2 = getattr(getattr(fight, "fighter_2", None), "name", "") or ""
+            if not fighter1 or not fighter2:
+                continue
+
+            winner = ""
+            if result == "fighter_1":
+                winner = fighter1
+            elif result == "fighter_2":
+                winner = fighter2
+
+            event = getattr(fight, "event", None)
+            rows.append({
+                "event_name": getattr(event, "name", "") or "",
+                "event_date": _event_date_key(getattr(event, "date", "")),
+                "fighter1": fighter1,
+                "fighter2": fighter2,
+                "winner": winner,
+                "method": getattr(fight, "method", "") or "",
+                "round": getattr(fight, "round_finished", "") or "",
+                "fight_key": _canonical_fight_key(fighter1, fighter2),
+                "source": "ufc_database",
+            })
+        return pd.DataFrame(rows)
+    except SQLAlchemyError:
+        return pd.DataFrame()
+    finally:
+        close = getattr(session, "close", None)
+        if close:
+            close()
+
+
 def _load_outcomes() -> pd.DataFrame:
     frames = []
 
@@ -448,6 +406,8 @@ def _load_outcomes() -> pd.DataFrame:
     if OUTCOMES_CSV.exists():
         df = pd.read_csv(OUTCOMES_CSV)
         df.columns = [c.strip().lower() for c in df.columns]
+        if "event_date" in df.columns:
+            df["event_date"] = df["event_date"].apply(_event_date_key)
         frames.append(df)
 
     # ── Outcomes embedded in user-added event JSONs ───────────────────────────
@@ -459,18 +419,30 @@ def _load_outcomes() -> pd.DataFrame:
                 if outcome_rows:
                     df = pd.DataFrame(outcome_rows)
                     df.columns = [c.strip().lower() for c in df.columns]
+                    if "event_date" in df.columns:
+                        df["event_date"] = df["event_date"].apply(_event_date_key)
                     frames.append(df)
             except Exception:
                 pass
 
+    db_outcomes = _load_db_outcomes()
+    if not db_outcomes.empty:
+        frames.append(db_outcomes)
+
     if not frames:
         return pd.DataFrame(columns=["fighter1", "fighter2", "winner", "method", "round",
-                                     "fight_key", "norm_key", "event_name"])
+                                     "fight_key", "norm_key", "event_name", "event_date"])
 
     out = pd.concat(frames, ignore_index=True)
-    out = out.drop_duplicates(subset="fight_key", keep="last") if "fight_key" in out.columns else out
+    if "event_date" not in out.columns:
+        out["event_date"] = ""
+    out["event_date"] = out["event_date"].fillna("").astype(str)
+    out["fight_key"] = out.apply(
+        lambda r: _canonical_fight_key(str(r.get("fighter1","")), str(r.get("fighter2",""))), axis=1
+    )
+    out = out.drop_duplicates(subset=["fight_key", "event_date"], keep="last")
     out["norm_key"] = out.apply(
-        lambda r: _fight_key(str(r.get("fighter1","")), str(r.get("fighter2",""))), axis=1
+        lambda r: _canonical_fight_key(str(r.get("fighter1","")), str(r.get("fighter2",""))), axis=1
     )
     return out
 
@@ -509,6 +481,13 @@ def _normalize_name(name: str) -> str:
 
 def _fight_key(f1: str, f2: str) -> str:
     return "_vs_".join(sorted([_normalize_name(f1), _normalize_name(f2)]))
+
+
+def _canonical_fight_key(f1: str, f2: str) -> str:
+    return _fight_key(
+        FIGHTER_ALIASES.get(str(f1).strip(), str(f1).strip()),
+        FIGHTER_ALIASES.get(str(f2).strip(), str(f2).strip()),
+    )
 
 
 # ── cache helpers ─────────────────────────────────────────────────────────────
@@ -570,14 +549,25 @@ def _run_prediction_loop(
     filters = cfg.get("filters", {})
     wmma_rules = cfg.get("wmma", {})
 
-    # norm_key → real event name (outcomes have the authoritative UFC names)
-    fightkey_to_ev_name: dict[str, str] = {}
-    if "norm_key" in outcomes.columns and "event_name" in outcomes.columns:
-        for _, orow in outcomes.iterrows():
-            nk   = str(orow.get("norm_key", "")).strip()
-            name = str(orow.get("event_name", "")).strip()
-            if nk and name:
-                fightkey_to_ev_name[nk] = name
+    def _outcome_rows_for_key(key: str, event_dt: Optional[datetime]) -> pd.DataFrame:
+        if "norm_key" not in outcomes.columns:
+            return pd.DataFrame()
+
+        matches = outcomes[outcomes["norm_key"] == key]
+        if matches.empty or event_dt is None or "event_date" not in matches.columns:
+            return matches
+
+        requested_date = event_dt.strftime("%Y-%m-%d")
+        event_dates = matches["event_date"].fillna("").astype(str).str.strip()
+        exact_date = matches[event_dates == requested_date]
+        if not exact_date.empty:
+            return exact_date
+
+        undated = matches[event_dates == ""]
+        if not undated.empty:
+            return undated
+
+        return pd.DataFrame()
 
     for _, row in odds_df.iterrows():
         def _clean_str(value) -> str:
@@ -620,18 +610,23 @@ def _run_prediction_loop(
         f2_canonical = FIGHTER_ALIASES.get(f2_name, f2_name)
         fkey = _fight_key(f1_canonical, f2_canonical)
 
-        out_row = outcomes[outcomes["norm_key"] == fkey] if "norm_key" in outcomes.columns else pd.DataFrame()
-        if out_row.empty and "norm_key" in outcomes.columns:
-            alt_key = _fight_key(f1_name, f2_name)
-            out_row = outcomes[outcomes["norm_key"] == alt_key]
-        winner = str(out_row["winner"].iloc[0]).strip() if len(out_row) else None
-        method = str(out_row["method"].iloc[0]).strip() if len(out_row) else None
-        rd     = str(out_row["round"].iloc[0]).strip()  if len(out_row) else None
-
         # Use the scheduled event date for point-in-time feature extraction so
         # /events stays anchored to the card date and remains parity-safe with
         # /api/predict for the same matchup/odds/date input.
         as_of = _parse_event_date_any(ev_date)
+
+        out_row = _outcome_rows_for_key(fkey, as_of)
+        if out_row.empty and "norm_key" in outcomes.columns:
+            alt_key = _fight_key(f1_name, f2_name)
+            out_row = _outcome_rows_for_key(alt_key, as_of)
+        winner = str(out_row["winner"].iloc[0]).strip() if len(out_row) else None
+        method = str(out_row["method"].iloc[0]).strip() if len(out_row) else None
+        rd     = str(out_row["round"].iloc[0]).strip()  if len(out_row) else None
+        outcome_event_name = (
+            str(out_row["event_name"].iloc[0]).strip()
+            if len(out_row) and "event_name" in out_row.columns
+            else ""
+        )
 
         # Historical fights stay anchored to the event date; future fights roll
         # daily so newly ingested DB history doesn't leave /events stale.
@@ -718,9 +713,10 @@ def _run_prediction_loop(
                 )
 
             if winner:
-                w_norm  = _normalize_name(winner)
-                f1_norm = _normalize_name(f1_name)
-                f2_norm = _normalize_name(f2_name)
+                winner_canonical = FIGHTER_ALIASES.get(winner, winner)
+                w_norm  = _normalize_name(winner_canonical)
+                f1_norm = _normalize_name(f1_canonical)
+                f2_norm = _normalize_name(f2_canonical)
                 correct = (
                     (model_prob >= 0.5 and (f1_norm in w_norm or w_norm in f1_norm)) or
                     (model_prob <  0.5 and (f2_norm in w_norm or w_norm in f2_norm))
@@ -765,7 +761,7 @@ def _run_prediction_loop(
             "pick_elo_diff":  bet_eval.get("pick_elo_diff"),
         }
 
-        ev_name_real = fightkey_to_ev_name.get(fkey, ev_name)
+        ev_name_real = outcome_event_name or ev_name
         ev_key = f"the_odds_api|{ev_date}" if source_type == "the_odds_api" and ev_date else (ev_url or ev_name)
         if ev_key not in events_map:
             events_map[ev_key] = {

@@ -167,6 +167,7 @@ def test_the_odds_api_sync_updates_existing_fight_history(monkeypatch, tmp_path)
     monkeypatch.setattr(odds_service, "OUTPUT_CSV", output_csv)
     monkeypatch.setattr(odds_service, "STATE_PATH", state_path)
     monkeypatch.setattr(odds_service, "ROOT_DIR", tmp_path)
+    monkeypatch.setattr(odds_service, "_utc_now", lambda: datetime(2026, 5, 18, 12, 0, tzinfo=timezone.utc))
 
     payload_one = [
         {
@@ -263,6 +264,7 @@ def test_the_odds_api_sync_retains_fights_missing_from_latest_payload(monkeypatc
     monkeypatch.setattr(odds_service, "OUTPUT_CSV", output_csv)
     monkeypatch.setattr(odds_service, "STATE_PATH", state_path)
     monkeypatch.setattr(odds_service, "ROOT_DIR", tmp_path)
+    monkeypatch.setattr(odds_service, "_utc_now", lambda: datetime(2026, 5, 18, 12, 0, tzinfo=timezone.utc))
 
     payload_one = [
         {
@@ -1316,6 +1318,121 @@ def test_run_prediction_loop_keeps_past_event_date_for_unresolved_fight(monkeypa
     )
 
     assert captured["as_of_date"] == datetime(2026, 5, 17, 0, 0, 0)
+
+
+def test_load_outcomes_includes_date_keyed_db_results(monkeypatch, tmp_path):
+    monkeypatch.setattr(predict_service, "OUTCOMES_CSV", tmp_path / "missing_outcomes.csv")
+    monkeypatch.setattr(predict_service, "USER_EVENTS_DIR", tmp_path / "user_events")
+
+    fight = SimpleNamespace(
+        result="fighter_1",
+        fighter_1=SimpleNamespace(name="Sergei Pavlovich"),
+        fighter_2=SimpleNamespace(name="Tallison Teixeira"),
+        event=SimpleNamespace(name="UFC Fight Night: Song vs. Figueiredo", date="May 30, 2026"),
+        method="KO/TKO",
+        round_finished=1,
+    )
+
+    class FakeQuery:
+        def join(self, *_args, **_kwargs):
+            return self
+
+        def all(self):
+            return [fight]
+
+    class FakeSession:
+        def query(self, *_args, **_kwargs):
+            return FakeQuery()
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(predict_service, "_open_session", lambda: FakeSession())
+
+    outcomes = predict_service._load_outcomes()
+
+    assert len(outcomes) == 1
+    assert outcomes.iloc[0]["event_date"] == "2026-05-30"
+    assert outcomes.iloc[0]["winner"] == "Sergei Pavlovich"
+    assert outcomes.iloc[0]["method"] == "KO/TKO"
+    assert outcomes.iloc[0]["round"] == 1
+    assert outcomes.iloc[0]["norm_key"] == predict_service._canonical_fight_key(
+        "Sergey Pavlovich",
+        "Tallison Teixeira",
+    )
+
+
+def test_run_prediction_loop_matches_dated_outcome_and_aliases_winner(monkeypatch):
+    monkeypatch.setattr(predict_service, "_now", _fixed_now)
+    monkeypatch.setattr(predict_service, "get_bet_placed_map", lambda: {})
+
+    odds_df = predict_service.pd.DataFrame(
+        [
+            {
+                "event_name": "MMA Card · 2026-05-30",
+                "event_date": "2026-05-30",
+                "event_url": "",
+                "fighter1": "Sergey Pavlovich",
+                "fighter2": "Tallison Teixeira",
+                "fighter1_odds": -250,
+                "fighter2_odds": 200,
+                "fighter1_prob": 0.7,
+                "fighter2_prob": 0.3,
+                "source_type": "the_odds_api",
+                "source_file": "the_odds_api_new_events.csv",
+            }
+        ]
+    )
+    norm_key = predict_service._canonical_fight_key("Sergey Pavlovich", "Tallison Teixeira")
+    outcomes = predict_service.pd.DataFrame(
+        [
+            {
+                "fighter1": "Sergei Pavlovich",
+                "fighter2": "Tallison Teixeira",
+                "winner": "Tallison Teixeira",
+                "method": "Submission",
+                "round": "2",
+                "event_date": "2025-01-01",
+                "norm_key": norm_key,
+            },
+            {
+                "fighter1": "Sergei Pavlovich",
+                "fighter2": "Tallison Teixeira",
+                "winner": "Sergei Pavlovich",
+                "method": "KO/TKO",
+                "round": "1",
+                "event_date": "2026-05-30",
+                "norm_key": norm_key,
+            },
+        ]
+    )
+
+    monkeypatch.setattr(
+        predict_service,
+        "_resolve_fighter",
+        lambda _session, name: type("Fighter", (), {"id": 1 if "Pavlovich" in name else 2, "name": name})(),
+    )
+    monkeypatch.setattr(
+        predict_service,
+        "_score_row",
+        lambda *_args, **_kwargs: {"model_prob_f1": 0.7, "model_source": "general"},
+    )
+    monkeypatch.setattr(predict_service, "_fight_count_as_of", lambda *_args, **_kwargs: 10)
+    monkeypatch.setattr(predict_service, "_is_wmma", lambda *_args, **_kwargs: False)
+
+    events_map, _cache_dirty = predict_service._run_prediction_loop(
+        odds_df=odds_df,
+        outcomes=outcomes,
+        cache={},
+        session=object(),
+        extractor=object(),
+    )
+
+    fight = next(iter(events_map.values()))["fights"][0]
+    assert fight["winner"] == "Sergei Pavlovich"
+    assert fight["method"] == "KO/TKO"
+    assert fight["round"] == "1"
+    assert fight["correct"] is True
 
 
 def test_run_prediction_loop_keeps_past_event_date_for_completed_fight(monkeypatch):
