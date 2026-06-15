@@ -1929,6 +1929,60 @@ def get_context_packet(
         conn.close()
 
 
+def _resolve_target_or_dynamic(
+    conn: sqlite3.Connection,
+    *,
+    fight_pool_id: int | None = None,
+    fighter1: str | None = None,
+    fighter2: str | None = None,
+    date: str | None = None,
+    season: int | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
+) -> tuple[dict[str, Any], dict[str, Any] | None, dict[str, Any] | None, str | None]:
+    lookup_error = None
+    try:
+        target = resolve_target_row(
+            conn,
+            fight_pool_id=fight_pool_id,
+            fighter1=fighter1,
+            fighter2=fighter2,
+            date=date,
+            season=season,
+        )
+        if not _target_should_use_dynamic_packet(target):
+            return target, None, None, None
+    except ValueError as exc:
+        if fight_pool_id is not None and (not fighter1 or not fighter2):
+            raise
+        lookup_error = str(exc)
+
+    if not fighter1 or not fighter2:
+        raise ValueError("Pass fight_pool_id for exact context rows or both fighter1 and fighter2 for dynamic fallback.")
+
+    target, trait_delta, analysis = _dynamic_synthetic_target(
+        fighter1=fighter1,
+        fighter2=fighter2,
+        date=date,
+        fighter1_odds=fighter1_odds,
+        fighter2_odds=fighter2_odds,
+    )
+    return target, trait_delta, analysis, lookup_error
+
+
+def _dynamic_source_payload(analysis: dict[str, Any] | None, lookup_error: str | None) -> dict[str, Any] | None:
+    if analysis is None:
+        return None
+    return {
+        "target_source": "dynamic_future_fight",
+        "exact_context_pool_row": False,
+        "historical_lookup_error": lookup_error,
+        "request": analysis.get("request"),
+        "market_provenance": (analysis.get("market") or {}).get("provenance"),
+        "pricing_context": (analysis.get("market") or {}).get("pricing_context"),
+    }
+
+
 @mcp.tool()
 def get_fight_basics(
     fight_pool_id: int | None = None,
@@ -2277,23 +2331,31 @@ def get_fight_trait_deltas(
     fighter2: str | None = None,
     date: str | None = None,
     season: int | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
 ) -> dict[str, Any]:
     """Return structured trait-delta evidence for one fight."""
     conn = readonly_connection(resolve_database_path("context_pool"))
     try:
-        target = resolve_target_row(
+        target, dynamic_trait_delta, analysis, lookup_error = _resolve_target_or_dynamic(
             conn,
             fight_pool_id=fight_pool_id,
             fighter1=fighter1,
             fighter2=fighter2,
             date=date,
             season=season,
+            fighter1_odds=fighter1_odds,
+            fighter2_odds=fighter2_odds,
         )
-        trait_delta = fetch_trait_delta_evidence(conn, target)
-        return {
+        trait_delta = dynamic_trait_delta if analysis is not None else fetch_trait_delta_evidence(conn, target)
+        result = {
             **fight_locator_payload(target),
             "trait_delta": trait_delta,
         }
+        dynamic_source = _dynamic_source_payload(analysis, lookup_error)
+        if dynamic_source is not None:
+            result["dynamic_source"] = dynamic_source
+        return result
     finally:
         conn.close()
 
@@ -2305,25 +2367,33 @@ def get_fight_historical_patterns(
     fighter2: str | None = None,
     date: str | None = None,
     season: int | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
 ) -> dict[str, Any]:
     """Return applicable historical pattern stats and derived pattern score."""
     conn = readonly_connection(resolve_database_path("context_pool"))
     try:
-        target = resolve_target_row(
+        target, _dynamic_trait_delta, analysis, lookup_error = _resolve_target_or_dynamic(
             conn,
             fight_pool_id=fight_pool_id,
             fighter1=fighter1,
             fighter2=fighter2,
             date=date,
             season=season,
+            fighter1_odds=fighter1_odds,
+            fighter2_odds=fighter2_odds,
         )
         patterns = pattern_payload(conn, target)
         pattern_score = build_pattern_score(target, patterns)
-        return {
+        result = {
             **fight_locator_payload(target),
             "pattern_score_v0": pattern_score,
             "patterns": patterns,
         }
+        dynamic_source = _dynamic_source_payload(analysis, lookup_error)
+        if dynamic_source is not None:
+            result["dynamic_source"] = dynamic_source
+        return result
     finally:
         conn.close()
 
@@ -2335,24 +2405,38 @@ def get_fight_style_flags(
     fighter2: str | None = None,
     date: str | None = None,
     season: int | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
 ) -> dict[str, Any]:
     """Return support/risk flags derived from fight-row context and patterns."""
     conn = readonly_connection(resolve_database_path("context_pool"))
     try:
-        target = resolve_target_row(
+        target, dynamic_trait_delta, analysis, lookup_error = _resolve_target_or_dynamic(
             conn,
             fight_pool_id=fight_pool_id,
             fighter1=fighter1,
             fighter2=fighter2,
             date=date,
             season=season,
+            fighter1_odds=fighter1_odds,
+            fighter2_odds=fighter2_odds,
         )
         patterns = pattern_payload(conn, target)
-        trait_delta = fetch_trait_delta_evidence(conn, target)
-        return {
+        trait_delta = dynamic_trait_delta if analysis is not None else fetch_trait_delta_evidence(conn, target)
+        result = {
             **fight_locator_payload(target),
             "flags": build_flags(target, patterns, trait_delta),
         }
+        if analysis is not None:
+            result["matchup_risk_flags"] = _dynamic_matchup_risk_flags(
+                target,
+                analysis=analysis,
+                dynamic_trait_delta=trait_delta,
+            )
+        dynamic_source = _dynamic_source_payload(analysis, lookup_error)
+        if dynamic_source is not None:
+            result["dynamic_source"] = dynamic_source
+        return result
     finally:
         conn.close()
 
@@ -2364,6 +2448,8 @@ def get_fight_nearest_examples(
     fighter2: str | None = None,
     date: str | None = None,
     season: int | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
     limit: int = 10,
 ) -> dict[str, Any]:
     """Return nearest historical examples shaped for qualitative comparison."""
@@ -2371,20 +2457,40 @@ def get_fight_nearest_examples(
         raise ValueError("limit must be between 1 and 50.")
     conn = readonly_connection(resolve_database_path("context_pool"))
     try:
-        target = resolve_target_row(
+        target, dynamic_trait_delta, analysis, lookup_error = _resolve_target_or_dynamic(
             conn,
             fight_pool_id=fight_pool_id,
             fighter1=fighter1,
             fighter2=fighter2,
             date=date,
             season=season,
+            fighter1_odds=fighter1_odds,
+            fighter2_odds=fighter2_odds,
         )
-        rows = fetch_similar_rows(conn, target, limit=limit)
-        return {
+        fetch_limit = max(limit, min(limit * 3, 50)) if analysis is not None else limit
+        rows = fetch_similar_rows(conn, target, limit=fetch_limit)
+        if analysis is not None:
+            packet = {"nearest_historical_examples": {"items": rows}}
+            _annotate_dynamic_nearest_examples(
+                packet,
+                target=target,
+                dynamic_trait_delta=dynamic_trait_delta,
+                limit=limit,
+            )
+            rows = packet["nearest_historical_examples"]["items"]
+        result = {
             **fight_locator_payload(target),
             "warning": "Nearest examples are illustrative only; use aggregate pattern stats for stronger historical support.",
             "examples": rows,
         }
+        dynamic_source = _dynamic_source_payload(analysis, lookup_error)
+        if dynamic_source is not None:
+            result["dynamic_source"] = dynamic_source
+            result["retrieval_profile"] = {
+                "mode": "dynamic_future_rerank",
+                "tuned_for": ["market_shape", "confidence", "elo_gap", "edge", "style_trait_context"],
+            }
+        return result
     finally:
         conn.close()
 

@@ -16,7 +16,9 @@ from mcp_server.ufc_context_server import (
     get_fight_elo_context,
     get_fight_historical_patterns,
     get_fight_model_market,
+    get_fight_nearest_examples,
     get_fight_style_flags,
+    get_fight_trait_deltas,
     get_fighter_elo_history,
     get_context_packet,
     get_bet_decision,
@@ -842,6 +844,129 @@ def test_get_context_packet_missing_target_returns_dynamic_packet(monkeypatch):
         "fighter1_odds": 120,
         "fighter2_odds": -140,
     }
+
+
+def test_get_fight_trait_deltas_missing_target_uses_dynamic_fallback(monkeypatch):
+    captured = {}
+
+    def fake_dynamic_target(**kwargs):
+        captured.update(kwargs)
+        target = {
+            "id": "dynamic:alpha:beta:2026-05-30",
+            "season": 2026,
+            "date": "2026-05-30",
+            "fighter1": "Alpha Fighter",
+            "fighter2": "Beta Fighter",
+            "pick": "Beta Fighter",
+            "winner": None,
+            "pick_correct": None,
+            "actual_pnl": None,
+            "pick_prob": 0.585,
+            "pick_odds": -140,
+            "market_implied_prob": 0.583,
+            "edge": 0.002,
+            "bet": None,
+            "skip_reason": "dynamic_synthetic_target_no_config_decision",
+            "fighter1_elo": 1300,
+            "fighter2_elo": 1340,
+            "pick_elo": 1340,
+            "opponent_elo": 1300,
+            "pick_elo_diff": 40,
+            "abs_elo_diff": 40,
+            "model_agrees_with_elo": True,
+            "join_status": "matched",
+            "join_method": "dynamic_fighter_snapshot",
+        }
+        trait_delta = {"deltas": {"cardio_score_diff": 11}, "interpretation_note": "dynamic"}
+        analysis = {
+            "request": {"fighter1_odds": 120, "fighter2_odds": -140},
+            "market": {
+                "provenance": {"source": "user_input"},
+                "pricing_context": {"has_real_market": True, "pricing_context_degraded": False},
+            },
+        }
+        return target, trait_delta, analysis
+
+    monkeypatch.setattr(context_server, "_dynamic_synthetic_target", fake_dynamic_target)
+
+    result = get_fight_trait_deltas(
+        fighter1="No Context Alpha",
+        fighter2="No Context Beta",
+        date="2026-05-30",
+        fighter1_odds=120,
+        fighter2_odds=-140,
+    )
+
+    assert result["fight_pool_id"] == "dynamic:alpha:beta:2026-05-30"
+    assert result["trait_delta"]["deltas"]["cardio_score_diff"] == 11
+    assert result["dynamic_source"]["exact_context_pool_row"] is False
+    assert result["dynamic_source"]["pricing_context"]["has_real_market"] is True
+    assert captured["fighter1_odds"] == 120
+    assert captured["fighter2_odds"] == -140
+
+
+def test_get_fight_nearest_examples_missing_target_uses_dynamic_fallback(monkeypatch):
+    def fake_dynamic_target(**_kwargs):
+        target = {
+            "id": "dynamic:alpha:beta:2026-05-30",
+            "season": 2026,
+            "date": "2026-05-30",
+            "fighter1": "Alpha Fighter",
+            "fighter2": "Beta Fighter",
+            "pick": "Beta Fighter",
+            "winner": None,
+            "pick_correct": None,
+            "actual_pnl": None,
+            "pick_prob": 0.60,
+            "pick_odds": -150,
+            "market_implied_prob": 0.58,
+            "edge": 0.02,
+            "bet": None,
+            "skip_reason": "dynamic_synthetic_target_no_config_decision",
+            "fighter1_elo": 1300,
+            "fighter2_elo": 1340,
+            "pick_elo": 1340,
+            "opponent_elo": 1300,
+            "pick_elo_diff": 40,
+            "abs_elo_diff": 40,
+            "model_agrees_with_elo": True,
+            "join_status": "matched",
+            "join_method": "dynamic_fighter_snapshot",
+        }
+        trait_delta = {"deltas": {"grappling_score_diff": 15}}
+        analysis = {
+            "request": {"fighter1_odds": 120, "fighter2_odds": -150},
+            "market": {
+                "provenance": {"source": "user_input"},
+                "pricing_context": {"has_real_market": True, "pricing_context_degraded": False},
+            },
+        }
+        return target, trait_delta, analysis
+
+    monkeypatch.setattr(context_server, "_dynamic_synthetic_target", fake_dynamic_target)
+    monkeypatch.setattr(
+        context_server,
+        "fetch_similar_rows",
+        lambda _conn, _target, *, limit: [
+            {"pick_prob": 0.60, "pick_elo_diff": 40, "edge": 0.02, "pick_odds": -145},
+            {"pick_prob": 0.51, "pick_elo_diff": -20, "edge": -0.01, "pick_odds": 170},
+        ][:limit],
+    )
+
+    result = get_fight_nearest_examples(
+        fighter1="No Context Alpha",
+        fighter2="No Context Beta",
+        date="2026-05-30",
+        fighter1_odds=120,
+        fighter2_odds=-150,
+        limit=1,
+    )
+
+    assert result["fight_pool_id"] == "dynamic:alpha:beta:2026-05-30"
+    assert result["dynamic_source"]["exact_context_pool_row"] is False
+    assert result["retrieval_profile"]["mode"] == "dynamic_future_rerank"
+    assert len(result["examples"]) == 1
+    assert result["examples"][0]["retrieval_profile"]["dimensions"]["market_profile"]["matched"] is True
 
 
 @skip_no_main_db
