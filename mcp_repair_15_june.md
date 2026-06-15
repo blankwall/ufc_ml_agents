@@ -34,18 +34,18 @@ Close the gap between directional MCP reviews and top-confidence pricing calls f
 
 ## Phase 3 - Evidence quality upgrades
 
-- [ ] Improve opponent-quality enrichment.
+- [x] Improve opponent-quality enrichment.
   - Strength of schedule.
   - Best wins.
   - Recent opponent level.
   - Current-vs-peak decline curves.
-- [ ] Add richer matchup risk flags.
+- [x] Add richer matchup risk flags.
   - Layoff.
   - Chin/damage trend.
   - Five-round uncertainty.
   - Cardio uncertainty.
   - Small-sample inflation.
-- [ ] Improve nearest-example retrieval.
+- [x] Improve nearest-example retrieval.
   - Style/trait similarity.
   - Market shape.
   - Model confidence.

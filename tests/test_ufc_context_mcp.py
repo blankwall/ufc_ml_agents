@@ -25,7 +25,10 @@ from mcp_server.ufc_context_server import (
     _parse_elo_window,
     _line_sensitivity,
     _prob_to_american,
+    _apply_dynamic_opponent_quality,
+    _annotate_dynamic_nearest_examples,
     _dynamic_packet_coverage,
+    _dynamic_matchup_risk_flags,
     _materialized_dynamic_context_row,
 )
 
@@ -425,6 +428,95 @@ def test_materialized_dynamic_context_row_carries_sources_and_recent_fights():
     assert row["recent_fights"]["pick"][0]["opponent"] == "One"
     assert row["field_sources"]["model_market"]["evidence_type"] == "market_edge"
     assert row["missing_field_notes"]["opponent_quality"] == "partial"
+
+
+def test_dynamic_opponent_quality_reconstructs_recent_elo_metrics():
+    target = {}
+    pick = {
+        "elo": {
+            "recent_fights": [
+                {"opponent_pre_elo": 1300, "fighter_pre_elo": 1260, "result": "win"},
+                {"opponent_pre_elo": 1200, "fighter_pre_elo": 1240, "result": "loss"},
+                {"opponent_pre_elo": 1250, "fighter_pre_elo": 1230, "result": "win"},
+            ]
+        }
+    }
+    opponent = {
+        "elo": {
+            "recent_fights": [
+                {"opponent_pre_elo": 1150, "fighter_pre_elo": 1180, "result": "win"},
+                {"opponent_pre_elo": 1100, "fighter_pre_elo": 1175, "result": "loss"},
+            ]
+        }
+    }
+
+    _apply_dynamic_opponent_quality(target, pick_fighter=pick, opponent_fighter=opponent)
+
+    assert target["pick_avg_prior_opponent_elo"] == 1250.0
+    assert target["opponent_avg_prior_opponent_elo"] == 1125.0
+    assert target["pick_opponent_quality_diff"] == 125.0
+    assert target["pick_recent3_opponent_quality_diff"] == 125.0
+    assert target["pick_best_win_opponent_elo_diff"] == 150.0
+    assert target["pick_recent_opponent_quality_diff"] == 125.0
+    assert target["pick_best_win_quality_diff"] == 150.0
+    assert target["opponent_quality_sample"] == {"pick": 3, "opponent": 2}
+
+
+def test_dynamic_matchup_risk_flags_surface_layoff_cardio_and_sample_context():
+    target = {
+        "date": "2026-07-12",
+        "pick_prior_fight_count": 4,
+        "opponent_prior_fight_count": 8,
+        "_pick_fighter_snapshot": {
+            "recent_results": [{"date": "2025-01-01"}],
+            "elo": {"recent_fights": []},
+        },
+        "_opponent_fighter_snapshot": {
+            "recent_results": [{"date": "2026-03-01"}],
+            "elo": {"recent_fights": []},
+        },
+    }
+    trait_delta = {
+        "deltas": {
+            "cardio_score_diff": -12,
+            "durability_risk_score_diff": 14,
+        },
+        "validation_notes": {"cardio_score_diff": {"status": "dynamic_snapshot_delta"}},
+    }
+    analysis = {"market": {"pricing_context": {"pricing_context_degraded": True}}}
+
+    flags = _dynamic_matchup_risk_flags(target, analysis=analysis, dynamic_trait_delta=trait_delta)
+
+    assert flags["items"]["layoff"]["flag"] == "major_pick_layoff"
+    assert flags["items"]["cardio_uncertainty"]["flag"] == "pick_cardio_disadvantage"
+    assert flags["items"]["damage_durability"]["flag"] == "pick_higher_durability_risk"
+    assert flags["items"]["small_sample_inflation"]["flag"] == "small_sample"
+    assert "pricing_context_degraded" in flags["labels"]
+
+
+def test_dynamic_nearest_examples_are_reranked_and_annotated():
+    packet = {
+        "nearest_historical_examples": {
+            "items": [
+                {"pick_prob": 0.52, "pick_elo_diff": -40, "edge": 0.01, "pick_odds": 180},
+                {"pick_prob": 0.61, "pick_elo_diff": 75, "edge": 0.08, "pick_odds": -130},
+                {"pick_prob": 0.60, "pick_elo_diff": 80, "edge": 0.07, "pick_odds": -140},
+            ]
+        }
+    }
+    target = {"pick_prob": 0.60, "pick_elo_diff": 80, "edge": 0.07, "pick_odds": -150}
+    trait_delta = {"deltas": {"cardio_score_diff": 12}}
+
+    _annotate_dynamic_nearest_examples(packet, target=target, dynamic_trait_delta=trait_delta, limit=2)
+
+    items = packet["nearest_historical_examples"]["items"]
+    assert len(items) == 2
+    assert items[0]["pick_elo_diff"] == 80
+    assert items[0]["retrieval_profile"]["dimensions"]["market_profile"]["matched"] is True
+    assert items[0]["retrieval_profile"]["dimensions"]["style_trait_profile"]["target_large_trait_deltas"] == {
+        "cardio_score_diff": 12
+    }
+    assert packet["nearest_historical_examples"]["retrieval_profile"]["mode"] == "dynamic_future_rerank"
 
 
 def test_get_age_experience_context_returns_direct_buckets(monkeypatch):

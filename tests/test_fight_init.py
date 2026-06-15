@@ -94,7 +94,7 @@ def test_init_fight_analysis_builds_structured_payload(monkeypatch):
     assert result["prediction"]["fighter_metadata"]["thin_data_warning"] is False
     assert result["fighters"]["fighter1"]["identity"]["resolved_name"] == "King Green"
     assert result["fighters"]["fighter2"]["elo"]["available"] is True
-    assert "recent_fights" not in result["fighters"]["fighter1"]["elo"]
+    assert result["fighters"]["fighter1"]["elo"]["recent_fights"][0]["fight_date"] == "2025-01-01"
     assert result["fighters"]["fighter1"]["recent_results"][0]["result"] == "win"
     assert result["provenance"]["steps"]["model_prediction"] == "completed"
 

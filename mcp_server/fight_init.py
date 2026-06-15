@@ -186,6 +186,7 @@ def _compact_fighter_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
             "fights_total_all_time",
         )
     }
+    compact_elo["recent_fights"] = elo.get("recent_fights", [])
 
     return {
         "query_name": snapshot.get("query_name"),
@@ -560,13 +561,13 @@ def init_fight_analysis(
             "fighter1": _compact_fighter_snapshot(build_fighter_snapshot(
                 fighter1,
                 as_of=as_of.isoformat() if as_of is not None else None,
-                recent_elo_fights=2,
+                recent_elo_fights=5,
                 session=session,
             )),
             "fighter2": _compact_fighter_snapshot(build_fighter_snapshot(
                 fighter2,
                 as_of=as_of.isoformat() if as_of is not None else None,
-                recent_elo_fights=2,
+                recent_elo_fights=5,
                 session=session,
             )),
         }

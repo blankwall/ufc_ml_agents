@@ -476,6 +476,162 @@ def _metric_delta_payload(analysis: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _numeric_values(items: list[Any]) -> list[float]:
+    values: list[float] = []
+    for item in items:
+        try:
+            if item is not None:
+                values.append(float(item))
+        except (TypeError, ValueError):
+            continue
+    return values
+
+
+def _mean_or_none(values: list[Any]) -> float | None:
+    numeric = _numeric_values(values)
+    if not numeric:
+        return None
+    return round(sum(numeric) / len(numeric), 1)
+
+
+def _recent_elo_fights(fighter: dict[str, Any] | None) -> list[dict[str, Any]]:
+    elo = fighter.get("elo") if isinstance(fighter, dict) else None
+    recent = elo.get("recent_fights") if isinstance(elo, dict) else None
+    if not isinstance(recent, list):
+        return []
+    return [fight for fight in recent if isinstance(fight, dict)]
+
+
+def _opponent_quality_summary(fighter: dict[str, Any] | None) -> dict[str, Any]:
+    fights = _recent_elo_fights(fighter)
+    opponent_elos = [fight.get("opponent_pre_elo") for fight in fights]
+    wins = [
+        fight.get("opponent_pre_elo")
+        for fight in fights
+        if str(fight.get("result") or "").lower() == "win"
+    ]
+    fighter_elos = [fight.get("fighter_pre_elo") for fight in fights]
+    return {
+        "available": bool(_numeric_values(opponent_elos)),
+        "avg_prior_opponent_elo": _mean_or_none(opponent_elos),
+        "recent3_prior_opponent_elo": _mean_or_none(opponent_elos[:3]),
+        "best_win_opponent_elo": max(_numeric_values(wins), default=None),
+        "avg_fighter_pre_elo": _mean_or_none(fighter_elos),
+        "sample_size": len(_numeric_values(opponent_elos)),
+    }
+
+
+def _diff_or_none(left: Any, right: Any) -> float | None:
+    try:
+        if left is None or right is None:
+            return None
+        return round(float(left) - float(right), 1)
+    except (TypeError, ValueError):
+        return None
+
+
+def _apply_dynamic_opponent_quality(
+    target: dict[str, Any],
+    *,
+    pick_fighter: dict[str, Any] | None,
+    opponent_fighter: dict[str, Any] | None,
+) -> None:
+    pick_quality = _opponent_quality_summary(pick_fighter)
+    opponent_quality = _opponent_quality_summary(opponent_fighter)
+    target.update(
+        {
+            "pick_avg_prior_opponent_elo": pick_quality["avg_prior_opponent_elo"],
+            "opponent_avg_prior_opponent_elo": opponent_quality["avg_prior_opponent_elo"],
+            "pick_recent3_prior_opponent_elo": pick_quality["recent3_prior_opponent_elo"],
+            "opponent_recent3_prior_opponent_elo": opponent_quality["recent3_prior_opponent_elo"],
+            "pick_best_win_opponent_elo": pick_quality["best_win_opponent_elo"],
+            "opponent_best_win_opponent_elo": opponent_quality["best_win_opponent_elo"],
+            "pick_opponent_quality_diff": _diff_or_none(
+                pick_quality["avg_prior_opponent_elo"],
+                opponent_quality["avg_prior_opponent_elo"],
+            ),
+            "pick_recent3_opponent_quality_diff": _diff_or_none(
+                pick_quality["recent3_prior_opponent_elo"],
+                opponent_quality["recent3_prior_opponent_elo"],
+            ),
+            "pick_best_win_opponent_elo_diff": _diff_or_none(
+                pick_quality["best_win_opponent_elo"],
+                opponent_quality["best_win_opponent_elo"],
+            ),
+            "pick_recent_opponent_quality_diff": _diff_or_none(
+                pick_quality["recent3_prior_opponent_elo"],
+                opponent_quality["recent3_prior_opponent_elo"],
+            ),
+            "pick_best_win_quality_diff": _diff_or_none(
+                pick_quality["best_win_opponent_elo"],
+                opponent_quality["best_win_opponent_elo"],
+            ),
+            "opponent_quality_sample": {
+                "pick": pick_quality["sample_size"],
+                "opponent": opponent_quality["sample_size"],
+            },
+        }
+    )
+
+
+def _parse_dynamic_date(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        normalized = _normalize_lookup_date(str(value))
+        if normalized:
+            return datetime.fromisoformat(normalized)
+    except (TypeError, ValueError):
+        return None
+    return None
+
+
+def _last_fight_date(fighter: dict[str, Any] | None) -> datetime | None:
+    recent_results = fighter.get("recent_results") if isinstance(fighter, dict) else None
+    if isinstance(recent_results, list):
+        for fight in recent_results:
+            if isinstance(fight, dict):
+                parsed = _parse_dynamic_date(fight.get("date"))
+                if parsed is not None:
+                    return parsed
+    for fight in _recent_elo_fights(fighter):
+        parsed = _parse_dynamic_date(fight.get("fight_date"))
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _days_between(start: datetime | None, end: datetime | None) -> int | None:
+    if start is None or end is None:
+        return None
+    return max((end.date() - start.date()).days, 0)
+
+
+def _diff_abs(left: Any, right: Any) -> float | None:
+    try:
+        if left is None or right is None:
+            return None
+        return round(abs(float(left) - float(right)), 4)
+    except (TypeError, ValueError):
+        return None
+
+
+def _market_profile(odds: Any) -> str | None:
+    if odds is None:
+        return None
+    try:
+        odds_value = float(odds)
+    except (TypeError, ValueError):
+        return None
+    if odds_value <= -250:
+        return "expensive_favorite"
+    if odds_value < 0:
+        return "favorite"
+    if odds_value >= 200:
+        return "long_underdog"
+    return "underdog"
+
+
 def _dynamic_synthetic_target(
     *,
     fighter1: str,
@@ -548,12 +704,15 @@ def _dynamic_synthetic_target(
         "opponent_current_vs_peak_decline": (opponent_snapshot.get("elo") or {}).get("elo_decline_from_peak"),
         "pick_recent_fights_json": json.dumps(pick_snapshot.get("recent_results", [])[:5]),
         "opponent_recent_fights_json": json.dumps(opponent_snapshot.get("recent_results", [])[:5]),
+        "_pick_fighter_snapshot": pick_snapshot,
+        "_opponent_fighter_snapshot": opponent_snapshot,
         "market_implied_prob": pick.get("market_probability"),
         "elo_implied_prob": elo_prob,
         "model_minus_elo_prob": model_minus_elo,
         "market_minus_elo_prob": market_minus_elo,
         "model_market_elo_triangle": None,
     }
+    _apply_dynamic_opponent_quality(target, pick_fighter=pick_snapshot, opponent_fighter=opponent_snapshot)
     if target["pick_current_vs_peak_decline"] is not None and target["opponent_current_vs_peak_decline"] is not None:
         target["pick_decline_diff"] = target["pick_current_vs_peak_decline"] - target["opponent_current_vs_peak_decline"]
     else:
@@ -595,6 +754,179 @@ def _evidence_chain_from_flags(flags: dict[str, list[str]]) -> dict[str, Any]:
             {"code": code, "source": "context_packet.flags", "evidence_role": "risk_signal"}
             for code in flags.get("risk", [])
         ],
+    }
+
+
+def _dynamic_matchup_risk_flags(
+    target: dict[str, Any],
+    *,
+    analysis: dict[str, Any],
+    dynamic_trait_delta: dict[str, Any] | None,
+) -> dict[str, Any]:
+    pick_fighter = target.get("_pick_fighter_snapshot") if isinstance(target.get("_pick_fighter_snapshot"), dict) else None
+    opponent_fighter = (
+        target.get("_opponent_fighter_snapshot")
+        if isinstance(target.get("_opponent_fighter_snapshot"), dict)
+        else None
+    )
+    fight_date = _parse_dynamic_date(target.get("date"))
+    pick_layoff = _days_between(_last_fight_date(pick_fighter), fight_date)
+    opponent_layoff = _days_between(_last_fight_date(opponent_fighter), fight_date)
+
+    deltas = dynamic_trait_delta.get("deltas", {}) if isinstance(dynamic_trait_delta, dict) else {}
+    validation = dynamic_trait_delta.get("validation_notes", {}) if isinstance(dynamic_trait_delta, dict) else {}
+    pick_count = target.get("pick_prior_fight_count")
+    opponent_count = target.get("opponent_prior_fight_count")
+    context: dict[str, Any] = {
+        "layoff": {
+            "pick_days_since_last_fight": pick_layoff,
+            "opponent_days_since_last_fight": opponent_layoff,
+            "flag": None,
+        },
+        "damage_durability": {
+            "durability_risk_score_diff": deltas.get("durability_risk_score_diff"),
+            "defensive_exposure_score_diff": deltas.get("defensive_exposure_score_diff"),
+            "flag": None,
+        },
+        "five_round_uncertainty": {
+            "available": False,
+            "flag": "unknown_scheduled_rounds",
+            "note": "Dynamic MCP init does not yet receive scheduled rounds or main-event/title metadata.",
+        },
+        "cardio_uncertainty": {
+            "cardio_score_diff": deltas.get("cardio_score_diff"),
+            "validation_status": validation.get("cardio_score_diff", {}).get("status")
+            if isinstance(validation.get("cardio_score_diff"), dict)
+            else None,
+            "flag": None,
+        },
+        "small_sample_inflation": {
+            "pick_prior_fight_count": pick_count,
+            "opponent_prior_fight_count": opponent_count,
+            "flag": None,
+        },
+    }
+    labels: list[str] = []
+
+    if pick_layoff is None:
+        context["layoff"]["flag"] = "unknown_pick_layoff"
+        labels.append("layoff_unknown")
+    elif pick_layoff >= 540:
+        context["layoff"]["flag"] = "major_pick_layoff"
+        labels.append("major_pick_layoff")
+    elif pick_layoff >= 365:
+        context["layoff"]["flag"] = "pick_layoff"
+        labels.append("pick_layoff")
+    if opponent_layoff is not None and opponent_layoff >= 540:
+        labels.append("opponent_major_layoff_context")
+
+    durability_diff = deltas.get("durability_risk_score_diff")
+    exposure_diff = deltas.get("defensive_exposure_score_diff")
+    if isinstance(durability_diff, (int, float)) and durability_diff >= 10:
+        context["damage_durability"]["flag"] = "pick_higher_durability_risk"
+        labels.append("pick_higher_durability_risk")
+    elif isinstance(exposure_diff, (int, float)) and exposure_diff >= 10:
+        context["damage_durability"]["flag"] = "pick_higher_defensive_exposure"
+        labels.append("pick_higher_defensive_exposure")
+    elif durability_diff is None and exposure_diff is None:
+        context["damage_durability"]["flag"] = "durability_traits_missing"
+
+    cardio_diff = deltas.get("cardio_score_diff")
+    if isinstance(cardio_diff, (int, float)) and cardio_diff <= -10:
+        context["cardio_uncertainty"]["flag"] = "pick_cardio_disadvantage"
+        labels.append("pick_cardio_disadvantage")
+    elif cardio_diff is None:
+        context["cardio_uncertainty"]["flag"] = "cardio_traits_missing"
+        labels.append("cardio_context_missing")
+    elif abs(cardio_diff) < 5:
+        context["cardio_uncertainty"]["flag"] = "thin_cardio_separation"
+
+    counts = [count for count in (pick_count, opponent_count) if isinstance(count, int)]
+    if counts and min(counts) < 3:
+        context["small_sample_inflation"]["flag"] = "severe_small_sample"
+        labels.append("severe_small_sample")
+    elif counts and min(counts) < 5:
+        context["small_sample_inflation"]["flag"] = "small_sample"
+        labels.append("small_sample_inflation")
+    elif not counts:
+        context["small_sample_inflation"]["flag"] = "fight_counts_missing"
+
+    if analysis.get("market", {}).get("pricing_context", {}).get("pricing_context_degraded"):
+        labels.append("pricing_context_degraded")
+
+    return {
+        "labels": sorted(set(labels)),
+        "items": context,
+        "evidence_type": "dynamic_snapshot_risk_reconstruction",
+    }
+
+
+def _annotate_dynamic_nearest_examples(
+    packet: dict[str, Any],
+    *,
+    target: dict[str, Any],
+    dynamic_trait_delta: dict[str, Any] | None,
+    limit: int,
+) -> None:
+    nearest = packet.get("nearest_historical_examples")
+    items = nearest.get("items") if isinstance(nearest, dict) else None
+    if not isinstance(items, list):
+        return
+
+    target_market_profile = _market_profile(target.get("pick_odds"))
+    target_trait_profile = {
+        name: value
+        for name, value in (
+            dynamic_trait_delta.get("deltas", {}) if isinstance(dynamic_trait_delta, dict) else {}
+        ).items()
+        if isinstance(value, (int, float)) and abs(value) >= 10
+    }
+
+    annotated: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        example_market_profile = _market_profile(item.get("pick_odds"))
+        dimensions = {
+            "elo_gap_distance": _diff_abs(item.get("pick_elo_diff"), target.get("pick_elo_diff")),
+            "confidence_distance": _diff_abs(item.get("pick_prob"), target.get("pick_prob")),
+            "edge_distance": _diff_abs(item.get("edge"), target.get("edge")),
+            "market_profile": {
+                "target": target_market_profile,
+                "example": example_market_profile,
+                "matched": target_market_profile is not None and target_market_profile == example_market_profile,
+            },
+            "style_trait_profile": {
+                "target_large_trait_deltas": target_trait_profile,
+                "example_trait_fields_available": False,
+                "matched": None,
+            },
+        }
+        score_parts = [
+            (dimensions["confidence_distance"] or 0.0) * 3.0,
+            ((dimensions["elo_gap_distance"] or 0.0) / 300.0),
+            ((dimensions["edge_distance"] or 0.0) * 2.0),
+        ]
+        if dimensions["market_profile"]["matched"] is False:
+            score_parts.append(0.35)
+        item["retrieval_profile"] = {
+            "tuned_for": ["market_shape", "confidence", "elo_gap", "edge", "style_trait_context"],
+            "dimensions": dimensions,
+            "phase3_similarity_score": round(sum(score_parts), 4),
+            "note": (
+                "Historical examples are reranked by market/confidence/ELO proximity; "
+                "style traits are labeled when target traits are available but historical rows do not yet expose trait vectors."
+            ),
+        }
+        annotated.append(item)
+
+    annotated.sort(key=lambda row: row.get("retrieval_profile", {}).get("phase3_similarity_score", 999.0))
+    nearest["items"] = annotated[:limit]
+    nearest["retrieval_profile"] = {
+        "mode": "dynamic_future_rerank",
+        "requested_limit": limit,
+        "candidate_count": len(annotated),
+        "tuned_for": ["market_shape", "confidence", "elo_gap", "edge", "style_trait_context"],
     }
 
 
@@ -653,8 +985,8 @@ def _dynamic_packet_coverage(
         "pick_best_win_opponent_elo",
         "opponent_best_win_opponent_elo",
         "pick_opponent_quality_diff",
-        "pick_recent_opponent_quality_diff",
-        "pick_best_win_quality_diff",
+        "pick_recent3_opponent_quality_diff",
+        "pick_best_win_opponent_elo_diff",
     ]
     decline_fields = [
         "pick_current_vs_peak_decline",
@@ -704,7 +1036,11 @@ def _dynamic_packet_coverage(
             weight=12,
             score=opponent_quality_score,
             source="dynamic_fighter_snapshot",
-            evidence_type="partial_dynamic_reconstruction" if has_partial_opponent_quality and not has_full_opponent_quality else "historical_opponent_quality",
+            evidence_type=(
+                "dynamic_opponent_elo_reconstruction"
+                if has_full_opponent_quality
+                else "partial_dynamic_reconstruction"
+            ),
             fields=opponent_quality_fields + decline_fields,
             note=(
                 "Only decline/recent-fight fields were reconstructed; opponent-ELO quality metrics remain unavailable."
@@ -793,6 +1129,16 @@ def _materialized_dynamic_context_row(
         "model_agrees_with_elo",
         "pick_prior_fight_count",
         "opponent_prior_fight_count",
+        "pick_avg_prior_opponent_elo",
+        "opponent_avg_prior_opponent_elo",
+        "pick_recent3_prior_opponent_elo",
+        "opponent_recent3_prior_opponent_elo",
+        "pick_best_win_opponent_elo",
+        "opponent_best_win_opponent_elo",
+        "pick_opponent_quality_diff",
+        "pick_recent3_opponent_quality_diff",
+        "pick_best_win_opponent_elo_diff",
+        "opponent_quality_sample",
         "pick_current_vs_peak_decline",
         "opponent_current_vs_peak_decline",
         "pick_decline_diff",
@@ -842,11 +1188,12 @@ def _build_dynamic_context_packet(
     dynamic_reason: str,
     historical_lookup_error: str | None = None,
 ) -> dict[str, Any]:
+    nearest_candidate_limit = max(similar_limit, min(max(similar_limit * 3, similar_limit), 50))
     packet = build_packet(
         conn,
         target=target,
         candidate_count=candidate_count,
-        similar_limit=similar_limit,
+        similar_limit=nearest_candidate_limit,
         pool_path=pool_path,
     )
 
@@ -887,6 +1234,17 @@ def _build_dynamic_context_packet(
     packet["validation"] = analysis.get("validation")
     packet["dynamic_provenance"] = analysis.get("provenance")
     _label_dynamic_evidence(packet)
+    _annotate_dynamic_nearest_examples(
+        packet,
+        target=target,
+        dynamic_trait_delta=dynamic_trait_delta,
+        limit=similar_limit,
+    )
+    packet["matchup_risk_flags"] = _dynamic_matchup_risk_flags(
+        target,
+        analysis=analysis,
+        dynamic_trait_delta=dynamic_trait_delta,
+    )
     packet["coverage"] = _dynamic_packet_coverage(
         packet=packet,
         target=target,
@@ -900,12 +1258,22 @@ def _build_dynamic_context_packet(
     )
     packet["historical_examples"] = packet["nearest_historical_examples"]
     packet["evidence_chain"] = _evidence_chain_from_flags(packet["flags"])
+    packet["evidence_chain"]["concerns"].extend(
+        {
+            "code": label,
+            "source": "matchup_risk_flags",
+            "evidence_role": "risk_signal",
+        }
+        for label in packet["matchup_risk_flags"]["labels"]
+    )
     packet["evidence_chain"]["provenance"] = {
         "target_row": "dynamic_synthetic_target",
         "model_market": "init_fight_analysis",
         "historical_patterns": "context_pool evidence library",
         "historical_examples": "context_pool evidence library",
         "trait_deltas": packet["coverage"]["components"]["trait"]["evidence_type"],
+        "opponent_quality": packet["coverage"]["components"]["opponent_quality"]["evidence_type"],
+        "risk_flags": packet["matchup_risk_flags"]["evidence_type"],
     }
     return packet
 
