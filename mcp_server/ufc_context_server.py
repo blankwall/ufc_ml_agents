@@ -19,6 +19,8 @@ from typing import Any, Literal
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
+if str(ROOT_DIR / "fastapi_app") not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR / "fastapi_app"))
 
 from mcp.server.fastmcp import FastMCP
 
@@ -43,6 +45,7 @@ from backtest.historical_evidence import (
     get_historical_pattern_summary as build_historical_pattern_summary,
 )
 from backtest.elo_analysis import DEFAULT_ALIAS_SOURCES, load_aliases, normalize_name
+from fastapi_app.services.bet_evaluator import evaluate_bet_decision
 from fastapi_app.services.fighter_snapshot import build_fighter_snapshot
 
 from backtest.validate_combined_evidence import (
@@ -62,6 +65,7 @@ DEFAULT_CONTEXT_POOL = DEFAULT_POOL
 DEFAULT_TRAITS_DB = ROOT_DIR / "data" / "enrichment" / "trait_snapshots.sqlite"
 DEFAULT_SERGEY_DB = ROOT_DIR / "data" / "enrichment" / "sergey_sidecar.sqlite"
 FRAGILITY_CASES_FILE = ROOT_DIR / "analysis" / "fragility_cases.jsonl"
+BETTING_CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 SQLDatabase = Literal["context_pool", "trait_snapshots", "sergey_sidecar", "main"]
 
 mcp = FastMCP("ufc-context-analysis", json_response=True)
@@ -260,6 +264,174 @@ def _elo_implied_probability(elo_diff: float | None) -> float | None:
     if elo_diff is None:
         return None
     return round(1 / (1 + 10 ** (-float(elo_diff) / 400)), 4)
+
+
+def _american_to_prob(odds: int) -> float:
+    if odds == 0:
+        raise ValueError("American odds cannot be zero.")
+    if odds > 0:
+        return 100 / (odds + 100)
+    return abs(odds) / (abs(odds) + 100)
+
+
+def _prob_to_american(probability: float | None) -> int | None:
+    if probability is None or probability <= 0 or probability >= 1:
+        return None
+    if probability >= 0.5:
+        return int(round(-100 * probability / (1 - probability)))
+    return int(round(100 * (1 - probability) / probability))
+
+
+def _load_betting_config() -> dict[str, Any]:
+    if not BETTING_CONFIG_PATH.exists():
+        raise FileNotFoundError(f"Betting config not found: {BETTING_CONFIG_PATH}")
+    return json.loads(BETTING_CONFIG_PATH.read_text())
+
+
+def _edge_bucket_multiplier(
+    *,
+    edge: float,
+    is_wmma: bool | None,
+    decision_source: str | None,
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    if decision_source == "golden_elo_reopen":
+        return {
+            "multiplier": None,
+            "stake_units": None,
+            "reason": "Golden ELO reopen decisions do not currently map to edge-bucket sizing.",
+        }
+
+    multiplier = None
+    bucket = None
+    for candidate in config.get("edge_buckets", []):
+        if candidate["min_edge"] <= edge < candidate["max_edge"]:
+            bucket = candidate
+            if candidate.get("action") != "skip":
+                multiplier = candidate.get("multiplier")
+            break
+
+    wmma_rules = config.get("wmma_rules", {})
+    if is_wmma and wmma_rules.get("enabled"):
+        min_edge = wmma_rules.get("min_edge", 0.10)
+        if edge < min_edge:
+            multiplier = None
+        elif multiplier is not None:
+            multiplier = min(multiplier, wmma_rules.get("max_multiplier", 1.0))
+
+    base_unit = config.get("betting", {}).get("base_unit", 100)
+    return {
+        "multiplier": multiplier,
+        "stake_units": multiplier,
+        "stake_amount": None if multiplier is None else base_unit * multiplier,
+        "base_unit": base_unit,
+        "edge_bucket": bucket,
+        "wmma_rules_applied": bool(is_wmma and wmma_rules.get("enabled")),
+    }
+
+
+def _decision_label(
+    *,
+    bet: bool,
+    skip_code: str | None,
+    pricing_context: dict[str, Any],
+) -> str:
+    if pricing_context.get("pricing_context_degraded"):
+        return "wait_for_market"
+    if bet:
+        return "bet"
+    if skip_code in {"F2", "F3", "U2", "U3"}:
+        return "wait_for_better_line"
+    return "no_bet"
+
+
+def _line_sensitivity(
+    *,
+    pick_prob: float,
+    pick_market_prob: float,
+    pick_odds: int | None,
+    is_favorite: bool,
+    is_wmma: bool | None,
+    f1_count: int,
+    f2_count: int,
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    filters = config.get("filters", {})
+    wmma_rules = config.get("wmma_rules", {})
+    min_fights = filters.get("min_fights", 2)
+    if f1_count < min_fights or f2_count < min_fights:
+        return {
+            "available": False,
+            "reason": "line_cannot_fix_min_fights",
+            "model_fair_probability": round(pick_prob, 4),
+            "model_fair_price_american": _prob_to_american(pick_prob),
+        }
+
+    confidence_min = filters.get("favorite_confidence_min", 0.65) if is_favorite else filters.get("underdog_confidence_min", 0.53)
+    if pick_prob < confidence_min:
+        return {
+            "available": False,
+            "reason": "line_cannot_fix_model_confidence",
+            "required_confidence": confidence_min,
+            "model_pick_probability": round(pick_prob, 4),
+            "model_fair_probability": round(pick_prob, 4),
+            "model_fair_price_american": _prob_to_american(pick_prob),
+        }
+
+    required_edge = filters.get("edge_min", 0.04) if is_favorite else filters.get("underdog_edge_min", filters.get("edge_min", 0.04))
+    if is_wmma and wmma_rules.get("enabled"):
+        required_edge = max(required_edge, wmma_rules.get("min_edge", 0.10))
+
+    threshold_prob = pick_prob - required_edge
+    if threshold_prob <= 0:
+        return {
+            "available": False,
+            "reason": "line_cannot_create_required_edge",
+            "required_edge": round(required_edge, 4),
+            "model_pick_probability": round(pick_prob, 4),
+            "model_fair_probability": round(pick_prob, 4),
+            "model_fair_price_american": _prob_to_american(pick_prob),
+        }
+
+    odds_cap = filters.get("favorite_odds_cap", -300) if is_favorite else filters.get("underdog_odds_cap", 300)
+    cap_probability = _american_to_prob(odds_cap) if odds_cap else None
+    threshold_odds = _prob_to_american(threshold_prob)
+    current_edge = pick_prob - pick_market_prob
+
+    if is_favorite:
+        bettable_range = {
+            "market_probability_max": round(threshold_prob, 4),
+            "price_or_better": threshold_odds,
+            "favorite_odds_cap": odds_cap,
+        }
+        if cap_probability is not None and threshold_prob > cap_probability:
+            bettable_range["effective_market_probability_max"] = round(cap_probability, 4)
+            bettable_range["effective_price_or_better"] = odds_cap
+    else:
+        bettable_range = {
+            "market_probability_min": round(cap_probability, 4) if cap_probability is not None else None,
+            "market_probability_max": round(min(threshold_prob, 0.4999), 4),
+            "price_or_better": threshold_odds,
+            "underdog_odds_cap": odds_cap,
+        }
+
+    return {
+        "available": True,
+        "model_fair_probability": round(pick_prob, 4),
+        "model_fair_price_american": _prob_to_american(pick_prob),
+        "break_even_market_probability": round(pick_prob, 4),
+        "current_market_probability": round(pick_market_prob, 4),
+        "current_pick_odds": pick_odds,
+        "current_edge": round(current_edge, 4),
+        "required_edge": round(required_edge, 4),
+        "bettable_market_probability_max": round(threshold_prob, 4),
+        "bettable_price_american_or_better": threshold_odds,
+        "bettable_range": bettable_range,
+        "interpretation": (
+            f"Current line needs market probability at or below {threshold_prob:.1%} "
+            f"({threshold_odds} or better) for this pick to clear config edge rules."
+        ),
+    }
 
 
 def _metric_delta_payload(analysis: dict[str, Any]) -> dict[str, Any] | None:
@@ -1216,6 +1388,136 @@ def init_fight_analysis(
         fighter1_odds=fighter1_odds,
         fighter2_odds=fighter2_odds,
     )
+
+
+@mcp.tool()
+def get_bet_decision(
+    fighter1: str,
+    fighter2: str,
+    fight_date: str | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
+) -> dict[str, Any]:
+    """Return config-backed bet/no-bet/wait decision plus line sensitivity."""
+    config = _load_betting_config()
+    target, _, analysis = _dynamic_synthetic_target(
+        fighter1=fighter1,
+        fighter2=fighter2,
+        date=fight_date,
+        fighter1_odds=fighter1_odds,
+        fighter2_odds=fighter2_odds,
+    )
+    prediction = analysis["prediction"]
+    pick = prediction["pick"]
+    pick_slot = pick["slot"]
+    pick_odds = target.get("pick_odds")
+    pick_market_prob = pick["market_probability"]
+    market = analysis["market"]
+    pricing_context = market.get("pricing_context") or {}
+    metadata = prediction.get("fighter_metadata") or {}
+    f1_count = metadata.get("fighter1", {}).get("fight_count_as_of") or 0
+    f2_count = metadata.get("fighter2", {}).get("fight_count_as_of") or 0
+    is_wmma = metadata.get("is_wmma")
+    is_favorite = pick_odds < 0 if pick_odds is not None else pick_market_prob >= 0.5
+    resolution = analysis.get("resolution") or {}
+    fight_date_payload = resolution.get("fight_date") or {}
+    as_of_date = fight_date_payload.get("parsed") or fight_date
+
+    bet_eval = evaluate_bet_decision(
+        fighter1_name=target["fighter1"],
+        fighter2_name=target["fighter2"],
+        pick_slot=pick_slot,
+        pick_model_prob=pick["probability"],
+        pick_mkt_prob=pick_market_prob,
+        pick_odds=pick_odds,
+        is_favorite=is_favorite,
+        is_wmma=is_wmma,
+        f1_count=f1_count,
+        f2_count=f2_count,
+        filters=config.get("filters", {}),
+        wmma_rules=config.get("wmma_rules", {}),
+        as_of_date=as_of_date,
+    )
+    edge = pick["probability"] - pick_market_prob
+    decision = _decision_label(
+        bet=bool(bet_eval.get("bet")),
+        skip_code=bet_eval.get("skip_code"),
+        pricing_context=pricing_context,
+    )
+    stake = _edge_bucket_multiplier(
+        edge=edge,
+        is_wmma=is_wmma,
+        decision_source=bet_eval.get("decision_source"),
+        config=config,
+    ) if decision == "bet" else {
+        "multiplier": None,
+        "stake_units": None,
+        "stake_amount": None,
+        "base_unit": config.get("betting", {}).get("base_unit", 100),
+        "reason": "No stake because current config decision is not bet.",
+    }
+    line_sensitivity = _line_sensitivity(
+        pick_prob=pick["probability"],
+        pick_market_prob=pick_market_prob,
+        pick_odds=pick_odds,
+        is_favorite=is_favorite,
+        is_wmma=is_wmma,
+        f1_count=f1_count,
+        f2_count=f2_count,
+        config=config,
+    )
+
+    return {
+        "status": "ok",
+        "tool_version": "mcp_bet_decision_v1",
+        "decision": decision,
+        "bet": decision == "bet",
+        "raw_evaluator_bet": bet_eval.get("bet"),
+        "wait_reason": decision if decision.startswith("wait") else None,
+        "skip_code": bet_eval.get("skip_code"),
+        "skip_reason": bet_eval.get("skip_reason"),
+        "decision_source": bet_eval.get("decision_source"),
+        "review_bucket": bet_eval.get("review_bucket"),
+        "review_tier": bet_eval.get("review_tier"),
+        "review_label": bet_eval.get("review_label"),
+        "request": analysis.get("request"),
+        "target": {
+            "fighter1": target["fighter1"],
+            "fighter2": target["fighter2"],
+            "date": target["date"],
+            "pick": target["pick"],
+            "pick_slot": pick_slot,
+        },
+        "model_market": {
+            "pick_probability": pick["probability"],
+            "pick_probability_pct": pick["probability_pct"],
+            "market_probability": pick_market_prob,
+            "market_probability_pct": pick["market_probability_pct"],
+            "edge": round(edge, 4),
+            "edge_pct": round(edge * 100, 1),
+            "pick_odds": pick_odds,
+            "is_favorite": is_favorite,
+        },
+        "market": {
+            "odds": market.get("odds"),
+            "provenance": market.get("provenance"),
+            "pricing_context": pricing_context,
+        },
+        "config": {
+            "path": display_path(BETTING_CONFIG_PATH),
+            "model": config.get("model"),
+            "filters": config.get("filters", {}),
+            "wmma_rules": config.get("wmma_rules", {}),
+            "edge_buckets": config.get("edge_buckets", []),
+        },
+        "stake": stake,
+        "line_sensitivity": line_sensitivity,
+        "fighter_metadata": metadata,
+        "notes": [
+            "Decision uses the live betting config and app bet evaluator.",
+            "Line sensitivity is config-edge math; it does not override low-confidence or thin-data skips.",
+        ],
+    }
 
 
 @mcp.tool()

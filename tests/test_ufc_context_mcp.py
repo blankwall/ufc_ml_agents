@@ -19,9 +19,12 @@ from mcp_server.ufc_context_server import (
     get_fight_style_flags,
     get_fighter_elo_history,
     get_context_packet,
+    get_bet_decision,
     query_fragility_cases,
     resolve_whitelisted_file,
     _parse_elo_window,
+    _line_sensitivity,
+    _prob_to_american,
 )
 
 
@@ -99,6 +102,247 @@ def test_query_fragility_cases_supports_text_and_date_range(monkeypatch, tmp_pat
 
     assert result["matched_cases"] == 1
     assert result["cases"][0]["fight_id"] == "old"
+
+
+def test_prob_to_american_converts_favorites_and_dogs():
+    assert _prob_to_american(0.60) == -150
+    assert _prob_to_american(0.40) == 150
+    assert _prob_to_american(0.0) is None
+    assert _prob_to_american(1.0) is None
+
+
+def test_line_sensitivity_returns_bettable_thresholds():
+    config = {
+        "filters": {
+            "min_fights": 2,
+            "edge_min": 0.04,
+            "underdog_edge_min": 0.05,
+            "favorite_confidence_min": 0.65,
+            "underdog_confidence_min": 0.53,
+            "favorite_odds_cap": -300,
+            "underdog_odds_cap": 300,
+        },
+        "wmma_rules": {"enabled": True, "min_edge": 0.10, "max_multiplier": 1.0},
+    }
+
+    result = _line_sensitivity(
+        pick_prob=0.70,
+        pick_market_prob=0.68,
+        pick_odds=-213,
+        is_favorite=True,
+        is_wmma=False,
+        f1_count=8,
+        f2_count=9,
+        config=config,
+    )
+
+    assert result["available"] is True
+    assert result["model_fair_price_american"] == -233
+    assert result["required_edge"] == 0.04
+    assert result["bettable_market_probability_max"] == 0.66
+    assert result["bettable_price_american_or_better"] == -194
+
+
+def test_line_sensitivity_marks_confidence_as_not_price_fixable():
+    config = {
+        "filters": {
+            "min_fights": 2,
+            "edge_min": 0.04,
+            "underdog_edge_min": 0.05,
+            "favorite_confidence_min": 0.65,
+            "underdog_confidence_min": 0.53,
+            "favorite_odds_cap": -300,
+            "underdog_odds_cap": 300,
+        },
+        "wmma_rules": {"enabled": True, "min_edge": 0.10, "max_multiplier": 1.0},
+    }
+
+    result = _line_sensitivity(
+        pick_prob=0.61,
+        pick_market_prob=0.50,
+        pick_odds=-110,
+        is_favorite=True,
+        is_wmma=False,
+        f1_count=8,
+        f2_count=9,
+        config=config,
+    )
+
+    assert result["available"] is False
+    assert result["reason"] == "line_cannot_fix_model_confidence"
+    assert result["required_confidence"] == 0.65
+
+
+def test_get_bet_decision_uses_config_and_app_evaluator(monkeypatch):
+    config = {
+        "model": "mar_4_v2",
+        "filters": {
+            "min_fights": 2,
+            "edge_min": 0.04,
+            "underdog_edge_min": 0.05,
+            "favorite_confidence_min": 0.65,
+            "underdog_confidence_min": 0.53,
+            "favorite_odds_cap": -300,
+            "underdog_odds_cap": 300,
+        },
+        "wmma_rules": {"enabled": True, "min_edge": 0.10, "max_multiplier": 1.0},
+        "edge_buckets": [
+            {"min_edge": 0.00, "max_edge": 0.05, "action": "skip"},
+            {"min_edge": 0.05, "max_edge": 0.10, "multiplier": 1.0},
+            {"min_edge": 0.10, "max_edge": 0.20, "multiplier": 1.5},
+            {"min_edge": 0.20, "max_edge": 1.00, "multiplier": 2.0},
+        ],
+        "betting": {"base_unit": 100},
+    }
+    monkeypatch.setattr(context_server, "_load_betting_config", lambda: config)
+    monkeypatch.setattr(
+        context_server,
+        "_dynamic_synthetic_target",
+        lambda **_kwargs: (
+            {
+                "fighter1": "A",
+                "fighter2": "B",
+                "date": "2026-07-12",
+                "pick": "A",
+                "pick_odds": 120,
+            },
+            None,
+            {
+                "request": {"fighter1": "A", "fighter2": "B", "fight_date": "2026-07-12"},
+                "resolution": {"fight_date": {"parsed": "2026-07-12"}},
+                "market": {
+                    "odds": {"fighter1": 120, "fighter2": -140},
+                    "provenance": {"source": "supplied"},
+                    "pricing_context": {"pricing_context_degraded": False},
+                },
+                "prediction": {
+                    "pick": {
+                        "slot": "fighter1",
+                        "probability": 0.58,
+                        "probability_pct": 58.0,
+                        "market_probability": 0.455,
+                        "market_probability_pct": 45.5,
+                    },
+                    "fighter_metadata": {
+                        "is_wmma": False,
+                        "fighter1": {"fight_count_as_of": 8},
+                        "fighter2": {"fight_count_as_of": 10},
+                    },
+                },
+            },
+        ),
+    )
+    captured = {}
+
+    def fake_evaluate(**kwargs):
+        captured.update(kwargs)
+        return {
+            "bet": True,
+            "skip_code": None,
+            "skip_reason": None,
+            "decision_source": "static_config",
+            "review_bucket": None,
+            "review_tier": None,
+            "review_label": None,
+        }
+
+    monkeypatch.setattr(context_server, "evaluate_bet_decision", fake_evaluate)
+
+    result = get_bet_decision("A", "B", fight_date="2026-07-12", fighter1_odds=120, fighter2_odds=-140)
+
+    assert result["decision"] == "bet"
+    assert result["stake"]["multiplier"] == 1.5
+    assert result["stake"]["stake_amount"] == 150
+    assert result["model_market"]["edge"] == 0.125
+    assert result["line_sensitivity"]["available"] is True
+    assert captured["fighter1_name"] == "A"
+    assert captured["fighter2_name"] == "B"
+    assert captured["pick_slot"] == "fighter1"
+    assert captured["pick_model_prob"] == 0.58
+    assert captured["pick_mkt_prob"] == 0.455
+    assert captured["pick_odds"] == 120
+    assert captured["is_favorite"] is False
+    assert captured["f1_count"] == 8
+    assert captured["f2_count"] == 10
+    assert captured["as_of_date"] == "2026-07-12"
+
+
+def test_get_bet_decision_waits_when_market_is_missing(monkeypatch):
+    config = {
+        "model": "mar_4_v2",
+        "filters": {
+            "min_fights": 2,
+            "edge_min": 0.04,
+            "underdog_edge_min": 0.05,
+            "favorite_confidence_min": 0.65,
+            "underdog_confidence_min": 0.53,
+            "favorite_odds_cap": -300,
+            "underdog_odds_cap": 300,
+        },
+        "wmma_rules": {"enabled": True, "min_edge": 0.10, "max_multiplier": 1.0},
+        "edge_buckets": [{"min_edge": 0.00, "max_edge": 1.00, "multiplier": 1.0}],
+        "betting": {"base_unit": 100},
+    }
+    monkeypatch.setattr(context_server, "_load_betting_config", lambda: config)
+    monkeypatch.setattr(
+        context_server,
+        "_dynamic_synthetic_target",
+        lambda **_kwargs: (
+            {
+                "fighter1": "A",
+                "fighter2": "B",
+                "date": "2026-07-12",
+                "pick": "A",
+                "pick_odds": None,
+            },
+            None,
+            {
+                "request": {"fighter1": "A", "fighter2": "B", "fight_date": "2026-07-12"},
+                "resolution": {"fight_date": {"parsed": "2026-07-12"}},
+                "market": {
+                    "odds": {"fighter1": None, "fighter2": None},
+                    "provenance": {"source": "neutral_line_default"},
+                    "pricing_context": {"pricing_context_degraded": True, "market_missing": True},
+                },
+                "prediction": {
+                    "pick": {
+                        "slot": "fighter1",
+                        "probability": 0.58,
+                        "probability_pct": 58.0,
+                        "market_probability": 0.50,
+                        "market_probability_pct": 50.0,
+                    },
+                    "fighter_metadata": {
+                        "is_wmma": False,
+                        "fighter1": {"fight_count_as_of": 8},
+                        "fighter2": {"fight_count_as_of": 10},
+                    },
+                },
+            },
+        ),
+    )
+    monkeypatch.setattr(
+        context_server,
+        "evaluate_bet_decision",
+        lambda **_kwargs: {
+            "bet": True,
+            "skip_code": None,
+            "skip_reason": None,
+            "decision_source": "static_config",
+            "review_bucket": None,
+            "review_tier": None,
+            "review_label": None,
+        },
+    )
+
+    result = get_bet_decision("A", "B", fight_date="2026-07-12")
+
+    assert result["decision"] == "wait_for_market"
+    assert result["bet"] is False
+    assert result["raw_evaluator_bet"] is True
+    assert result["wait_reason"] == "wait_for_market"
+    assert result["market"]["pricing_context"]["market_missing"] is True
+    assert result["stake"]["multiplier"] is None
 
 
 def test_get_age_experience_context_returns_direct_buckets(monkeypatch):
