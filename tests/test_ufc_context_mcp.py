@@ -322,13 +322,94 @@ def test_missing_context_target_raises_value_error_instead_of_exiting():
         )
 
 
-def test_get_context_packet_missing_target_raises_value_error_instead_of_exiting():
-    with pytest.raises(ValueError, match="No context-pool row found"):
-        get_context_packet(
-            fighter1="Alex Perez",
-            fighter2="Su Mudaerji",
-            date="2026-05-30",
-        )
+def test_get_context_packet_missing_target_returns_dynamic_packet(monkeypatch):
+    captured = {}
+
+    def fake_dynamic_target(**kwargs):
+        captured.update(kwargs)
+        target = {
+            "id": "dynamic:alpha:beta:2026-05-30",
+            "season": 2026,
+            "date": "2026-05-30",
+            "fighter1": "Alpha Fighter",
+            "fighter2": "Beta Fighter",
+            "pick": "Alpha Fighter",
+            "winner": None,
+            "pick_correct": None,
+            "actual_pnl": None,
+            "pick_prob": 0.58,
+            "pick_odds": 120,
+            "market_implied_prob": 0.455,
+            "edge": 0.125,
+            "bet": None,
+            "skip_reason": "dynamic_synthetic_target_no_config_decision",
+            "fighter1_elo": 1325,
+            "fighter2_elo": 1210,
+            "pick_elo": 1325,
+            "opponent_elo": 1210,
+            "pick_elo_diff": 115,
+            "abs_elo_diff": 115,
+            "model_agrees_with_elo": True,
+            "join_status": "matched",
+            "join_method": "dynamic_fighter_snapshot",
+            "elo_implied_prob": 0.6598,
+            "model_minus_elo_prob": -0.0798,
+            "market_minus_elo_prob": -0.2048,
+            "model_market_elo_triangle": "model_and_market_under_elo",
+        }
+        analysis = {
+            "request": {
+                "fighter1": "Alpha Fighter",
+                "fighter2": "Beta Fighter",
+                "fight_date": "2026-05-30",
+                "fighter1_odds": 120,
+                "fighter2_odds": -140,
+            },
+            "resolution": {"fight_date": {"parsed": "2026-05-30"}},
+            "validation": {"ok": True, "warnings": []},
+            "market": {
+                "odds": {"fighter1": 120, "fighter2": -140},
+                "provenance": {"source": "user_input"},
+                "pricing_context": {
+                    "has_real_market": True,
+                    "has_two_sided_market": True,
+                    "market_missing": False,
+                    "pricing_context_degraded": False,
+                    "edge_type": "market_edge",
+                    "market_completeness": "two_sided_market",
+                    "warning_codes": [],
+                },
+            },
+            "prediction": {"pick": {"fighter_name": "Alpha Fighter", "probability": 0.58}},
+            "fighters": {"fighter1": {}, "fighter2": {}},
+            "provenance": {"source": "pytest"},
+        }
+        return target, None, analysis
+
+    monkeypatch.setattr(context_server, "_dynamic_synthetic_target", fake_dynamic_target)
+
+    result = get_context_packet(
+        fighter1="No Context Alpha",
+        fighter2="No Context Beta",
+        date="2026-05-30",
+        fighter1_odds=120,
+        fighter2_odds=-140,
+    )
+
+    assert result["packet_type"] == "dynamic_future_fight"
+    assert result["source"]["dynamic_reason"] == "missing_context_pool_row"
+    assert result["source"]["exact_context_pool_row"] is False
+    assert result["source"]["historical_pool_role"] == "evidence_library"
+    assert result["pricing_context"]["edge_type"] == "market_edge"
+    assert result["model_market"]["market_provenance"]["source"] == "user_input"
+    assert "historical_lookup_error" in result["source"]
+    assert captured == {
+        "fighter1": "No Context Alpha",
+        "fighter2": "No Context Beta",
+        "date": "2026-05-30",
+        "fighter1_odds": 120,
+        "fighter2_odds": -140,
+    }
 
 
 @skip_no_main_db

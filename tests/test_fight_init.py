@@ -85,6 +85,8 @@ def test_init_fight_analysis_builds_structured_payload(monkeypatch):
     assert result["resolution"]["fighter1"]["resolved_name"] == "King Green"
     assert result["resolution"]["fight_date"]["parsed"] == "2025-05-10"
     assert result["market"]["normalization_method"] == "vig_normalized"
+    assert result["market"]["pricing_context"]["edge_type"] == "market_edge"
+    assert result["market"]["pricing_context"]["pricing_context_degraded"] is False
     assert result["market"]["normalized_probabilities_pct"]["fighter1"] == 43.8
     assert result["prediction"]["pick"]["slot"] == "fighter1"
     assert result["prediction"]["pick"]["edge_pct"] == 17.2
@@ -131,6 +133,9 @@ def test_init_fight_analysis_reports_unresolved_fighters(monkeypatch):
     assert result["resolution"]["fighter1"]["resolved"] is False
     assert result["resolution"]["fighter2"]["resolved"] is False
     assert result["fighters"] is None
+    assert result["market"]["pricing_context"]["market_missing"] is True
+    assert result["market"]["pricing_context"]["edge_type"] == "neutral_line_edge"
+    assert any(warning["code"] == "market_missing" for warning in result["validation"]["warnings"])
     assert result["provenance"]["steps"]["fighter_resolution"] == "completed"
 
 
@@ -209,6 +214,22 @@ def test_init_fight_analysis_falls_back_to_app_odds_lookup(monkeypatch):
     assert result["market"]["odds"]["fighter2"] == -110
     assert result["market"]["provenance"]["source"] == "app_odds_lookup"
     assert result["market"]["provenance"]["lookup"]["source_file"] == "the_odds_api_new_events.csv"
+    assert result["market"]["pricing_context"]["pricing_context_degraded"] is False
+
+
+def test_normalize_market_odds_marks_neutral_line_as_degraded():
+    result = fight_init.normalize_market_odds(None, None)
+
+    assert result["normalization_method"] == "even_money_default"
+    assert result["pricing_context"] == {
+        "has_real_market": False,
+        "has_two_sided_market": False,
+        "market_missing": True,
+        "pricing_context_degraded": True,
+        "edge_type": "neutral_line_edge",
+        "market_completeness": "missing_market",
+        "warning_codes": ["market_missing", "pricing_context_degraded"],
+    }
 
 
 def test_mcp_tool_forwards_to_helper(monkeypatch):

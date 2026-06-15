@@ -245,8 +245,10 @@ def normalize_market_odds(
     normalized_f1 = normalized_f2 = 0.5
     method = "even_money_default"
     warnings: list[str] = []
+    has_any_market = fighter1_odds is not None or fighter2_odds is not None
+    has_two_sided_market = fighter1_odds is not None and fighter2_odds is not None
 
-    if fighter1_odds is not None and fighter2_odds is not None:
+    if has_two_sided_market:
         raw_f1 = _american_to_prob(fighter1_odds)
         raw_f2 = _american_to_prob(fighter2_odds)
         vig = raw_f1 + raw_f2
@@ -271,12 +273,25 @@ def normalize_market_odds(
         warnings.append("No odds provided; defaulted market probabilities to 50/50.")
         vig = None
 
+    if has_two_sided_market:
+        market_completeness = "two_sided_market"
+    elif has_any_market:
+        market_completeness = "single_sided_market"
+    else:
+        market_completeness = "missing_market"
+    pricing_context_degraded = not has_two_sided_market
+    warning_codes = []
+    if not has_any_market:
+        warning_codes.append("market_missing")
+    if pricing_context_degraded:
+        warning_codes.append("pricing_context_degraded")
+
     return {
         "odds": {
             "fighter1": fighter1_odds,
             "fighter2": fighter2_odds,
         },
-        "has_market_odds": fighter1_odds is not None or fighter2_odds is not None,
+        "has_market_odds": has_any_market,
         "normalization_method": method,
         "raw_implied_probabilities": {
             "fighter1": _round_prob(raw_f1),
@@ -293,6 +308,15 @@ def normalize_market_odds(
         "overround": _round_prob(vig),
         "overround_pct": _round_pct(vig - 1.0) if vig is not None else None,
         "warnings": warnings,
+        "pricing_context": {
+            "has_real_market": has_any_market,
+            "has_two_sided_market": has_two_sided_market,
+            "market_missing": not has_any_market,
+            "pricing_context_degraded": pricing_context_degraded,
+            "edge_type": "market_edge" if has_any_market else "neutral_line_edge",
+            "market_completeness": market_completeness,
+            "warning_codes": warning_codes,
+        },
         "provenance": {
             "source": "user_input",
             "normalizer": "mcp_server.fight_init.normalize_market_odds",
@@ -415,7 +439,8 @@ def init_fight_analysis(
             market["provenance"]["lookup"] = market_lookup
         market["odds"] = {"fighter1": resolved_f1_odds, "fighter2": resolved_f2_odds}
         for warning in market["warnings"]:
-            warnings.append(_issue("market_input", warning, field="odds"))
+            code = "market_missing" if market["pricing_context"]["market_missing"] else "market_input"
+            warnings.append(_issue(code, warning, field="odds"))
     except ValueError as exc:
         errors.append(_issue("invalid_odds", str(exc), field="odds"))
 

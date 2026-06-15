@@ -391,6 +391,94 @@ def _dynamic_synthetic_target(
     return target, _metric_delta_payload(analysis), analysis
 
 
+def _target_should_use_dynamic_packet(target: dict[str, Any]) -> bool:
+    if target.get("pick_correct") is None:
+        return True
+
+    target_date = target.get("date")
+    if not isinstance(target_date, str):
+        return False
+    try:
+        parsed = datetime.strptime(target_date, "%Y-%m-%d").date()
+    except ValueError:
+        return False
+    return parsed > datetime.now().date()
+
+
+def _evidence_chain_from_flags(flags: dict[str, list[str]]) -> dict[str, Any]:
+    return {
+        "support": [
+            {"code": code, "source": "context_packet.flags", "evidence_role": "context_signal"}
+            for code in flags.get("support", [])
+        ],
+        "concerns": [
+            {"code": code, "source": "context_packet.flags", "evidence_role": "risk_signal"}
+            for code in flags.get("risk", [])
+        ],
+    }
+
+
+def _build_dynamic_context_packet(
+    conn: sqlite3.Connection,
+    *,
+    target: dict[str, Any],
+    dynamic_trait_delta: dict[str, Any] | None,
+    analysis: dict[str, Any],
+    candidate_count: int,
+    similar_limit: int,
+    pool_path: Path,
+    dynamic_reason: str,
+    historical_lookup_error: str | None = None,
+) -> dict[str, Any]:
+    packet = build_packet(
+        conn,
+        target=target,
+        candidate_count=candidate_count,
+        similar_limit=similar_limit,
+        pool_path=pool_path,
+    )
+
+    patterns = packet["matching_patterns"]["items"]
+    packet["packet_type"] = "dynamic_future_fight"
+    packet["source"].update(
+        {
+            "target_source": "init_fight_analysis",
+            "historical_pool_role": "evidence_library",
+            "exact_context_pool_row": False,
+            "dynamic_reason": dynamic_reason,
+        }
+    )
+    if historical_lookup_error is not None:
+        packet["source"]["historical_lookup_error"] = historical_lookup_error
+
+    if dynamic_trait_delta is not None:
+        packet["trait_deltas_v0"] = dynamic_trait_delta
+        packet["flags"] = build_flags(target, patterns, dynamic_trait_delta)
+        packet["pattern_score_v0"] = build_pattern_score(target, patterns)
+
+    market = analysis.get("market") or {}
+    pricing_context = market.get("pricing_context") or {}
+    packet["model_market"].update(
+        {
+            "edge_type": pricing_context.get("edge_type"),
+            "pricing_context_degraded": pricing_context.get("pricing_context_degraded"),
+            "market_missing": pricing_context.get("market_missing"),
+            "market_provenance": market.get("provenance"),
+        }
+    )
+    packet["request"] = analysis.get("request")
+    packet["resolution"] = analysis.get("resolution")
+    packet["market"] = market
+    packet["model"] = analysis.get("prediction")
+    packet["fighters"] = analysis.get("fighters")
+    packet["pricing_context"] = pricing_context
+    packet["validation"] = analysis.get("validation")
+    packet["dynamic_provenance"] = analysis.get("provenance")
+    packet["historical_examples"] = packet["nearest_historical_examples"]
+    packet["evidence_chain"] = _evidence_chain_from_flags(packet["flags"])
+    return packet
+
+
 def _historical_elo_fighter_neighbors(
     *,
     target_snapshot: dict[str, Any],
@@ -969,6 +1057,8 @@ def get_context_packet(
     fighter2: str,
     date: str | None = None,
     season: int | None = None,
+    fighter1_odds: int | None = None,
+    fighter2_odds: int | None = None,
     similar_limit: int = 10,
 ) -> dict[str, Any]:
     """Build the deterministic context packet for one fight."""
@@ -977,6 +1067,7 @@ def get_context_packet(
     pool_path = resolve_database_path("context_pool")
     conn = readonly_connection(pool_path)
     try:
+        historical_lookup_error = None
         try:
             target, candidate_count = find_target(
                 conn,
@@ -987,13 +1078,45 @@ def get_context_packet(
                 aliases=aliases(),
             )
         except SystemExit as exc:
-            raise ValueError(str(exc)) from None
-        return build_packet(
+            target = None
+            candidate_count = 0
+            historical_lookup_error = str(exc)
+
+        if target is not None and not _target_should_use_dynamic_packet(target):
+            packet = build_packet(
+                conn,
+                target=target,
+                candidate_count=candidate_count,
+                similar_limit=similar_limit,
+                pool_path=pool_path,
+            )
+            packet["packet_type"] = "historical_context_pool"
+            packet["source"].update(
+                {
+                    "target_source": "context_pool",
+                    "historical_pool_role": "target_and_evidence_library",
+                    "exact_context_pool_row": True,
+                }
+            )
+            return packet
+
+        dynamic_target, dynamic_trait_delta, analysis = _dynamic_synthetic_target(
+            fighter1=fighter1,
+            fighter2=fighter2,
+            date=date,
+            fighter1_odds=fighter1_odds,
+            fighter2_odds=fighter2_odds,
+        )
+        return _build_dynamic_context_packet(
             conn,
-            target=target,
+            target=dynamic_target,
+            dynamic_trait_delta=dynamic_trait_delta,
+            analysis=analysis,
             candidate_count=candidate_count,
             similar_limit=similar_limit,
             pool_path=pool_path,
+            dynamic_reason="missing_context_pool_row" if target is None else "pending_or_future_context_row",
+            historical_lookup_error=historical_lookup_error,
         )
     finally:
         conn.close()
