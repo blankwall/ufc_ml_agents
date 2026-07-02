@@ -36,10 +36,9 @@ FIGHTER_ALIASES: dict[str, str] = {
     "Sergey Pavlovich": "Sergei Pavlovich",
     "Mingyang Zhang": "Zhang Mingyang",
     "Su Mudaerji": "Sumudaerji",
-    "José Henrique": "Jose Souza",
+    "José Henrique": "Jose Henrique",
     "Meng Ding": "Ding Meng",
     "Aori Qileng": "Aoriqileng",
-    "Jingnan Xiong": "Xiong Jingnan",
     "Kangjie Zhu": "Zhu Kangjie",
     "Luis Dias de Assis": "Luis Felipe Dias",
 }
