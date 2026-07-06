@@ -147,6 +147,20 @@ def _predict_explanation(bet_eval: dict) -> str | None:
     return None
 
 
+def _minimize_historical_context(context: dict) -> dict:
+    primary = context.get("primary_bucket")
+    if not isinstance(primary, dict):
+        return context
+
+    return {
+        "primary_bucket": {
+            key: primary.get(key)
+            for key in ("label", "sample_size", "wins", "losses", "win_rate", "roi")
+            if key in primary
+        }
+    }
+
+
 # ── endpoint ──────────────────────────────────────────────────────────────────
 
 @router.post("/predict")
@@ -239,6 +253,7 @@ async def predict_fight(req: PredictRequest):
             pick_odds=pick_odds_int,
             is_wmma=is_wmma,
         )
+        historical_context = _minimize_historical_context(historical_context)
         decision = _predict_decision_label(bet_eval)
         explanation = _predict_explanation(bet_eval)
 

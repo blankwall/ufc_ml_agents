@@ -45,7 +45,20 @@ def _patch_predict_dependencies(monkeypatch, *, model_prob: float, bet_eval: dic
         predict_router,
         "describe_historical_context",
         lambda **_kwargs: {
-            "primary_bucket": {"label": "Primary", "sample_size": 12, "win_rate": 66.7, "roi": 18.4},
+            "primary_bucket": {
+                "label": "Primary",
+                "source": "backtest_2025_2026",
+                "criteria": [{"field": "side", "value": "favorite"}],
+                "sample_size": 12,
+                "wins": 8,
+                "losses": 4,
+                "win_rate": 66.7,
+                "roi": 18.4,
+                "profit": 2.2,
+                "avg_model_prob": 61.4,
+                "avg_edge": 5.1,
+                "avg_pick_odds": -150.0,
+            },
         },
     )
 
@@ -68,8 +81,16 @@ def test_predict_response_is_minimized_and_static_config_only(monkeypatch):
         )
     )
 
-    assert result["historical_context"]["primary_bucket"]["sample_size"] == 12
-    assert set(result["historical_context"]) == {"primary_bucket"}
+    assert result["historical_context"] == {
+        "primary_bucket": {
+            "label": "Primary",
+            "sample_size": 12,
+            "wins": 8,
+            "losses": 4,
+            "win_rate": 66.7,
+            "roi": 18.4,
+        }
+    }
     assert result["decision"] == "Bet"
     assert result["explanation"] == "Bet: the model clears the current betting rules."
     assert result["skip_reason"] is None
