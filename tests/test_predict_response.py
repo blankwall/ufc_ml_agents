@@ -1,6 +1,5 @@
 import asyncio
 import sys
-from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -16,13 +15,13 @@ class _DummySession:
         return None
 
 
-def test_predict_response_hides_internal_confidence_metadata(monkeypatch):
+def _patch_predict_dependencies(monkeypatch, *, model_prob: float, bet_eval: dict):
     monkeypatch.setattr(predict_router, "_Session", lambda: _DummySession())
     monkeypatch.setattr(
         predict_router,
         "_resolve_fighter",
         lambda _session, name: SimpleNamespace(
-            id=1 if "Alex" in name else 2,
+            id=1 if "Alex" in name or "Victor" in name else 2,
             name=name,
             wins=10,
             losses=2,
@@ -33,7 +32,7 @@ def test_predict_response_hides_internal_confidence_metadata(monkeypatch):
     monkeypatch.setattr(
         predict_router,
         "_score_row",
-        lambda *_args, **_kwargs: {"model_prob_f1": 0.578, "model_source": "general"},
+        lambda *_args, **_kwargs: {"model_prob_f1": model_prob, "model_source": "general"},
     )
     monkeypatch.setattr(
         predict_router,
@@ -41,26 +40,21 @@ def test_predict_response_hides_internal_confidence_metadata(monkeypatch):
         lambda _session, fighter_id, _as_of: 5 if fighter_id == 1 else 7,
     )
     monkeypatch.setattr(predict_router, "_matchup_wmma_flag", lambda *_args, **_kwargs: False)
-    monkeypatch.setattr(
-        predict_router,
-        "_evaluate_bet",
-        lambda **_kwargs: {
-            "bet": True,
-            "skip_code": None,
-            "skip_reason": None,
-            "decision_source": "golden_elo_reopen",
-            "review_bucket": "golden_elo_not_expensive",
-            "review_tier": 2,
-            "review_label": "Golden ELO Tier 2 · Historical 20-7 · +17.2% ROI",
-            "pick_elo_diff": 118.0,
-        },
-    )
+    monkeypatch.setattr(predict_router, "_evaluate_bet", lambda **_kwargs: bet_eval)
     monkeypatch.setattr(
         predict_router,
         "describe_historical_context",
         lambda **_kwargs: {
             "primary_bucket": {"label": "Primary", "sample_size": 12, "win_rate": 66.7, "roi": 18.4},
         },
+    )
+
+
+def test_predict_response_is_minimized_and_static_config_only(monkeypatch):
+    _patch_predict_dependencies(
+        monkeypatch,
+        model_prob=0.578,
+        bet_eval={"bet": True, "skip_code": None, "skip_reason": None, "decision_source": "static_config"},
     )
 
     result = asyncio.run(
@@ -76,13 +70,10 @@ def test_predict_response_hides_internal_confidence_metadata(monkeypatch):
 
     assert result["historical_context"]["primary_bucket"]["sample_size"] == 12
     assert set(result["historical_context"]) == {"primary_bucket"}
-    assert result["decision"] == "Bet (Golden ELO)"
-    assert result["explanation"] == "Golden ELO reopen: Golden ELO Tier 2 · Historical 20-7 · +17.2% ROI"
+    assert result["decision"] == "Bet"
+    assert result["explanation"] == "Bet: the model clears the current betting rules."
     assert result["skip_reason"] is None
-    assert result["decision_source"] == "golden_elo_reopen"
-    assert result["review_tier"] == 2
-    assert result["review_label"] == "Golden ELO Tier 2 · Historical 20-7 · +17.2% ROI"
-    assert result["pick_elo_diff"] == 118.0
+
     assert "fighter1_db_name" not in result
     assert "fighter2_db_name" not in result
     assert "model_source" not in result
@@ -91,103 +82,20 @@ def test_predict_response_hides_internal_confidence_metadata(monkeypatch):
     assert "f1_record" not in result
     assert "f2_record" not in result
     assert "skip_code" not in result
-    assert "confidence_method" not in result
-    assert "confidence_prob_min" not in result
-    assert "confidence_prob_max" not in result
-    assert "confidence_avg_prob" not in result
     assert "confidence_score" not in result
     assert "confidence_historical_win_rate" not in result
-    assert "confidence_sample_size" not in result
+    assert "decision_source" not in result
+    assert "review_bucket" not in result
+    assert "review_tier" not in result
+    assert "review_label" not in result
+    assert "pick_elo_diff" not in result
 
 
-def test_evaluate_bet_forwards_as_of_date(monkeypatch):
-    captured = {}
-
-    monkeypatch.setattr(
-        predict_router,
-        "_load_betting_filters",
-        lambda: {"filters": {}, "wmma": {}},
-    )
-
-    def fake_evaluate_bet_decision(**kwargs):
-        captured.update(kwargs)
-        return {
-            "bet": True,
-            "skip_code": None,
-            "skip_reason": None,
-            "decision_source": "golden_elo_reopen",
-            "review_bucket": "golden_elo_not_expensive",
-            "review_tier": 2,
-            "review_label": "Golden ELO Tier 2 · Historical 8-1 · +41.9% ROI",
-            "pick_elo_diff": 118.0,
-        }
-
-    monkeypatch.setattr(predict_router, "evaluate_bet_decision", fake_evaluate_bet_decision)
-
-    as_of = datetime(2026, 2, 1)
-    result = predict_router._evaluate_bet(
-        fighter1_name="Alexander Volkanovski",
-        fighter2_name="Diego Lopes",
-        pick_slot="fighter1",
-        pick_model_prob=0.58,
-        pick_mkt_prob=0.52,
-        pick_odds=-120,
-        is_favorite=True,
-        is_wmma=False,
-        f1_count=10,
-        f2_count=8,
-        as_of_date=as_of,
-    )
-
-    assert result["decision_source"] == "golden_elo_reopen"
-    assert captured["as_of_date"] == as_of
-
-
-def test_predict_response_keeps_pick_elo_diff_on_static_skip(monkeypatch):
-    monkeypatch.setattr(predict_router, "_Session", lambda: _DummySession())
-    monkeypatch.setattr(
-        predict_router,
-        "_resolve_fighter",
-        lambda _session, name: SimpleNamespace(
-            id=1 if "Victor" in name else 2,
-            name=name,
-            wins=10,
-            losses=2,
-            draws=0,
-        ),
-    )
-    monkeypatch.setattr(predict_router, "MatchupFeatureExtractor", lambda _session: object())
-    monkeypatch.setattr(
-        predict_router,
-        "_score_row",
-        lambda *_args, **_kwargs: {"model_prob_f1": 0.284, "model_source": "general"},
-    )
-    monkeypatch.setattr(
-        predict_router,
-        "_fight_count_as_of",
-        lambda _session, fighter_id, _as_of: 7 if fighter_id == 1 else 12,
-    )
-    monkeypatch.setattr(predict_router, "_matchup_wmma_flag", lambda *_args, **_kwargs: False)
-    monkeypatch.setattr(
-        predict_router,
-        "_evaluate_bet",
-        lambda **_kwargs: {
-            "bet": False,
-            "skip_code": "F3",
-            "skip_reason": "Favorite low edge",
-            "decision_source": "static_skip",
-            "review_bucket": "elo_against_50",
-            "review_tier": 1,
-            "review_label": "ELO Against Tier 1 · Historical 50-25 · +27.1% ROI",
-            "pick_elo_diff": -81.0,
-        },
-    )
-    monkeypatch.setattr(
-        predict_router,
-        "describe_historical_context",
-        lambda **_kwargs: {
-            "primary_bucket": {"label": "Primary", "sample_size": 12, "win_rate": 66.7, "roi": 18.4},
-        },
+def test_predict_response_static_skip_cannot_be_reopened_by_elo(monkeypatch):
+    _patch_predict_dependencies(
+        monkeypatch,
+        model_prob=0.284,
+        bet_eval={"bet": False, "skip_code": "F3", "skip_reason": "Favorite low edge", "decision_source": "static_skip"},
     )
 
     result = asyncio.run(
@@ -206,38 +114,14 @@ def test_predict_response_keeps_pick_elo_diff_on_static_skip(monkeypatch):
     assert result["skip_reason"] == "Favorite low edge"
     assert result["decision"] == "Pass"
     assert result["explanation"] == "Pass: the favorite edge is too small."
-    assert result["decision_source"] == "static_skip"
-    assert result["pick_elo_diff"] == -81.0
-    assert result["historical_context"]["primary_bucket"]["label"] == "Primary"
-    assert "confidence_sample_size" not in result
-    assert "skip_code" not in result
-    assert result["review_bucket"] is None
-    assert result["review_tier"] is None
-    assert result["review_label"] is None
+    assert "decision_source" not in result
+    assert "review_bucket" not in result
+    assert "review_tier" not in result
+    assert "review_label" not in result
+    assert "pick_elo_diff" not in result
 
 
-def test_evaluate_bet_decision_preserves_review_only_bucket(monkeypatch):
-    review_context = {
-        "review_bucket": "elo_against_tier_1a",
-        "review_tier": "-1A",
-        "review_label": "ELO Against Tier -1A · Historical 12-3 · +49.1% ROI",
-        "review_stats": {"wins": 12, "losses": 3, "roi_pct": 49.1},
-        "pick_elo_diff": -60.0,
-    }
-    monkeypatch.setattr(
-        bet_evaluator,
-        "evaluate_elo_review_context",
-        lambda **_kwargs: review_context,
-    )
-    monkeypatch.setattr(
-        bet_evaluator,
-        "evaluate_golden_elo_reopen",
-        lambda **_kwargs: {
-            "reopen": False,
-            **review_context,
-        },
-    )
-
+def test_evaluate_bet_decision_uses_only_static_config():
     result = bet_evaluator.evaluate_bet_decision(
         fighter1_name="Pick Fighter",
         fighter2_name="Opp Fighter",
@@ -254,81 +138,9 @@ def test_evaluate_bet_decision_preserves_review_only_bucket(monkeypatch):
         as_of_date="2026-02-01",
     )
 
-    assert result["bet"] is False
-    assert result["decision_source"] == "static_skip"
-    assert result["skip_code"] == "F3"
-    assert result["review_bucket"] == "elo_against_tier_1a"
-    assert result["review_tier"] == "-1A"
-    assert result["review_label"] == "ELO Against Tier -1A · Historical 12-3 · +49.1% ROI"
-    assert result["pick_elo_diff"] == -60.0
-
-
-def test_predict_response_hides_review_labels_when_bet_is_static_config(monkeypatch):
-    monkeypatch.setattr(predict_router, "_Session", lambda: _DummySession())
-    monkeypatch.setattr(
-        predict_router,
-        "_resolve_fighter",
-        lambda _session, name: SimpleNamespace(
-            id=1 if "Alex" in name else 2,
-            name=name,
-            wins=10,
-            losses=2,
-            draws=0,
-        ),
-    )
-    monkeypatch.setattr(predict_router, "MatchupFeatureExtractor", lambda _session: object())
-    monkeypatch.setattr(
-        predict_router,
-        "_score_row",
-        lambda *_args, **_kwargs: {"model_prob_f1": 0.612, "model_source": "general"},
-    )
-    monkeypatch.setattr(
-        predict_router,
-        "_fight_count_as_of",
-        lambda _session, fighter_id, _as_of: 7 if fighter_id == 1 else 8,
-    )
-    monkeypatch.setattr(predict_router, "_matchup_wmma_flag", lambda *_args, **_kwargs: False)
-    monkeypatch.setattr(
-        predict_router,
-        "_evaluate_bet",
-        lambda **_kwargs: {
-            "bet": True,
-            "skip_code": None,
-            "skip_reason": None,
-            "decision_source": "static_config",
-            "review_bucket": "golden_elo_not_expensive",
-            "review_tier": 1,
-            "review_label": "Golden ELO Tier 1 · Historical 35-9 · +27.6% ROI",
-            "pick_elo_diff": 77.0,
-        },
-    )
-    monkeypatch.setattr(
-        predict_router,
-        "describe_historical_context",
-        lambda **_kwargs: {
-            "primary_bucket": {"label": "Primary", "sample_size": 12, "win_rate": 66.7, "roi": 18.4},
-        },
-    )
-
-    result = asyncio.run(
-        predict_router.predict_fight(
-            predict_router.PredictRequest(
-                fighter1="Alex Perez",
-                fighter2="Charles Johnson",
-                fighter1_odds=-120,
-                fighter2_odds=100,
-            )
-        )
-    )
-
-    assert result["bet"] is True
-    assert result["skip_reason"] is None
-    assert result["decision"] == "Bet"
-    assert result["explanation"] == "Bet: the model clears the current betting rules."
-    assert result["decision_source"] == "static_config"
-    assert result["review_bucket"] is None
-    assert result["review_tier"] is None
-    assert result["review_label"] is None
-    assert result["pick_elo_diff"] == 77.0
-    assert result["historical_context"]["primary_bucket"]["label"] == "Primary"
-    assert "confidence_score" not in result
+    assert result == {
+        "bet": False,
+        "skip_code": "F3",
+        "skip_reason": "Favorite low edge",
+        "decision_source": "static_skip",
+    }

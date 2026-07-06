@@ -3,8 +3,6 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from services.golden_elo_service import evaluate_golden_elo_reopen
-
 SKIP_REASONS = {
     "F1": "Favorite low confidence",
     "F2": "Favorite odds cap exceeded",
@@ -34,6 +32,8 @@ def evaluate_bet_decision(
     wmma_rules: dict[str, Any],
     as_of_date: date | datetime | str | None = None,
 ) -> dict[str, Any]:
+    _ = (fighter1_name, fighter2_name, pick_slot, as_of_date)
+
     min_fights = filters.get("min_fights", 2)
     fav_conf = filters.get("favorite_confidence_min", 0.65)
     ud_conf = filters.get("underdog_confidence_min", 0.53)
@@ -67,28 +67,7 @@ def evaluate_bet_decision(
         else:
             result = {"bet": True, "skip_code": None, "skip_reason": None}
 
-    golden = evaluate_golden_elo_reopen(
-        fighter1_name=fighter1_name,
-        fighter2_name=fighter2_name,
-        pick_slot=pick_slot,
-        pick_model_prob=pick_model_prob,
-        pick_odds=pick_odds,
-        as_of_date=as_of_date,
-    )
-    payload = {
+    return {
+        **result,
         "decision_source": "static_config" if result["bet"] else "static_skip",
-        "review_bucket": golden.get("review_bucket"),
-        "review_tier": golden.get("review_tier"),
-        "review_label": golden.get("review_label"),
-        "review_stats": golden.get("review_stats"),
-        "pick_elo_diff": golden.get("pick_elo_diff"),
     }
-    if not result["bet"] and golden.get("reopen"):
-        payload.update(
-            {
-                "decision_source": "golden_elo_reopen",
-            }
-        )
-        result = {"bet": True, "skip_code": None, "skip_reason": None}
-
-    return {**result, **payload}

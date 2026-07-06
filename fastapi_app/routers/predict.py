@@ -24,7 +24,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from database.schema import Fighter
-from services.bet_evaluator import SKIP_REASONS, evaluate_bet_decision
+from services.bet_evaluator import evaluate_bet_decision
 from services.historical_context_service import describe_historical_context
 from services.predict_service import (
     FIGHTER_ALIASES,
@@ -76,9 +76,6 @@ def _load_betting_filters() -> dict:
 
 def _evaluate_bet(
     *,
-    fighter1_name: str = "",
-    fighter2_name: str = "",
-    pick_slot: str = "fighter1",
     pick_model_prob: float,   # 0–1 — model conviction on the picked side
     pick_mkt_prob:   float,   # 0–1 — implied market prob on the picked side
     pick_odds:       Optional[int],
@@ -86,16 +83,15 @@ def _evaluate_bet(
     is_wmma:         Optional[bool],
     f1_count:        int,
     f2_count:        int,
-    as_of_date:      Optional[datetime] = None,
 ) -> dict:
     """Apply current betting_config rules and return (bet, skip_code, reason)."""
     cfg          = _load_betting_filters()
     filters      = cfg.get("filters", {})
     wmma_rules   = cfg.get("wmma", {})
     return evaluate_bet_decision(
-        fighter1_name=fighter1_name,
-        fighter2_name=fighter2_name,
-        pick_slot=pick_slot,
+        fighter1_name="",
+        fighter2_name="",
+        pick_slot="fighter1",
         pick_model_prob=pick_model_prob,
         pick_mkt_prob=pick_mkt_prob,
         pick_odds=pick_odds,
@@ -105,7 +101,6 @@ def _evaluate_bet(
         f2_count=f2_count,
         filters=filters,
         wmma_rules=wmma_rules,
-        as_of_date=as_of_date,
     )
 
 
@@ -119,24 +114,7 @@ def _matchup_wmma_flag(session, fighter1_id: int, fighter2_id: int) -> Optional[
     return False
 
 
-def _predict_review_fields(bet_eval: dict) -> dict:
-    if bet_eval.get("decision_source") != "golden_elo_reopen":
-        return {
-            "review_bucket": None,
-            "review_tier": None,
-            "review_label": None,
-        }
-    return {
-        "review_bucket": bet_eval.get("review_bucket"),
-        "review_tier": bet_eval.get("review_tier"),
-        "review_label": bet_eval.get("review_label"),
-    }
-
-
 def _predict_decision_label(bet_eval: dict) -> str:
-    source = bet_eval.get("decision_source")
-    if source == "golden_elo_reopen":
-        return "Bet (Golden ELO)"
     if bet_eval.get("bet"):
         return "Bet"
     return "Pass"
@@ -144,11 +122,6 @@ def _predict_decision_label(bet_eval: dict) -> str:
 
 def _predict_explanation(bet_eval: dict) -> str | None:
     skip_code = bet_eval.get("skip_code")
-    review_label = bet_eval.get("review_label")
-    source = bet_eval.get("decision_source")
-
-    if source == "golden_elo_reopen" and review_label:
-        return f"Golden ELO reopen: {review_label}"
 
     if skip_code == "F1":
         return "Pass: the favorite does not clear the confidence threshold."
@@ -234,13 +207,11 @@ async def predict_fight(req: PredictRequest):
             pick_model_prob = model_prob
             pick_mkt_prob   = mkt_prob_f1
             pick_odds_int   = req.fighter1_odds
-            pick_slot       = "fighter1"
         else:
             model_pick      = req.fighter2
             pick_model_prob = 1 - model_prob
             pick_mkt_prob   = 1 - mkt_prob_f1
             pick_odds_int   = req.fighter2_odds
-            pick_slot       = "fighter2"
 
         edge = round((pick_model_prob - pick_mkt_prob) * 100, 1)  # signed
 
@@ -254,9 +225,6 @@ async def predict_fight(req: PredictRequest):
         # Bet decision against the current betting_config rules
         is_favorite = pick_odds_int is not None and pick_odds_int < 0
         bet_eval = _evaluate_bet(
-            fighter1_name=f1.name,
-            fighter2_name=f2.name,
-            pick_slot=pick_slot,
             pick_model_prob=pick_model_prob,
             pick_mkt_prob=pick_mkt_prob,
             pick_odds=pick_odds_int,
@@ -264,7 +232,6 @@ async def predict_fight(req: PredictRequest):
             is_wmma=is_wmma is True,
             f1_count=f1_count,
             f2_count=f2_count,
-            as_of_date=as_of,
         )
         historical_context = describe_historical_context(
             pick_model_prob=pick_model_prob,
@@ -272,7 +239,6 @@ async def predict_fight(req: PredictRequest):
             pick_odds=pick_odds_int,
             is_wmma=is_wmma,
         )
-        review_fields = _predict_review_fields(bet_eval)
         decision = _predict_decision_label(bet_eval)
         explanation = _predict_explanation(bet_eval)
 
@@ -294,11 +260,6 @@ async def predict_fight(req: PredictRequest):
             "skip_reason":        bet_eval.get("skip_reason"),
             "decision":           decision,
             "explanation":        explanation,
-            "decision_source":    bet_eval.get("decision_source"),
-            "review_bucket":      review_fields["review_bucket"],
-            "review_tier":        review_fields["review_tier"],
-            "review_label":       review_fields["review_label"],
-            "pick_elo_diff":      bet_eval.get("pick_elo_diff"),
             "historical_context": historical_context,
         }
 
