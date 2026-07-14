@@ -12,7 +12,8 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "fastapi_app"))
 
-from fastapi_app.routers.predict import _evaluate_bet, SKIP_REASONS  # noqa: E402
+from fastapi_app.routers.predict import _evaluate_bet  # noqa: E402
+from fastapi_app.services.bet_evaluator import SKIP_REASONS  # noqa: E402
 
 CFG = json.loads((_ROOT / "config/betting_config.json").read_text())
 F   = CFG.get("filters", {})

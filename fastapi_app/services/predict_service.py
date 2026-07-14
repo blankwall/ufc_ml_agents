@@ -31,6 +31,7 @@ from database.schema import Event as _Event, Fight as _Fight
 from models.utils import resolve_model_dir
 from fastapi_app.services.bet_evaluator import evaluate_bet_decision
 from fastapi_app.services.the_odds_api_service import get_bet_placed_map
+from fastapi_app.services.fighter_identity import FIGHTER_ALIASES, resolve_fighter as _resolve_fighter
 
 ODDS_DIR         = ROOT_DIR / "data" / "future_fight_odds"
 USER_EVENTS_DIR  = ROOT_DIR / "data" / "user_events"
@@ -74,91 +75,6 @@ def _load_underdog_model():
         _ud_scaler   = joblib.load(_run_dir / "underdog_v1_feature_scaler.pkl")
         _ud_features = joblib.load(_run_dir / "underdog_v1_feature_names.pkl")
     return _ud_model, _ud_scaler, _ud_features
-
-
-# ── fighter aliases (real-name → DB name or nickname stored in DB) ───────────
-# Aliases are now stored in config/fighter_aliases.json and loaded/persisted via
-# fighter_alias_service. FIGHTER_ALIASES is the same dict object the service
-# mutates in place, so runtime upserts (e.g. from the ingest UI) are visible to
-# every module that imports this name.
-from fastapi_app.services.fighter_alias_service import ALIASES as FIGHTER_ALIASES
-
-
-# ── fighter resolver ──────────────────────────────────────────────────────────
-
-def _resolve_fighter(session, name: str):
-    """
-    Best-effort fighter name → DB Fighter.
-    Normalises apostrophes, hyphens, and dots on both sides so e.g.
-    'Loneer Kavanagh' matches "Lone'er Kavanagh" and
-    'Waldo Cortes-Acosta' matches 'Waldo Cortes Acosta'.
-    """
-    import re as _re
-    from sqlalchemy import or_, text
-    from database.schema import Fighter, Fight
-
-    def _best(rows):
-        """From a list of Fighter objects pick the one with most DB fights."""
-        if len(rows) == 1:
-            return rows[0]
-        scored = []
-        for f in rows:
-            cnt = session.query(Fight).filter(
-                or_(Fight.fighter_1_id == f.id, Fight.fighter_2_id == f.id)
-            ).count()
-            scored.append((cnt, f.id, f))
-        scored.sort(key=lambda t: (-t[0], t[1]))
-        return scored[0][2]
-
-    def _strip(s: str) -> str:
-        """Remove punctuation that varies between sources."""
-        return _re.sub(r"['\.\-]", "", s).strip()
-
-    # Strategy 0: known aliases
-    lookup_name = FIGHTER_ALIASES.get(name, name)
-
-    # Strategy 1: standard ilike (exact punctuation)
-    rows = session.query(Fighter).filter(Fighter.name.ilike(f"%{lookup_name}%")).all()
-    if rows:
-        return _best(rows)
-
-    # Strategy 2: SQL-level normalisation — strip apostrophes/dots, replace hyphens with space
-    def _norm_sql(s: str) -> str:
-        return _re.sub(r"['\.]", "", s.replace("-", " ")).strip().lower()
-
-    norm = _norm_sql(lookup_name)
-    if norm:
-        sql = text(
-            "SELECT id FROM fighters "
-            "WHERE LOWER(REPLACE(REPLACE(name, '''', ''), '.', '')) "
-            "LIKE :q"
-        )
-        ids = [r[0] for r in session.execute(sql, {"q": f"%{norm}%"})]
-        if ids:
-            rows = session.query(Fighter).filter(Fighter.id.in_(ids)).all()
-            if rows:
-                return _best(rows)
-
-    # Strategy 3: first name + prefix of last name (handles typos / extra letters)
-    parts = lookup_name.split()
-    if len(parts) >= 2:
-        first = _re.sub(r"['\.\-]", "", parts[0]).lower()
-        # Try progressively shorter last-name prefixes (min 4 chars)
-        raw_last = _re.sub(r"['\.\-]", "", " ".join(parts[1:])).lower()
-        for prefix_len in range(min(len(raw_last), 8), 3, -1):
-            prefix = raw_last[:prefix_len]
-            sql = text(
-                "SELECT id FROM fighters "
-                "WHERE LOWER(REPLACE(REPLACE(name, '''', ''), '-', ' ')) LIKE :q"
-            )
-            ids = [r[0] for r in session.execute(sql, {"q": f"%{prefix}%"})]
-            if ids:
-                rows = session.query(Fighter).filter(Fighter.id.in_(ids)).all()
-                rows = [f for f in rows if first[:3] in f.name.lower().replace("'","").replace("-"," ")]
-                if rows:
-                    return _best(rows)
-
-    return None
 
 
 # ── date parsing helpers ──────────────────────────────────────────────────────

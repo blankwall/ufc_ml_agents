@@ -194,26 +194,26 @@ uv sync
 ```
 
 It exposes tools for:
-- deterministic context packets
-- cited context reviews
-- combined-evidence validation
+- dynamic fight initialization
+- fighter snapshots
 - fighter ELO history from the Sergey sidecar
-- read-only SQL over `context_pool`, `trait_snapshots`, `sergey_sidecar`, and the main fighter DB
-- whitelisted backtest/doc file reads
+- structured historical evidence wrappers for similar fighters, similar fights, trait matchups, and ELO/market buckets
 
 Typical MCP entrypoints:
 
 ```text
-list_data_sources
-describe_database
-run_readonly_sql
-search_context_targets
-get_context_packet
-review_context
-validate_combined_context
-read_backtest_file
+init_fight_analysis
+get_elo_market_signal
+get_fighter_snapshot
 get_fighter_elo_history
+find_similar_fighter_profiles
+find_similar_elo_gap_fights
+find_similar_market_fights
+find_trait_matchup_examples
+get_historical_pattern_summary
 ```
+
+Use `init_fight_analysis` as the primary fight-analysis entrypoint. `get_elo_market_signal` is the compact "what does this ELO edge mean at this price?" interpreter for the LLM and returns matching historical ROI/win-rate/sample-size bucket evidence. `get_fighter_snapshot`, `get_fighter_elo_history`, and `find_similar_fighter_profiles` are fighter-level support tools. The historical wrappers accept a dynamic fighter/date matchup and synthesize the target from live init output; they may query `context_pool` internally, but callers should not use raw context-pool row tools for future-fight analysis. Reusable deterministic ELO/cardio filtering lives in `backtest/deterministic_signal_filter.py` for future non-MCP app surfaces.
 
 ### `get_fighter_elo_history`
 
