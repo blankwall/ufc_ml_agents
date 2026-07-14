@@ -8,7 +8,7 @@ Backtest 2025: bet 1 unit on the market favorite in every fight.
 
   python scripts/backtest_favorites_2025.py
   python scripts/backtest_favorites_2025.py --year 2025
-  python scripts/backtest_favorites_2025.py --odds-csv ufc_2025_odds.csv
+  python scripts/backtest_favorites_2025.py --odds-csv backtest/odds/ufc_2025_odds.csv
 """
 
 import argparse
@@ -212,7 +212,7 @@ def run_with_csv_odds(session, year: int, csv_path: Path):
 def main():
     ap = argparse.ArgumentParser(description="Backtest ROI betting on all favorites")
     ap.add_argument("--year", type=int, default=2025, help="Event year (default 2025)")
-    ap.add_argument("--odds-csv", type=Path, default=None, help="Use this CSV for odds and DB for outcomes (e.g. ufc_2025_odds.csv)")
+    ap.add_argument("--odds-csv", type=Path, default=None, help="Use this CSV for odds and DB for outcomes (e.g. backtest/odds/ufc_2025_odds.csv)")
     args = ap.parse_args()
 
     db = DatabaseManager()
@@ -225,7 +225,7 @@ def main():
         n, wins, total_profit, source = run_with_db_odds(session, args.year)
         odds_src = "odds and outcomes from DB"
         if n == 0:
-            csv_default = Path(__file__).resolve().parent.parent / "ufc_2025_odds.csv"
+            csv_default = Path(__file__).resolve().parent.parent / "backtest" / "odds" / "ufc_2025_odds.csv"
             if csv_default.exists():
                 print(f"No {args.year} fights with betting odds in the DB. Falling back to CSV odds + DB outcomes.\n")
                 n, wins, total_profit, source = run_with_csv_odds(session, args.year, csv_default)

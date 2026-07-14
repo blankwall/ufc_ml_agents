@@ -1,0 +1,437 @@
+{
+  "fighters": {
+    "jesus santos aguilar": {
+      "requested_name": "Jesus Santos Aguilar",
+      "canonical_name": "Jesus Santos Aguilar",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-30",
+          "event_date": "2026-05-30",
+          "source_type": "the_odds_api",
+          "opponent": "Rei Tsuruya"
+        }
+      ],
+      "last_seen_at": "2026-05-21T16:22:31Z",
+      "status": "recovered",
+      "search_result": {
+        "name": "Jesus Santos Aguilar",
+        "url": "https://www.sherdog.com/fighter/Jesus-Santos-Aguilar-203965",
+        "fighter_id": "203965",
+        "nickname": null,
+        "height": "5'3\" (1.6 m)",
+        "weight": "125 lbs (56.7 kg)",
+        "association": "Victory Fight Club"
+      },
+      "last_attempt_at": "2026-05-21T16:22:31Z",
+      "scraped_name": "Jesus Santos Aguilar",
+      "fighter_url": "https://www.sherdog.com/fighter/Jesus-Santos-Aguilar-203965",
+      "sherdog_fighter_id": "203965",
+      "db_fighter_pk": 4467,
+      "db_fighter_id": "sherdog:203965",
+      "db_name": "Jesus Santos Aguilar",
+      "recovered_at": "2026-05-21T16:22:31Z"
+    },
+    "jingnan xiong": {
+      "requested_name": "Jingnan Xiong",
+      "canonical_name": "Jingnan Xiong",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-30",
+          "event_date": "2026-05-30",
+          "source_type": "the_odds_api",
+          "opponent": "Angela Hill"
+        }
+      ],
+      "last_seen_at": "2026-05-21T16:22:31Z",
+      "status": "recovered",
+      "search_result": {
+        "name": "Jingnan Xiong",
+        "url": "https://www.sherdog.com/fighter/Jingnan-Xiong-176083",
+        "fighter_id": "176083",
+        "nickname": "\"The Panda\"",
+        "height": "5'5\" (1.65 m)",
+        "weight": "118 lbs (53.52 kg)",
+        "association": "The Block Bali"
+      },
+      "last_attempt_at": "2026-05-21T16:22:31Z",
+      "scraped_name": "Jingnan \"The Panda\" Xiong",
+      "fighter_url": "https://www.sherdog.com/fighter/Jingnan-Xiong-176083",
+      "sherdog_fighter_id": "176083",
+      "db_fighter_pk": 4468,
+      "db_fighter_id": "sherdog:176083",
+      "db_name": "Jingnan \"The Panda\" Xiong",
+      "recovered_at": "2026-05-21T16:22:31Z"
+    },
+    "yi sak lee": {
+      "requested_name": "Yi Sak Lee",
+      "canonical_name": "Yi Sak Lee",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-30",
+          "event_date": "2026-05-30",
+          "source_type": "the_odds_api",
+          "opponent": "Luis Felipe Dias"
+        },
+        {
+          "event_name": "MMA Card \u00b7 2026-05-30",
+          "event_date": "2026-05-30",
+          "source_type": "the_odds_api",
+          "opponent": "Luis Dias de Assis"
+        }
+      ],
+      "last_seen_at": "2026-05-21T16:22:32Z",
+      "status": "recovered",
+      "search_result": {
+        "name": "Yi Sak Lee",
+        "url": "https://www.sherdog.com/fighter/Yi-Sak-Lee-390123",
+        "fighter_id": "390123",
+        "nickname": null,
+        "height": "6'0\" (1.83 m)",
+        "weight": "185 lbs (83.91 kg)",
+        "association": "Korean Top Team"
+      },
+      "last_attempt_at": "2026-05-21T16:22:32Z",
+      "scraped_name": "Yi Sak Lee",
+      "fighter_url": "https://www.sherdog.com/fighter/Yi-Sak-Lee-390123",
+      "sherdog_fighter_id": "390123",
+      "db_fighter_pk": 4473,
+      "db_fighter_id": "sherdog:390123",
+      "db_name": "Yi Sak Lee",
+      "recovered_at": "2026-05-21T16:22:32Z"
+    },
+    "loma petchpromlob": {
+      "requested_name": "Loma Lookboonmee",
+      "canonical_name": "Loma Petchpromlob",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-30",
+          "event_date": "2026-05-30",
+          "source_type": "the_odds_api",
+          "opponent": "Jaqueline Amorim"
+        }
+      ],
+      "last_seen_at": "2026-05-19T17:31:50Z",
+      "status": "search_not_found",
+      "last_attempt_at": "2026-05-19T17:31:50Z"
+    },
+    "assem ghanem": {
+      "requested_name": "Assem Ghanem",
+      "canonical_name": "Assem Ghanem",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-24",
+          "event_date": "2026-05-24",
+          "source_type": "the_odds_api",
+          "opponent": "Mohammad Fahmi"
+        }
+      ],
+      "last_seen_at": "2026-05-21T16:22:31Z",
+      "status": "recovered",
+      "search_result": {
+        "name": "Assem Ghanem",
+        "url": "https://www.sherdog.com/fighter/Assem-Ghanem-399132",
+        "fighter_id": "399132",
+        "nickname": null,
+        "height": "5'11\" (1.8 m)",
+        "weight": "145 lbs (65.77 kg)",
+        "association": "S&B Academy"
+      },
+      "last_attempt_at": "2026-05-21T16:22:31Z",
+      "scraped_name": "Assem Ghanem",
+      "fighter_url": "https://www.sherdog.com/fighter/Assem-Ghanem-399132",
+      "sherdog_fighter_id": "399132",
+      "db_fighter_pk": 4462,
+      "db_fighter_id": "sherdog:399132",
+      "db_name": "Assem Ghanem",
+      "recovered_at": "2026-05-21T16:22:31Z"
+    },
+    "kangjie zhu": {
+      "requested_name": "Kangjie Zhu",
+      "canonical_name": "Kangjie Zhu",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-30",
+          "event_date": "2026-05-30",
+          "source_type": "the_odds_api",
+          "opponent": "Rodrigo Vera"
+        }
+      ],
+      "last_seen_at": "2026-05-21T20:48:42Z",
+      "status": "recovered",
+      "search_result": {
+        "name": "Kangjie Zhu",
+        "url": "https://www.sherdog.com/fighter/Kangjie-Zhu-341915",
+        "fighter_id": "341915",
+        "nickname": "\"The Hypnotist / One Punch Man\"",
+        "height": "5'8\" (1.73 m)",
+        "weight": "146 lbs (66.22 kg)",
+        "association": "Haosheng Fight Gym"
+      },
+      "last_attempt_at": "2026-05-21T20:48:42Z",
+      "scraped_name": "Kangjie \"The Hypnotist / One Punch Man\" Zhu",
+      "fighter_url": "https://www.sherdog.com/fighter/Kangjie-Zhu-341915",
+      "sherdog_fighter_id": "341915",
+      "db_fighter_pk": 4469,
+      "db_fighter_id": "sherdog:341915",
+      "db_name": "Kangjie \"The Hypnotist / One Punch Man\" Zhu",
+      "recovered_at": "2026-05-21T20:48:42Z"
+    },
+    "mohammad fahmi": {
+      "requested_name": "Mohammad Fahmi",
+      "canonical_name": "Mohammad Fahmi",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-24",
+          "event_date": "2026-05-24",
+          "source_type": "the_odds_api",
+          "opponent": "Assem Ghanem"
+        }
+      ],
+      "last_seen_at": "2026-05-21T16:22:31Z",
+      "status": "recovered",
+      "search_result": {
+        "name": "Mohammad Fahmi",
+        "url": "https://www.sherdog.com/fighter/Mohammad-Fahmi-408301",
+        "fighter_id": "408301",
+        "nickname": "\"Soulkeeper\"",
+        "height": "5'11\" (1.8 m)",
+        "weight": "155 lbs (70.31 kg)",
+        "association": "Special Fight Club"
+      },
+      "last_attempt_at": "2026-05-21T16:22:31Z",
+      "scraped_name": "Mohammad \"Soulkeeper\" Fahmi",
+      "fighter_url": "https://www.sherdog.com/fighter/Mohammad-Fahmi-408301",
+      "sherdog_fighter_id": "408301",
+      "db_fighter_pk": 4470,
+      "db_fighter_id": "sherdog:408301",
+      "db_name": "Mohammad \"Soulkeeper\" Fahmi",
+      "recovered_at": "2026-05-21T16:22:31Z"
+    },
+    "rodrigo vera": {
+      "requested_name": "Rodrigo Vera",
+      "canonical_name": "Rodrigo Vera",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-30",
+          "event_date": "2026-05-30",
+          "source_type": "the_odds_api",
+          "opponent": "Kangjie Zhu"
+        }
+      ],
+      "last_seen_at": "2026-05-21T16:22:32Z",
+      "status": "recovered",
+      "search_result": {
+        "name": "Rodrigo Vera",
+        "url": "https://www.sherdog.com/fighter/Rodrigo-Vera-191425",
+        "fighter_id": "191425",
+        "nickname": "\"El Gato Loco\"",
+        "height": "5'7\" (1.7 m)",
+        "weight": "146 lbs (66.22 kg)",
+        "association": "Pitbull Martial Arts Center"
+      },
+      "last_attempt_at": "2026-05-21T16:22:32Z",
+      "scraped_name": "Rodrigo \"El Gato Loco\" Vera",
+      "fighter_url": "https://www.sherdog.com/fighter/Rodrigo-Vera-191425",
+      "sherdog_fighter_id": "191425",
+      "db_fighter_pk": 4472,
+      "db_fighter_id": "sherdog:191425",
+      "db_name": "Rodrigo \"El Gato Loco\" Vera",
+      "recovered_at": "2026-05-21T16:22:32Z"
+    },
+    "baris adiguzel": {
+      "requested_name": "Baris Adiguzel",
+      "canonical_name": "Baris Adiguzel",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-23",
+          "event_date": "2026-05-23",
+          "source_type": "the_odds_api",
+          "opponent": "Gustavo Oliveira"
+        }
+      ],
+      "last_seen_at": "2026-05-21T16:22:31Z",
+      "status": "recovered",
+      "search_result": {
+        "name": "Baris Adiguzel",
+        "url": "https://www.sherdog.com/fighter/Baris-Adiguzel-303643",
+        "fighter_id": "303643",
+        "nickname": "\"The Sniper\"",
+        "height": "5'7\" (1.7 m)",
+        "weight": "135 lbs (61.23 kg)",
+        "association": "Boxing Squad"
+      },
+      "last_attempt_at": "2026-05-21T16:22:31Z",
+      "scraped_name": "Baris \"The Sniper\" Adiguzel",
+      "fighter_url": "https://www.sherdog.com/fighter/Baris-Adiguzel-303643",
+      "sherdog_fighter_id": "303643",
+      "db_fighter_pk": 4463,
+      "db_fighter_id": "sherdog:303643",
+      "db_name": "Baris \"The Sniper\" Adiguzel",
+      "recovered_at": "2026-05-21T16:22:31Z"
+    },
+    "boris mbarga atangana": {
+      "requested_name": "Boris Mbarga Atangana",
+      "canonical_name": "Boris Mbarga Atangana",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-23",
+          "event_date": "2026-05-23",
+          "source_type": "the_odds_api",
+          "opponent": "Jared Gooden"
+        }
+      ],
+      "last_seen_at": "2026-05-21T16:22:31Z",
+      "status": "recovered",
+      "search_result": {
+        "name": "Boris Mbarga Atangana",
+        "url": "https://www.sherdog.com/fighter/Boris-Mbarga-Atangana-409019",
+        "fighter_id": "409019",
+        "nickname": "\"Alain / Modern Gladiator\"",
+        "height": "6'1\" (1.85 m)",
+        "weight": "205 lbs (92.99 kg)",
+        "association": "Team Sendo"
+      },
+      "last_attempt_at": "2026-05-21T16:22:31Z",
+      "scraped_name": "Boris Mbarga \"Alain / Modern Gladiator\" Atangana",
+      "fighter_url": "https://www.sherdog.com/fighter/Boris-Mbarga-Atangana-409019",
+      "sherdog_fighter_id": "409019",
+      "db_fighter_pk": 4464,
+      "db_fighter_id": "sherdog:409019",
+      "db_name": "Boris Mbarga \"Alain / Modern Gladiator\" Atangana",
+      "recovered_at": "2026-05-21T16:22:31Z"
+    },
+    "diego bianchini": {
+      "requested_name": "Diego Bianchini",
+      "canonical_name": "Diego Bianchini",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-23",
+          "event_date": "2026-05-23",
+          "source_type": "the_odds_api",
+          "opponent": "Jonathan Piersma"
+        }
+      ],
+      "last_seen_at": "2026-05-21T16:22:31Z",
+      "status": "recovered",
+      "search_result": {
+        "name": "Diego Bianchini",
+        "url": "https://www.sherdog.com/fighter/Diego-Bianchini-154345",
+        "fighter_id": "154345",
+        "nickname": "\"The Brazilian Bad Boy\"",
+        "height": "6'0\" (1.83 m)",
+        "weight": "174 lbs (78.93 kg)",
+        "association": "One A One"
+      },
+      "last_attempt_at": "2026-05-21T16:22:31Z",
+      "scraped_name": "Diego \"The Brazilian Bad Boy\" Bianchini",
+      "fighter_url": "https://www.sherdog.com/fighter/Diego-Bianchini-154345",
+      "sherdog_fighter_id": "154345",
+      "db_fighter_pk": 4465,
+      "db_fighter_id": "sherdog:154345",
+      "db_name": "Diego \"The Brazilian Bad Boy\" Bianchini",
+      "recovered_at": "2026-05-21T16:22:31Z"
+    },
+    "ednilson santos": {
+      "requested_name": "Ednilson Santos",
+      "canonical_name": "Ednilson Santos",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-23",
+          "event_date": "2026-05-23",
+          "source_type": "the_odds_api",
+          "opponent": "Shaheen Santana"
+        }
+      ],
+      "last_seen_at": "2026-05-21T20:48:42Z",
+      "status": "search_not_found",
+      "last_attempt_at": "2026-05-21T20:48:42Z"
+    },
+    "gustavo oliveira": {
+      "requested_name": "Gustavo Oliveira",
+      "canonical_name": "Gustavo Oliveira",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-23",
+          "event_date": "2026-05-23",
+          "source_type": "the_odds_api",
+          "opponent": "Baris Adiguzel"
+        }
+      ],
+      "last_seen_at": "2026-05-21T16:22:31Z",
+      "status": "recovered",
+      "search_result": {
+        "name": "Gustavo Oliveira",
+        "url": "https://www.sherdog.com/fighter/Gustavo-Oliveira-231333",
+        "fighter_id": "231333",
+        "nickname": "\"Heart\"",
+        "height": "5'8\" (1.73 m)",
+        "weight": "135 lbs (61.23 kg)",
+        "association": "Fight Leste"
+      },
+      "last_attempt_at": "2026-05-21T16:22:31Z",
+      "scraped_name": "Gustavo \"Heart\" Oliveira",
+      "fighter_url": "https://www.sherdog.com/fighter/Gustavo-Oliveira-231333",
+      "sherdog_fighter_id": "231333",
+      "db_fighter_pk": 4466,
+      "db_fighter_id": "sherdog:231333",
+      "db_name": "Gustavo \"Heart\" Oliveira",
+      "recovered_at": "2026-05-21T16:22:31Z"
+    },
+    "patrick habirora": {
+      "requested_name": "Patrick Habirora",
+      "canonical_name": "Patrick Habirora",
+      "source_rows": [
+        {
+          "event_name": "MMA Card \u00b7 2026-05-23",
+          "event_date": "2026-05-23",
+          "source_type": "the_odds_api",
+          "opponent": "Benson Henderson"
+        }
+      ],
+      "last_seen_at": "2026-05-21T16:22:32Z",
+      "status": "recovered",
+      "search_result": {
+        "name": "Patrick Habirora",
+        "url": "https://www.sherdog.com/fighter/Patrick-Habirora-314503",
+        "fighter_id": "314503",
+        "nickname": "\"The Belgian Bomber\"",
+        "height": "6'0\" (1.83 m)",
+        "weight": "170 lbs (77.11 kg)",
+        "association": "Red Kings"
+      },
+      "last_attempt_at": "2026-05-21T16:22:32Z",
+      "scraped_name": "Patrick \"The Belgian Bomber\" Habirora",
+      "fighter_url": "https://www.sherdog.com/fighter/Patrick-Habirora-314503",
+      "sherdog_fighter_id": "314503",
+      "db_fighter_pk": 4471,
+      "db_fighter_id": "sherdog:314503",
+      "db_name": "Patrick \"The Belgian Bomber\" Habirora",
+      "recovered_at": "2026-05-21T16:22:32Z"
+    }
+  },
+  "last_run_started_at": "2026-05-21T20:48:41Z",
+  "last_trigger": "the_odds_api_sync",
+  "last_run_finished_at": "2026-05-21T20:48:42Z",
+  "last_result": {
+    "trigger": "the_odds_api_sync",
+    "queued": 2,
+    "attempted": 2,
+    "recovered": 1,
+    "search_misses": 1,
+    "errors": 0,
+    "dry_run": false,
+    "processed": [
+      {
+        "canonical_name": "Ednilson Santos",
+        "requested_name": "Ednilson Santos",
+        "status": "search_not_found"
+      },
+      {
+        "canonical_name": "Kangjie Zhu",
+        "requested_name": "Kangjie Zhu",
+        "status": "recovered",
+        "fighter_url": "https://www.sherdog.com/fighter/Kangjie-Zhu-341915"
+      }
+    ]
+  }
+}

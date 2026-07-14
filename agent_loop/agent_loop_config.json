@@ -21,7 +21,7 @@
   },
   "evaluation": {
     "eval_min_year": 2025,
-    "odds_path": "ufc_2025_odds.csv",
+    "odds_path": "backtest/odds/ufc_2025_odds.csv",
     "odds_date_tolerance_days": 5,
     "symmetric": true
   },

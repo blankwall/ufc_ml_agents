@@ -42,7 +42,22 @@ def test_predict_response_hides_internal_confidence_metadata(monkeypatch):
     monkeypatch.setattr(
         predict_router,
         "_evaluate_bet",
-        lambda **_kwargs: {"bet": True, "skip_code": None, "skip_reason": None},
+        lambda **_kwargs: {
+            "bet": True,
+            "skip_code": None,
+            "skip_reason": None,
+            "decision_source": "static_config",
+            "review_candidate": False,
+            "review_bucket": None,
+            "review_label": None,
+            "review_reason": None,
+            "signal_bucket": "skip_50_65_elo_100_plus",
+            "signal_label": "ELO 100+ confidence bucket",
+            "signal_reason": "Strongest bucket surfaced.",
+            "signal_tags": ["skip_50_65_elo_100_plus", "elo_100_plus"],
+            "pick_elo_diff": 118.0,
+            "cardio_score_diff": 11.0,
+        },
     )
     monkeypatch.setattr(
         predict_router,
@@ -70,6 +85,9 @@ def test_predict_response_hides_internal_confidence_metadata(monkeypatch):
 
     assert result["confidence_score"] == 4
     assert result["confidence_historical_win_rate"] == 58.7
+    assert result["signal_label"] == "ELO 100+ confidence bucket"
+    assert result["pick_elo_diff"] == 118.0
+    assert result["review_candidate"] is False
     assert "confidence_method" not in result
     assert "confidence_prob_min" not in result
     assert "confidence_prob_max" not in result

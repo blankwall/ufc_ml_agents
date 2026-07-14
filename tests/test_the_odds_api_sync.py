@@ -946,6 +946,99 @@ def test_predict_service_attaches_tracked_bet_for_the_odds_api_rows(monkeypatch)
     assert fight["bet_placed"]["opponent_listed_odds"] == -125
 
 
+def test_get_bet_placed_map_normalizes_legacy_accented_fight_key(monkeypatch, tmp_path):
+    odds_dir = tmp_path / "data" / "future_fight_odds"
+    store_path = odds_dir / "the_odds_api_events.json"
+    odds_dir.mkdir(parents=True, exist_ok=True)
+    store_path.write_text(
+        json.dumps(
+            {
+                "events": [
+                    {
+                        "event_key": "the_odds_api|2026-05-30",
+                        "event_name": "MMA Card · 2026-05-30",
+                        "event_date": "2026-05-30",
+                        "fights": [
+                            {
+                                "fight_key": "josé henrique_vs_meng ding",
+                                "fighter1": "Meng Ding",
+                                "fighter2": "José Henrique",
+                                "bet_placed": {
+                                    "fighter": "Meng Ding",
+                                    "stake": 50,
+                                    "bet_odds": -128,
+                                },
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+    )
+    monkeypatch.setattr(odds_service, "STORE_PATH", store_path)
+
+    bets = odds_service.get_bet_placed_map()
+
+    assert bets[
+        ("2026-05-30", odds_service.fight_key("Meng Ding", "José Henrique"))
+    ]["bet_odds"] == -128
+
+
+def test_get_sampled_odds_history_matches_legacy_accented_fight_key(monkeypatch, tmp_path):
+    odds_dir = tmp_path / "data" / "future_fight_odds"
+    store_path = odds_dir / "the_odds_api_events.json"
+    odds_dir.mkdir(parents=True, exist_ok=True)
+    store_path.write_text(
+        json.dumps(
+            {
+                "events": [
+                    {
+                        "event_key": "the_odds_api|2026-05-30",
+                        "event_name": "MMA Card · 2026-05-30",
+                        "event_date": "2026-05-30",
+                        "fights": [
+                            {
+                                "fight_key": "josé henrique_vs_meng ding",
+                                "fighter1": "Meng Ding",
+                                "fighter2": "José Henrique",
+                                "fighter1_odds": -138,
+                                "fighter2_odds": 108,
+                                "bet_placed": {
+                                    "fighter": "Meng Ding",
+                                    "stake": 50,
+                                    "bet_odds": -128,
+                                },
+                                "odds_history": [
+                                    {
+                                        "captured_at": "2026-05-21T14:00:50Z",
+                                        "fighter1_odds": -138,
+                                        "fighter2_odds": 108,
+                                        "fighter1_prob": 0.5798,
+                                        "fighter2_prob": 0.4808,
+                                        "bookmaker": "FanDuel",
+                                        "last_update": "2026-05-21T14:00:47Z",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+    )
+    monkeypatch.setattr(odds_service, "STORE_PATH", store_path)
+
+    result = odds_service.get_sampled_odds_history(
+        event_date="2026-05-30",
+        fighter1="Meng Ding",
+        fighter2="José Henrique",
+    )
+
+    assert result is not None
+    assert result["bet_placed"]["bet_odds"] == -128
+    assert result["current_fighter1_odds"] == -138
+
+
 def test_api_odds_history_returns_404_when_missing(monkeypatch):
     monkeypatch.setattr(events_router, "get_sampled_odds_history", lambda **_: None)
 

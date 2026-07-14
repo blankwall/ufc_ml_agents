@@ -86,22 +86,22 @@ function _applyConfigDefaults(cfg) {
 
 /* ── Bet decision: unified filter + multiplier ─────────────────────────────── */
 function getBetDecision(f) {
-  if (!f.model_prob_f1) return { visible: !f.error, multiplier: null };
+  if (!f.model_prob_f1) return { visible: !f.error, recommended: !f.error, multiplier: null, reviewCandidate: false };
 
   // Thin data filter
   if (document.getElementById('excludeThinData')?.checked) {
     const c1 = f.f1_fight_count ?? 999;
     const c2 = f.f2_fight_count ?? 999;
     if (c1 < THIN_DATA_MIN_FIGHTS || c2 < THIN_DATA_MIN_FIGHTS)
-      return { visible: false, multiplier: null };
+      return { visible: !!f.review_candidate, recommended: false, multiplier: null, reviewCandidate: !!f.review_candidate };
   }
 
   // Odds cap filter
   if (filters.favCap !== null || filters.dogCap !== null) {
     for (const o of [f.f1_odds, f.f2_odds]) {
       if (o === null || o === undefined) continue;
-      if (filters.favCap !== null && o <= filters.favCap) return { visible: false, multiplier: null };
-      if (filters.dogCap !== null && o >= filters.dogCap) return { visible: false, multiplier: null };
+    if (filters.favCap !== null && o <= filters.favCap) return { visible: !!f.review_candidate, recommended: false, multiplier: null, reviewCandidate: !!f.review_candidate };
+    if (filters.dogCap !== null && o >= filters.dogCap) return { visible: !!f.review_candidate, recommended: false, multiplier: null, reviewCandidate: !!f.review_candidate };
     }
   }
 
@@ -110,13 +110,13 @@ function getBetDecision(f) {
   const isFav      = mktForPick >= 50;
   const edge       = pickProb - mktForPick;
 
-  if (filters.minEdge !== null && edge < filters.minEdge) return { visible: false, multiplier: null };
-  if (filters.favConf !== null && isFav  && pickProb < filters.favConf) return { visible: false, multiplier: null };
-  if (filters.udConf  !== null && !isFav && pickProb < filters.udConf)  return { visible: false, multiplier: null };
-  if (filters.udEdge  !== null && !isFav && edge     < filters.udEdge)  return { visible: false, multiplier: null };
+  if (filters.minEdge !== null && edge < filters.minEdge) return { visible: !!f.review_candidate, recommended: false, multiplier: null, reviewCandidate: !!f.review_candidate };
+  if (filters.favConf !== null && isFav  && pickProb < filters.favConf) return { visible: !!f.review_candidate, recommended: false, multiplier: null, reviewCandidate: !!f.review_candidate };
+  if (filters.udConf  !== null && !isFav && pickProb < filters.udConf)  return { visible: !!f.review_candidate, recommended: false, multiplier: null, reviewCandidate: !!f.review_candidate };
+  if (filters.udEdge  !== null && !isFav && edge     < filters.udEdge)  return { visible: !!f.review_candidate, recommended: false, multiplier: null, reviewCandidate: !!f.review_candidate };
 
   // Multiplier from config edge buckets
-  if (!bettingConfig) return { visible: true, multiplier: null };
+  if (!bettingConfig) return { visible: true, recommended: true, multiplier: null, reviewCandidate: false };
 
   const edgeFrac = edge / 100;
   const buckets  = bettingConfig.edge_buckets || [];
@@ -137,10 +137,10 @@ function getBetDecision(f) {
     else if (multiplier !== null) multiplier = Math.min(multiplier, wmma.max_multiplier);
   }
 
-  return { visible: true, multiplier };
+  return { visible: true, recommended: true, multiplier, reviewCandidate: false };
 }
 
-function passesFilter(f) { return getBetDecision(f).visible; }
+function passesFilter(f) { return getBetDecision(f).recommended; }
 
 /* ── Filter wiring ──────────────────────────────────────────────────────────── */
 function wireFilters() {
@@ -405,7 +405,7 @@ function selectEvent(idx) {
 
   const fightCards = ev.fights.map(f => {
     const decision = getBetDecision(f);
-    return renderFightCard(f, ev.event_date, decision.visible, decision.multiplier);
+    return renderFightCard(f, ev.event_date, decision);
   }).join('');
 
   panelEl.innerHTML = `
@@ -442,7 +442,10 @@ function selectEvent(idx) {
 }
 
 /* ── Fight card ──────────────────────────────────────────────────────────────── */
-function renderFightCard(f, eventDate, visible = true, multiplier = null) {
+function renderFightCard(f, eventDate, decision = { visible: true, recommended: true, multiplier: null, reviewCandidate: false }) {
+  const visible = decision.visible;
+  const multiplier = decision.multiplier;
+  const reviewCandidate = !!decision.reviewCandidate;
   const hasPred   = f.model_prob_f1 !== null;
   const hasResult = f.winner !== null;
   const isWin     = f.correct === true;
@@ -541,12 +544,25 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
   const edgeMeta = edgeFmt
     ? `<span class="fight-meta-item">Edge: <span class="meta-val meta-edge ${edgeClass}">${edgeFmt}</span></span>`
     : '';
+  const decisionText = reviewCandidate
+    ? (f.review_label || 'Human review candidate')
+    : (!visible && f.skip_reason ? f.skip_reason : '');
+  const decisionDetail = reviewCandidate
+    ? (f.review_reason || f.skip_reason || '')
+    : (f.skip_reason || '');
+  const decisionMeta = decisionText
+    ? `<span class="fight-meta-item">Decision: <span class="meta-val">${esc(decisionText)}</span>${decisionDetail ? ` <span class="meta-subtle">${esc(decisionDetail)}</span>` : ''}</span>`
+    : '';
+  const signalMeta = f.signal_label
+    ? `<span class="fight-meta-item">Signal: <span class="meta-val">${esc(f.signal_label)}</span>${f.signal_reason ? ` <span class="meta-subtle">${esc(f.signal_reason)}</span>` : ''}</span>`
+    : '';
 
   const errorNote = f.error
     ? `<div class="fight-error">⚠ ${f.error}</div>`
     : '';
 
   const noBetBadge = visible ? '' : `<span class="no-bet-badge">no bet</span>`;
+  const reviewBadge = reviewCandidate ? '<span class="bet-size-badge bet-size-low">review</span>' : '';
 
   // Bet-size badge (1x, 1.5x, 2x) — only for visible fights with a multiplier
   let betSizeBadge = '';
@@ -572,6 +588,7 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
           </div>
         </div>
         ${noBetBadge}
+        ${reviewBadge}
         ${betSizeBadge}
       </div>
 
@@ -589,6 +606,8 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
         ${pnlMeta}
         ${betMeta}
         ${edgeMeta}
+        ${decisionMeta}
+        ${signalMeta}
         ${srcMeta}
         ${fightsMeta}
       </div>

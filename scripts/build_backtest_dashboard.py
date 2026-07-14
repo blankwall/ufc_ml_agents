@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Build an HTML dashboard from backtest_results.csv.
+Build an HTML dashboard from a year-specific backtest results CSV.
 Focus: edge (model prob vs market implied prob) and EV — the signals that matter for betting.
 
 Usage:
   python scripts/build_backtest_dashboard.py
-  python scripts/build_backtest_dashboard.py --csv backtest_results.csv --out reports/backtest_dashboard.html
+  python scripts/build_backtest_dashboard.py --csv backtest/backtest_2026_results.csv --out reports/backtest_dashboard.html
 """
 
 import argparse
@@ -85,7 +85,7 @@ def american_to_implied(odds: float) -> float:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--csv", type=str, default=str(REPO_ROOT / "backtest_results.csv"))
+    ap.add_argument("--csv", type=str, default=str(REPO_ROOT / "backtest" / "backtest_2026_results.csv"))
     ap.add_argument("--out", type=str, default=str(REPO_ROOT / "reports" / "backtest_dashboard.html"))
     ap.add_argument("--outcomes", type=str, default="", help="Optional: outcomes CSV (event_name,fighter1,fighter2,winner,fight_key) to show W/L")
     args = ap.parse_args()

@@ -152,7 +152,7 @@ python -m models.xgboost_model \
 # Step 3: Evaluate
 python -m evaluation.evaluate_model \
   --data-path data/processed/training_data.csv \
-  --odds-path ufc_2025_odds.csv \
+  --odds-path backtest/odds/ufc_2025_odds.csv \
   --min-year 2025 \
   --output-dir reports_strict \
   --odds-date-tolerance-days 5 \

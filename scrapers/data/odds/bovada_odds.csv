@@ -1,0 +1,36 @@
+event_name,event_date,fighter1,fighter2,fighter1_odds,fighter2_odds,fighter1_prob,fighter2_prob,scrape_timestamp
+Potential Fights,2026-12-31,Islam Makhachev,Ian Garry,-400,300,0.8,0.25,2026-03-20T11:22:25.607713
+UFC 327: Prochazka vs Ulberg,2026-04-11,Tatsuro Taira,Joshua Van,-168,142,0.6269,0.4132,2026-03-20T11:22:26.802099
+UFC 327: Prochazka vs Ulberg,2026-04-11,Jiri Prochazka,Carlos Ulberg,-130,110,0.5652,0.4762,2026-03-20T11:22:26.802099
+UFC 328: Chimaev vs Strickland,2026-05-09,Khamzat Chimaev,Sean Strickland,-450,335,0.8182,0.2299,2026-03-20T11:22:27.985911
+UFC Fight Night: Adesanya vs Pyfer,2026-03-28,Ricky Simon,Adrian Yanez,-150,130,0.6,0.4348,2026-03-20T11:22:29.278442
+UFC Fight Night: Adesanya vs Pyfer,2026-03-28,Navajo Stirling,Bruno Lopes,-460,340,0.8214,0.2273,2026-03-20T11:22:29.278442
+UFC Fight Night: Adesanya vs Pyfer,2026-03-28,Casey O'Neill,Gabriella Fernandes,-110,-110,0.5238,0.5238,2026-03-20T11:22:29.278442
+UFC Fight Night: Adesanya vs Pyfer,2026-03-28,Marcin Tybura,Tyrell Fortune,-103,-117,0.5074,0.5392,2026-03-20T11:22:29.278442
+UFC Fight Night: Adesanya vs Pyfer,2026-03-28,Chase Hooper,Lance Gibson Jr,-285,235,0.7403,0.2985,2026-03-20T11:22:29.278442
+UFC Fight Night: Adesanya vs Pyfer,2026-03-28,Ignacio Bahamondes,Tofiq Musayev,-275,225,0.7333,0.3077,2026-03-20T11:22:29.278442
+UFC Fight Night: Adesanya vs Pyfer,2026-03-28,Terrance McKinney,Kyle Nelson,-137,117,0.5781,0.4608,2026-03-20T11:22:29.278442
+UFC Fight Night: Adesanya vs Pyfer,2026-03-28,Mansur Abdul-Malik,Yousri Belgaroui,-142,122,0.5868,0.4505,2026-03-20T11:22:29.278442
+UFC Fight Night: Adesanya vs Pyfer,2026-03-28,Julian Erosa,Lerryan Douglas,240,-290,0.2941,0.7436,2026-03-20T11:22:29.278442
+UFC Fight Night: Adesanya vs Pyfer,2026-03-28,Alexa Grasso,Maycee Barber,122,-142,0.4505,0.5868,2026-03-20T11:22:29.278442
+UFC Fight Night: Adesanya vs Pyfer,2026-03-28,Israel Adesanya,Joseph Pyfer,-117,-103,0.5392,0.5074,2026-03-20T11:22:29.278442
+UFC Fight Night: Evloev vs Murphy,2026-03-21,Shanelle Dyer,Ravena Oliveira,-500,360,0.8333,0.2174,2026-03-20T11:22:30.535288
+UFC Fight Night: Evloev vs Murphy,2026-03-21,Shem Rock,Abdul Kareem Al-Selwady,-115,-105,0.5349,0.5122,2026-03-20T11:22:30.535288
+UFC Fight Night: Evloev vs Murphy,2026-03-21,Mario Pinto,Felipe Franco,-950,600,0.9048,0.1429,2026-03-20T11:22:30.535288
+UFC Fight Night: Evloev vs Murphy,2026-03-21,Mantas Kondratavicius,Antonio Trocoli,-850,550,0.8947,0.1538,2026-03-20T11:22:30.535288
+UFC Fight Night: Evloev vs Murphy,2026-03-21,Louie Sutherland,Brando Pericic,215,-260,0.3175,0.7222,2026-03-20T11:22:30.535288
+UFC Fight Night: Evloev vs Murphy,2026-03-21,Nathaniel Wood,Losene Keita,200,-240,0.3333,0.7059,2026-03-20T11:22:30.535288
+UFC Fight Night: Evloev vs Murphy,2026-03-21,Mason Jones,Axel Sola,-150,130,0.6,0.4348,2026-03-20T11:22:30.535288
+UFC Fight Night: Evloev vs Murphy,2026-03-21,Kurtis Campbell,Danny Silva,-235,195,0.7015,0.339,2026-03-20T11:22:30.535288
+UFC Fight Night: Evloev vs Murphy,2026-03-21,Roman Dolidze,Christian Leroy Duncan,375,-525,0.2105,0.84,2026-03-20T11:22:30.535288
+UFC Fight Night: Evloev vs Murphy,2026-03-21,Iwo Baraniewski,Austen Lane,-675,460,0.871,0.1786,2026-03-20T11:22:30.535288
+UFC Fight Night: Evloev vs Murphy,2026-03-21,Michael Page,Sam Patterson,-177,153,0.639,0.3953,2026-03-20T11:22:30.535288
+UFC Fight Night: Evloev vs Murphy,2026-03-21,Luke Riley,Michael Aswell,-200,170,0.6667,0.3704,2026-03-20T11:22:30.535288
+UFC Fight Night: Evloev vs Murphy,2026-03-21,Movsar Evloev,Lerone Murphy,-235,195,0.7015,0.339,2026-03-20T11:22:30.535288
+UFC Fights,2026-03-28,Alexia Thainara,Bruna Brasil,-490,355,0.8305,0.2198,2026-03-20T11:22:31.715273
+UFC Freedom Fights 250: Topuria vs Gaethje,2026-06-14,Alex Pereira,Ciryl Gane,-117,-103,0.5392,0.5074,2026-03-20T11:22:32.920943
+UFC Freedom Fights 250: Topuria vs Gaethje,2026-06-14,Bo Nickal,Kyle Daukaus,-340,270,0.7727,0.2703,2026-03-20T11:22:32.920943
+UFC Freedom Fights 250: Topuria vs Gaethje,2026-06-14,Diego Lopes,Steve Garcia,-195,165,0.661,0.3774,2026-03-20T11:22:32.920943
+UFC Freedom Fights 250: Topuria vs Gaethje,2026-06-14,Ilia Topuria,Justin Gaethje,-550,390,0.8462,0.2041,2026-03-20T11:22:32.920943
+UFC Freedom Fights 250: Topuria vs Gaethje,2026-06-14,Mauricio Ruffy,Michael Chandler,-470,345,0.8246,0.2247,2026-03-20T11:22:32.920943
+UFC Freedom Fights 250: Topuria vs Gaethje,2026-06-14,Sean O'Malley,Aiemann Zahabi,-360,280,0.7826,0.2632,2026-03-20T11:22:32.920943

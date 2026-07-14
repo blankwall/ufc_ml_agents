@@ -22,6 +22,20 @@
     "base_unit": 100
   },
 
+  "dynamic_overrides": {
+    "golden_elo_not_expensive": {
+      "enabled": true,
+      "label": "golden_elo_not_expensive",
+      "surface_on_skip_only": true,
+      "confidence_min": 0.50,
+      "confidence_max": 0.65,
+      "min_elo_diff": 50,
+      "strong_elo_diff": 100,
+      "min_pick_odds": -300,
+      "cardio_signal_diff": 10
+    }
+  },
+
   "wmma_rules": {
     "enabled": true,
     "min_edge": 0.10,

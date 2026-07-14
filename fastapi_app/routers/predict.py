@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Optional
 
@@ -25,11 +25,14 @@ from sqlalchemy.orm import sessionmaker
 
 from backtest.confidence_profile import describe_confidence
 from database.schema import Fighter
+from services.bet_evaluator import SKIP_REASONS, evaluate_bet_decision
+from services.predict_context_service import build_predict_context
 from services.predict_service import (
     FIGHTER_ALIASES,
     MatchupFeatureExtractor,
     _fight_count_as_of,
     _is_wmma,
+    _prediction_cutoff_datetime,
     _resolve_fighter,
     _score_row,
 )
@@ -41,29 +44,18 @@ _CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 _engine  = create_engine(f"sqlite:///{_DB_PATH}", connect_args={"check_same_thread": False})
 _Session = sessionmaker(bind=_engine)
 
-
-# Skip codes (mirror events / bucket_analysis vocabulary).
-SKIP_REASONS = {
-    "F1":   "Favorite low confidence",
-    "F2":   "Favorite odds cap exceeded",
-    "F3":   "Favorite low edge",
-    "U1":   "Underdog low confidence",
-    "U2":   "Underdog low edge",
-    "U3":   "Underdog odds cap exceeded",
-    "W1":   "WMMA edge below WMMA minimum",
-    "D1":   "Insufficient fight data",
-    "ERR":  "Prediction failed",
-}
-
-
 # ── request / response models ─────────────────────────────────────────────────
 
 class PredictRequest(BaseModel):
     fighter1:      str
     fighter2:      str
-    fight_date:    Optional[date] = None   # used as as_of_date for feature extraction
+    fight_date:    Optional[date] = None   # freezes prediction to the prior-day snapshot
     fighter1_odds: Optional[int]  = None   # American odds, e.g. -380 or +310
     fighter2_odds: Optional[int]  = None
+
+
+class PredictContextRequest(PredictRequest):
+    pass
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -90,6 +82,9 @@ def _load_betting_filters() -> dict:
 
 def _evaluate_bet(
     *,
+    fighter1_name: str = "",
+    fighter2_name: str = "",
+    pick_slot: str = "fighter1",
     pick_model_prob: float,   # 0–1 — model conviction on the picked side
     pick_mkt_prob:   float,   # 0–1 — implied market prob on the picked side
     pick_odds:       Optional[int],
@@ -97,45 +92,60 @@ def _evaluate_bet(
     is_wmma:         Optional[bool],
     f1_count:        int,
     f2_count:        int,
+    as_of=None,
+    session=None,
+    snapshot_cache=None,
 ) -> dict:
     """Apply current betting_config rules and return (bet, skip_code, reason)."""
-    cfg          = _load_betting_filters()
-    filters      = cfg.get("filters", {})
-    wmma_rules   = cfg.get("wmma", {})
+    if session is None:
+        cfg = _load_betting_filters()
+        filters = cfg.get("filters", {})
+        wmma_rules = cfg.get("wmma", {})
+        min_fights = filters.get("min_fights", 2)
+        fav_conf = filters.get("favorite_confidence_min", 0.65)
+        ud_conf = filters.get("underdog_confidence_min", 0.53)
+        fav_cap = filters.get("favorite_odds_cap", -300)
+        ud_cap = filters.get("underdog_odds_cap", 300)
+        edge_min = filters.get("edge_min", 0.04)
+        ud_edge_min = filters.get("underdog_edge_min", edge_min)
+        wmma_min_edge = wmma_rules.get("min_edge", 0.10)
+        edge_pct = pick_model_prob - pick_mkt_prob
 
-    min_fights   = filters.get("min_fights", 2)
-    fav_conf     = filters.get("favorite_confidence_min", 0.65)
-    ud_conf      = filters.get("underdog_confidence_min", 0.53)
-    fav_cap      = filters.get("favorite_odds_cap", -300)
-    ud_cap       = filters.get("underdog_odds_cap", 300)
-    edge_min     = filters.get("edge_min", 0.04)
-    ud_edge_min  = filters.get("underdog_edge_min", edge_min)
-    wmma_min_edge = wmma_rules.get("min_edge", 0.10)
+        if f1_count < min_fights or f2_count < min_fights:
+            return {"bet": False, "skip_code": "D1", "skip_reason": SKIP_REASONS["D1"]}
+        if is_wmma and edge_pct < wmma_min_edge:
+            return {"bet": False, "skip_code": "W1", "skip_reason": SKIP_REASONS["W1"]}
+        if is_favorite:
+            if pick_model_prob < fav_conf:
+                return {"bet": False, "skip_code": "F1", "skip_reason": SKIP_REASONS["F1"]}
+            if pick_odds is not None and pick_odds < fav_cap:
+                return {"bet": False, "skip_code": "F2", "skip_reason": SKIP_REASONS["F2"]}
+            if edge_pct < edge_min:
+                return {"bet": False, "skip_code": "F3", "skip_reason": SKIP_REASONS["F3"]}
+        else:
+            if pick_model_prob < ud_conf:
+                return {"bet": False, "skip_code": "U1", "skip_reason": SKIP_REASONS["U1"]}
+            if pick_odds is not None and pick_odds > ud_cap:
+                return {"bet": False, "skip_code": "U3", "skip_reason": SKIP_REASONS["U3"]}
+            if edge_pct < ud_edge_min:
+                return {"bet": False, "skip_code": "U2", "skip_reason": SKIP_REASONS["U2"]}
+        return {"bet": True, "skip_code": None, "skip_reason": None}
 
-    edge_pct = pick_model_prob - pick_mkt_prob   # 0–1 scale
-
-    if f1_count < min_fights or f2_count < min_fights:
-        return {"bet": False, "skip_code": "D1", "skip_reason": SKIP_REASONS["D1"]}
-
-    if is_wmma and edge_pct < wmma_min_edge:
-        return {"bet": False, "skip_code": "W1", "skip_reason": SKIP_REASONS["W1"]}
-
-    if is_favorite:
-        if pick_model_prob < fav_conf:
-            return {"bet": False, "skip_code": "F1", "skip_reason": SKIP_REASONS["F1"]}
-        if pick_odds is not None and pick_odds < fav_cap:
-            return {"bet": False, "skip_code": "F2", "skip_reason": SKIP_REASONS["F2"]}
-        if edge_pct < edge_min:
-            return {"bet": False, "skip_code": "F3", "skip_reason": SKIP_REASONS["F3"]}
-    else:
-        if pick_model_prob < ud_conf:
-            return {"bet": False, "skip_code": "U1", "skip_reason": SKIP_REASONS["U1"]}
-        if pick_odds is not None and pick_odds > ud_cap:
-            return {"bet": False, "skip_code": "U3", "skip_reason": SKIP_REASONS["U3"]}
-        if edge_pct < ud_edge_min:
-            return {"bet": False, "skip_code": "U2", "skip_reason": SKIP_REASONS["U2"]}
-
-    return {"bet": True, "skip_code": None, "skip_reason": None}
+    return evaluate_bet_decision(
+        fighter1_name=fighter1_name,
+        fighter2_name=fighter2_name,
+        pick_slot=pick_slot,
+        pick_model_prob=pick_model_prob,
+        pick_mkt_prob=pick_mkt_prob,
+        pick_odds=pick_odds,
+        is_favorite=is_favorite,
+        is_wmma=is_wmma,
+        f1_count=f1_count,
+        f2_count=f2_count,
+        as_of=as_of,
+        session=session,
+        snapshot_cache=snapshot_cache,
+    )
 
 
 def _matchup_wmma_flag(session, fighter1_id: int, fighter2_id: int) -> Optional[bool]:
@@ -146,6 +156,26 @@ def _matchup_wmma_flag(session, fighter1_id: int, fighter2_id: int) -> Optional[
     if w1 is None and w2 is None:
         return None
     return False
+
+
+@router.post("/predict/context")
+async def predict_fight_context(req: PredictContextRequest):
+    session = _Session()
+    try:
+        return build_predict_context(
+            fighter1=req.fighter1,
+            fighter2=req.fighter2,
+            fight_date=req.fight_date,
+            fighter1_odds=req.fighter1_odds,
+            fighter2_odds=req.fighter2_odds,
+            session=session,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        session.close()
 
 
 # ── endpoint ──────────────────────────────────────────────────────────────────
@@ -181,9 +211,8 @@ async def predict_fight(req: PredictRequest):
         else:
             mkt_prob_f1 = 0.5
 
-        # Feature extraction — honour as_of_date to avoid look-ahead
-        as_of = datetime.combine(req.fight_date, datetime.min.time()) \
-                if req.fight_date else None
+        # Explicit fight dates are evaluated from the previous day's snapshot.
+        as_of = _prediction_cutoff_datetime(req.fight_date)
 
         extractor = MatchupFeatureExtractor(session)
         pred = _score_row(
@@ -208,11 +237,13 @@ async def predict_fight(req: PredictRequest):
             pick_model_prob = model_prob
             pick_mkt_prob   = mkt_prob_f1
             pick_odds_int   = req.fighter1_odds
+            pick_slot       = "fighter1"
         else:
             model_pick      = req.fighter2
             pick_model_prob = 1 - model_prob
             pick_mkt_prob   = 1 - mkt_prob_f1
             pick_odds_int   = req.fighter2_odds
+            pick_slot       = "fighter2"
 
         edge = round((pick_model_prob - pick_mkt_prob) * 100, 1)  # signed
 
@@ -226,6 +257,9 @@ async def predict_fight(req: PredictRequest):
         # Bet decision against the current betting_config rules
         is_favorite = pick_odds_int is not None and pick_odds_int < 0
         bet_eval = _evaluate_bet(
+            fighter1_name=f1.name,
+            fighter2_name=f2.name,
+            pick_slot=pick_slot,
             pick_model_prob=pick_model_prob,
             pick_mkt_prob=pick_mkt_prob,
             pick_odds=pick_odds_int,
@@ -233,6 +267,8 @@ async def predict_fight(req: PredictRequest):
             is_wmma=is_wmma is True,
             f1_count=f1_count,
             f2_count=f2_count,
+            as_of=as_of,
+            session=session,
         )
         confidence = describe_confidence(pick_model_prob)
 
@@ -262,6 +298,17 @@ async def predict_fight(req: PredictRequest):
             "bet":                bet_eval["bet"],
             "skip_code":          bet_eval["skip_code"],
             "skip_reason":        bet_eval["skip_reason"],
+            "decision_source":    bet_eval.get("decision_source"),
+            "review_candidate":   bet_eval.get("review_candidate", False),
+            "review_bucket":      bet_eval.get("review_bucket"),
+            "review_label":       bet_eval.get("review_label"),
+            "review_reason":      bet_eval.get("review_reason"),
+            "signal_bucket":      bet_eval.get("signal_bucket"),
+            "signal_label":       bet_eval.get("signal_label"),
+            "signal_reason":      bet_eval.get("signal_reason"),
+            "signal_tags":        bet_eval.get("signal_tags", []),
+            "pick_elo_diff":      bet_eval.get("pick_elo_diff"),
+            "cardio_score_diff":  bet_eval.get("cardio_score_diff"),
         }
 
     finally:

@@ -691,7 +691,7 @@ class DatabaseManager:
 
         Returns:
             Dict mapping frozenset({f1_lower, f2_lower}) to:
-                [{"winner": str, "result": str, "method": str, "date": str}, ...]
+                [{"fight_id": int, "winner": str, "result": str, "method": str, "date": str}, ...]
         """
         from sqlalchemy.orm import aliased
 
@@ -703,6 +703,7 @@ class DatabaseManager:
         try:
             rows = (
                 session.query(
+                    Fight.id.label("fight_id"),
                     F1.name.label("fighter1"),
                     F2.name.label("fighter2"),
                     W.name.label("winner"),
@@ -723,6 +724,7 @@ class DatabaseManager:
             for r in rows:
                 key = frozenset([r.fighter1.lower(), r.fighter2.lower()])
                 entry = {
+                    "fight_id": r.fight_id,
                     "winner": r.winner,
                     "result": r.result,
                     "method": r.method,
@@ -829,4 +831,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

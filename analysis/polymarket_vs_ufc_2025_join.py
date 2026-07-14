@@ -6,7 +6,7 @@ This script:
   - Loads Polymarket favorite results (with true outcomes) from
       analysis/polymarket_model_results_2.csv
   - Loads 2025 book odds + model EV from
-      backtest_results.csv   (derived from ufc_2025_odds.csv)
+      backtest/backtest_2025_results.csv   (derived from backtest/odds/ufc_2025_odds.csv)
   - Matches fights by fighter names (order-insensitive)
   - Outputs a joined CSV:
       analysis/polymarket_vs_ufc_2025_join.csv
@@ -52,8 +52,8 @@ def main() -> None:
     poly_path = ROOT / "analysis" / "polymarket_model_results_2.csv"
     poly = pd.read_csv(poly_path)
 
-    # Load 2025 backtest results (built from ufc_2025_odds.csv)
-    backtest_path = ROOT / "backtest_results.csv"
+    # Load 2025 backtest results (built from backtest/odds/ufc_2025_odds.csv)
+    backtest_path = ROOT / "backtest" / "backtest_2025_results.csv"
     bt = pd.read_csv(backtest_path)
     bt = bt[~bt["error"]].copy()
 
@@ -175,4 +175,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

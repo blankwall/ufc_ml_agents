@@ -25,6 +25,7 @@ import os
 import re
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from typing import List, Optional
 
 import pytest
@@ -34,7 +35,7 @@ from playwright.sync_api import sync_playwright
 
 SITE_URL  = os.environ.get("SITE_URL", "http://107.175.94.166:8002")
 EVENT     = os.environ.get("EVENT_NAME", "UFC 328")
-EVENT_DATE = os.environ.get("EVENT_DATE", "2026-05-10")
+EVENT_DATE_OVERRIDE = os.environ.get("EVENT_DATE")
 MIN_FIGHTS = int(os.environ.get("MIN_FIGHTS", "5"))
 
 # Tolerances. The events loop and /api/predict run the same model on the
@@ -78,7 +79,93 @@ def _parse_edge(text: str) -> Optional[float]:
     return float(m.group(1)) if m else None
 
 
-def _scrape_event_via_browser(page, event_name: str, event_date: str) -> List[FightCard]:
+def _to_iso_date(value: str | None) -> Optional[str]:
+    if not value:
+        return None
+    cleaned = re.sub(r"(\d+)(st|nd|rd|th)\b", r"\1", str(value).strip())
+    for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%B %d, %Y", "%b %d, %Y", "%B %d", "%b %d"):
+        try:
+            dt = datetime.strptime(cleaned, fmt)
+            if "%Y" not in fmt:
+                dt = dt.replace(year=datetime.now().year)
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(cleaned.replace("Z", "+00:00")).strftime("%Y-%m-%d")
+    except ValueError:
+        return None
+
+
+def _load_api_events() -> list[dict]:
+    response = requests.get(f"{SITE_URL}/api/events", timeout=30)
+    response.raise_for_status()
+    return response.json()
+
+
+def _event_name_matches(target: str, candidate: str) -> bool:
+    target_norm = target.strip().lower()
+    candidate_norm = candidate.strip().lower()
+    return (
+        target_norm == candidate_norm
+        or target_norm in candidate_norm
+        or candidate_norm in target_norm
+    )
+
+
+def _resolve_event_date(
+    event_name: str,
+    event_date_override: str | None,
+    ui_tab_date: str | None = None,
+) -> str | None:
+    override_iso = _to_iso_date(event_date_override)
+    ui_date_iso = _to_iso_date(ui_tab_date)
+    candidates: list[tuple[str, Optional[str]]] = []
+
+    for event in _load_api_events():
+        api_name = str(event.get("event_name", "")).strip()
+        if not _event_name_matches(event_name, api_name):
+            continue
+        candidates.append((api_name, _to_iso_date(str(event.get("event_date", "")))))
+
+    if override_iso is not None and ui_date_iso is not None and override_iso != ui_date_iso:
+        raise AssertionError(
+            f"EVENT_DATE={override_iso} does not match the UI tab date for {event_name} "
+            f"({ui_date_iso})."
+        )
+
+    desired_iso = override_iso or ui_date_iso
+    if desired_iso is not None:
+        if candidates and all(candidate_date != desired_iso for _, candidate_date in candidates):
+            available = ", ".join(
+                f"{name} ({date or 'unknown date'})" for name, date in candidates
+            )
+            raise AssertionError(
+                f"Resolved event date {desired_iso} does not match /api/events for {event_name}. "
+                f"Available matches: {available}"
+            )
+        return desired_iso
+
+    if not candidates:
+        raise AssertionError(
+            f"Could not resolve event date for {event_name} from /api/events. "
+            "Set EVENT_DATE explicitly if this is expected."
+        )
+
+    unique_dates = {date for _, date in candidates if date}
+    if len(unique_dates) > 1:
+        available = ", ".join(
+            f"{name} ({date or 'unknown date'})" for name, date in candidates
+        )
+        raise AssertionError(
+            f"Multiple /api/events date matches found for {event_name}. "
+            f"Set EVENT_DATE explicitly. Matches: {available}"
+        )
+
+    return candidates[0][1]
+
+
+def _scrape_event_via_browser(page, event_name: str, event_date: str | None) -> tuple[List[FightCard], Optional[str]]:
     page.goto(f"{SITE_URL}/events", wait_until="networkidle")
 
     # Wait for the event tabs to render, then click the matching tab.
@@ -105,6 +192,17 @@ def _scrape_event_via_browser(page, event_name: str, event_date: str) -> List[Fi
                 for t in page.query_selector_all(".event-tab")
             )
         )
+
+    target_date = (target.get_attribute("data-event-date") or "").strip()
+    target_name = (target.get_attribute("data-event-name") or target.inner_text() or "").strip()
+    target_date_iso = _to_iso_date(target_date)
+
+    if event_date:
+        assert target_date_iso == _to_iso_date(event_date), (
+            f"UI tab date mismatch for {target_name or event_name}: "
+            f"tab={target_date or 'missing'} expected={event_date}"
+        )
+
     target.click()
     page.wait_for_selector(".fight-card", timeout=10_000)
     # Brief settle for any client-side filtering pass.
@@ -155,21 +253,19 @@ def _scrape_event_via_browser(page, event_name: str, event_date: str) -> List[Fi
         if c.f1_model_prob is not None and c.f2_model_prob is not None:
             c.model_pick = c.fighter1 if c.f1_model_prob >= c.f2_model_prob else c.fighter2
 
-    return cards
+    return cards, target_date_iso
 
 
-def _api_predict(card: FightCard) -> dict:
-    r = requests.post(
-        f"{SITE_URL}/api/predict",
-        json={
-            "fighter1":      card.fighter1,
-            "fighter2":      card.fighter2,
-            "fighter1_odds": card.f1_odds,
-            "fighter2_odds": card.f2_odds,
-            "fight_date":    EVENT_DATE,
-        },
-        timeout=30,
-    )
+def _api_predict(card: FightCard, event_date: str | None) -> dict:
+    payload = {
+        "fighter1": card.fighter1,
+        "fighter2": card.fighter2,
+        "fighter1_odds": card.f1_odds,
+        "fighter2_odds": card.f2_odds,
+    }
+    if event_date:
+        payload["fight_date"] = event_date
+    r = requests.post(f"{SITE_URL}/api/predict", json=payload, timeout=30)
     r.raise_for_status()
     return r.json()
 
@@ -177,12 +273,12 @@ def _api_predict(card: FightCard) -> dict:
 # ─── fixtures ────────────────────────────────────────────────────────────────
 
 @pytest.fixture(scope="module")
-def scraped_cards() -> List[FightCard]:
+def scraped_event() -> tuple[List[FightCard], Optional[str]]:
     with sync_playwright() as p:
         browser = p.chromium.launch()
         try:
             page = browser.new_page(viewport={"width": 1400, "height": 1800})
-            cards = _scrape_event_via_browser(page, EVENT, EVENT_DATE)
+            cards, ui_tab_date = _scrape_event_via_browser(page, EVENT, EVENT_DATE_OVERRIDE)
         finally:
             browser.close()
     assert cards, f"No fight cards scraped for {EVENT}"
@@ -191,6 +287,18 @@ def scraped_cards() -> List[FightCard]:
         print(f"  {c.fighter1} ({c.f1_odds}) vs {c.fighter2} ({c.f2_odds})  "
               f"mkt {c.f1_market_prob}/{c.f2_market_prob}  "
               f"model {c.f1_model_prob}/{c.f2_model_prob}  edge {c.edge}")
+    return cards, ui_tab_date
+
+
+@pytest.fixture(scope="module")
+def resolved_event_date(scraped_event) -> str | None:
+    _, ui_tab_date = scraped_event
+    return _resolve_event_date(EVENT, EVENT_DATE_OVERRIDE, ui_tab_date=ui_tab_date)
+
+
+@pytest.fixture(scope="module")
+def scraped_cards(scraped_event) -> List[FightCard]:
+    cards, _ = scraped_event
     return cards
 
 
@@ -212,7 +320,7 @@ def test_market_probs_sum_to_100(scraped_cards):
         )
 
 
-def test_each_fight_matches_api(scraped_cards):
+def test_each_fight_matches_api(scraped_cards, resolved_event_date):
     """For each scraped fight, the API must return the same model prob,
     market prob, model_pick, and edge."""
     mismatches = []
@@ -220,7 +328,7 @@ def test_each_fight_matches_api(scraped_cards):
         if c.f1_model_prob is None:
             # No prediction rendered — nothing to compare.
             continue
-        api = _api_predict(c)
+        api = _api_predict(c, resolved_event_date)
 
         # market_prob_f1 (vig-removed)
         if abs(api["market_prob_f1"] - c.f1_market_prob) > PROB_TOL:

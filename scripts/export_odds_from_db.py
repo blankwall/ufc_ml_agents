@@ -7,11 +7,11 @@ Output format matches what backtest_2025.py and evaluation/evaluate_model.py exp
 
 Use this to run a full 2025 (or any year) backtest with odds from the DB:
 
-  python scripts/export_odds_from_db.py --year 2025 -o data/odds/db_odds_2025.csv
-  python backtest_2025.py --odds data/odds/db_odds_2025.csv --model mar_4_v2
+  python scripts/export_odds_from_db.py --year 2025 -o backtest/odds/db_odds_2025.csv
+  python backtest/backtest_2025.py --odds backtest/odds/db_odds_2025.csv --model mar_4_v2
 
   # Or with the evaluation pipeline (model vs market, Brier, ROI, etc.):
-  python evaluation/evaluate_model.py --odds-path data/odds/db_odds_2025.csv --min-year 2025
+  python evaluation/evaluate_model.py --odds-path backtest/odds/db_odds_2025.csv --min-year 2025
 """
 
 import argparse

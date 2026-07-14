@@ -245,5 +245,5 @@ The model **does not work for betting purposes**. The apparent edge seen in smal
 - `/Users/tylerbohan/code/ufc_ml_agents/features/matchup_features.py` - Feature calculation (line 518 bug)
 - `/Users/tylerbohan/code/ufc_ml_agents/features/time_based.py` - Opponent quality features
 - `/Users/tylerbohan/code/ufc_ml_agents/data/fight_details.json` - Actual fight results
-- `/Users/tylerbohan/code/ufc_ml_agents/backtest_results.csv` - Prediction results
+- `/Users/tylerbohan/code/ufc_ml_agents/backtest/backtest_2025_results.csv` - Prediction results
 - `/Users/tylerbohan/code/ufc_ml_agents/validate_predictions.py` - Validation script

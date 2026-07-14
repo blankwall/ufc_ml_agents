@@ -51,7 +51,7 @@ def main() -> int:
         help="Model name to use for xgboost_predict context step",
     )
     p.add_argument("--eval-min-year", type=int, default=2025)
-    p.add_argument("--odds-path", type=str, default="ufc_2025_odds.csv")
+    p.add_argument("--odds-path", type=str, default="backtest/odds/ufc_2025_odds.csv")
     p.add_argument("--odds-date-tolerance-days", type=int, default=5)
     p.add_argument("--run-config", type=str, default=None,
                    help="Path to run configuration JSON file (e.g., agent_loop/run_config_underdog_focus.json)")
@@ -192,5 +192,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
 

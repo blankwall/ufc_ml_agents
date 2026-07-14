@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import unicodedata
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -114,6 +115,7 @@ def _within_window(commence_dt: datetime, now: datetime | None = None) -> bool:
 
 def _normalize_name(name: str) -> str:
     value = str(name).strip().lower()
+    value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode()
     value = re.sub(r"['.`]", "", value)
     value = value.replace("-", " ")
     value = re.sub(r"\s+", " ", value)
@@ -452,7 +454,15 @@ def _event_index(store: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def _fight_index(event: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    return {fight["fight_key"]: fight for fight in event.get("fights", [])}
+    return {_stored_fight_key(fight): fight for fight in event.get("fights", [])}
+
+
+def _stored_fight_key(fight: dict[str, Any]) -> str:
+    fighter1 = str(fight.get("fighter1", "")).strip()
+    fighter2 = str(fight.get("fighter2", "")).strip()
+    if fighter1 or fighter2:
+        return fight_key(fighter1, fighter2)
+    return str(fight.get("fight_key", "")).strip()
 
 
 def _export_store_rows(store: dict[str, Any]) -> list[dict[str, Any]]:
@@ -491,7 +501,7 @@ def _find_fight(store: dict[str, Any], *, event_date: str, fighter1: str, fighte
         if event.get("event_key") != target_event_key:
             continue
         for fight in event.get("fights", []):
-            if fight.get("fight_key") == target_fight_key:
+            if _stored_fight_key(fight) == target_fight_key:
                 return event, fight
     return None, None
 
@@ -585,7 +595,7 @@ def get_bet_placed_map() -> dict[tuple[str, str], dict[str, Any]]:
         event_date = str(event.get("event_date", "")).strip()
         for fight in event.get("fights", []):
             bet_placed = fight.get("bet_placed")
-            fight_id = str(fight.get("fight_key", "")).strip()
+            fight_id = _stored_fight_key(fight)
             if event_date and fight_id and bet_placed:
                 out[(event_date, fight_id)] = bet_placed
     return out
@@ -829,7 +839,7 @@ def sync_new_the_odds_api_events(api_key: str | None = None, *, dry_run: bool = 
     for event_entry in store.get("events", []):
         event_entry["last_synced_at"] = captured_at
         for fight_entry in event_entry.get("fights", []):
-            pair_key = (event_entry["event_key"], fight_entry["fight_key"])
+            pair_key = (event_entry["event_key"], _stored_fight_key(fight_entry))
             if pair_key in seen_pairs:
                 continue
             if fight_entry.get("active", True):

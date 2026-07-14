@@ -28,6 +28,7 @@ from fastapi_app.services.predict_service import (
     _is_wmma,
     _load_all_odds,
     _parse_event_date_any,
+    _prediction_cutoff_datetime,
     _resolve_fighter,
     _score_row,
 )
@@ -68,15 +69,14 @@ def _coerce_fight_date(fight_date: date | datetime | str | None) -> tuple[date |
     if fight_date is None:
         return None, None
     if isinstance(fight_date, datetime):
-        return fight_date.date(), datetime.combine(fight_date.date(), datetime.min.time())
-    if isinstance(fight_date, date):
-        return fight_date, datetime.combine(fight_date, datetime.min.time())
-
-    parsed = _parse_event_date_any(str(fight_date).strip())
+        parsed = fight_date.replace(tzinfo=None)
+    elif isinstance(fight_date, date):
+        parsed = datetime.combine(fight_date, datetime.min.time())
+    else:
+        parsed = _parse_event_date_any(str(fight_date).strip())
     if parsed is None:
         raise ValueError("fight_date must be a parseable date string.")
-    parsed_date = parsed.date()
-    return parsed_date, datetime.combine(parsed_date, datetime.min.time())
+    return parsed.date(), _prediction_cutoff_datetime(parsed)
 
 
 def _coerce_optional_int(value: Any) -> int | None:
@@ -525,13 +525,13 @@ def init_fight_analysis(
         fighters = {
             "fighter1": _compact_fighter_snapshot(build_fighter_snapshot(
                 fighter1,
-                as_of=parsed_date.isoformat() if parsed_date is not None else None,
+                as_of=as_of.isoformat() if as_of is not None else None,
                 recent_elo_fights=2,
                 session=session,
             )),
             "fighter2": _compact_fighter_snapshot(build_fighter_snapshot(
                 fighter2,
-                as_of=parsed_date.isoformat() if parsed_date is not None else None,
+                as_of=as_of.isoformat() if as_of is not None else None,
                 recent_elo_fights=2,
                 session=session,
             )),

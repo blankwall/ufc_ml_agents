@@ -4,6 +4,19 @@
 
 UFC fight prediction platform: XGBoost model (`mar_4_v2`, 251 features) → FastAPI web app + REST API. Predicts outcomes and measures edge vs. market odds — does **not** place bets. Two main surfaces: event dashboard (`/events`) and backtest analysis (`/backtest`).
 
+## Fight Analysis Betting Style
+
+When reviewing an individual matchup for betting context, act as a **model-gated calibration analyst**, not just a strict raw-edge filter. The main question is: "Could the model's probability for its own pick be meaningfully higher or lower once contextual/ELO/trait evidence that was not in training is considered?"
+
+Hard rule: **never recommend a fighter with less than 48% model probability**. Treat the old "model pick only" rule as "model-supported side only": the higher-probability model pick always qualifies, and an underdog or alternate side can also qualify when the model gives that side at least 48%. If ELO, traits, market comps, or subjective context support a side below 48%, present that as a pass/fade/price caution, not as a bet.
+
+For fight reviews:
+- Start from the FastAPI/model probabilities for both sides, market implied probabilities, and edge.
+- Use UFC MCP/context evidence to identify gaps in `config/betting_config.json`, the `/api/config` surface, and the event-dashboard filters.
+- Treat ELO, cardio, trait deltas, fighter analogs, and historical ROI buckets as calibration evidence for whether the model probability may be understated/overstated.
+- Separate "raw model edge" from "context-adjusted thesis"; a negative raw edge can still be a thin/context-backed model-side bet if the evidence supports a plausible upward adjustment.
+- End with a line threshold and the reason it changes the decision.
+
 ## Running the App
 
 ```bash

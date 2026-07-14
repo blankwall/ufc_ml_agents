@@ -967,7 +967,7 @@ with tab3:
                     "evaluation.evaluate_model",
                     "--model-name", model_name,
                     "--data-path", str(PROJECT_ROOT / "data" / "processed" / "training_data.csv"),
-                    "--odds-path", str(PROJECT_ROOT / "ufc_2025_odds.csv"),
+                    "--odds-path", str(PROJECT_ROOT / "backtest" / "odds" / "ufc_2025_odds.csv"),
                     "--min-year", str(int(min_year)),
                     "--output-dir", str(temp_dir),
                     "--odds-date-tolerance-days", str(int(odds_date_tolerance)),
@@ -1762,4 +1762,3 @@ if __name__ == "__main__":
     
     # Run Streamlit
     sys.exit(subprocess.run(cmd).returncode)
-

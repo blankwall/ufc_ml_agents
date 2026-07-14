@@ -145,6 +145,500 @@ Parameters tuned: `edge_underdog`, `confidence_favorite`, `confidence_underdog`,
 
 ---
 
+## Step 4 — ELO Analysis (optional sidecar analysis)
+
+`backtest/elo_analysis.py` post-processes existing backtest result CSVs with Sergey sidecar pre-fight ELO. It does **not** rerun model inference. It joins by `main_fight_id` when present, otherwise falls back to date + alias-normalized fighter pair for legacy CSVs.
+
+```bash
+python backtest/elo_analysis.py --results backtest/backtest_2026_results.csv
+python backtest/elo_analysis.py --results backtest/backtest_2025_results.csv --section low_confidence
+
+# Optional row-level export for notebooks/manual review
+python backtest/elo_analysis.py \
+  --results backtest/backtest_2026_results.csv \
+  --write-enriched backtest/elo_2026_enriched.csv
+```
+
+Sections: `coverage`, `pick_diff`, `agreement`, `low_confidence`, `pure_elo`, `rules`, `all`.
+
+Key questions answered:
+- Does the model perform differently when its pick has higher/lower ELO?
+- Which 50-65% confidence picks are upgraded by strong ELO support?
+- How does pure "bet higher ELO" perform by ELO-gap bucket?
+- Are current skip rules rejecting low-confidence but ELO-supported winners?
+
+Requires `data/enrichment/sergey_sidecar.sqlite` with `fight_identity_map` built by `scripts/build_sergey_fight_map.py`.
+
+---
+
+## Step 5 — Context Pool (optional evidence retrieval DB)
+
+`backtest/build_context_pool.py` materializes ELO-enriched 2025/2026 backtest rows into a generated SQLite database for fast historical pattern, similar-fight, and agent evidence queries.
+
+```bash
+python backtest/build_context_pool.py
+# outputs data/enrichment/context_pool.sqlite
+
+# Print nearest historical rows by model confidence and ELO delta
+python backtest/build_context_pool.py --similar-elo 0.61 120 --limit 10
+
+# Print agent-facing schema docs and example SQL
+python backtest/context_schema.py
+```
+
+Generated tables:
+
+| Table | Purpose |
+|---|---|
+| `backtest_fight_pool` | One row per backtested fight with model result, market edge, current bet/skip decision, and ELO context |
+| `pattern_stats` | Reusable aggregate patterns like `skip_50_65_elo_50_plus`, `model_pick_higher_elo`, and underdog/ELO splits. Scoring uses graded rows only and separately reports pending/ungraded matches. |
+| `evidence_items` | Agent-ready target-level evidence rows with an evidence role, summary, source pointer, and JSON payload. Roles include `target`, `context_metric`, `aggregate_pattern`, and `audit_detail`. Evidence types include `trait_delta` when `trait_snapshots.sqlite` is available. |
+| `metadata` | Source files, sidecar path, trait sidecar path, schema version, creation timestamp |
+
+Generated views:
+
+| View | Purpose |
+|---|---|
+| `v_context_targets` | Compact fight-level target rows for finding candidates to inspect |
+| `v_pattern_evidence` | Pattern-stat evidence joined to target fight fields |
+| `v_recent_fight_evidence` | Recent-fight audit rows joined to target fight fields |
+| `v_agent_packet_evidence` | All target-level evidence rows joined to target fight fields for packet-style retrieval |
+
+This is the deterministic evidence pool for future context packets and LLM review. It is generated from existing backtest CSVs plus Sergey sidecar ELO; it should not be edited manually.
+
+When `data/enrichment/trait_snapshots.sqlite` exists, the pool also materializes one `trait_delta` evidence row per joinable backtest pick. Current baseline:
+
+```text
+schema_version: 8
+trait_delta evidence rows: 411
+```
+
+Schema v8 keeps provenance explicit for agent audits:
+
+- `row_num` is the physical CSV line number in `source_results` (header is line 1).
+- `source_row_key` is `{source_results}:{row_num}` for stable citations.
+- Optional odds-source fields (`odds_source_file`, `odds_source_line`, `odds_source_type`, `odds_source_row`, `bookmaker`, `odds_timestamp`, `odds_is_opening_line`, `odds_is_closing_line`, `source_event_id`, `source_url`, `scraped_at`) are preserved when present in the odds input. Legacy 2025/2026 scalar CSVs mostly leave these null.
+
+Inspect trait evidence:
+
+```sql
+SELECT fight_pool_id, date, pick, summary, data_json
+FROM v_agent_packet_evidence
+WHERE evidence_type = 'trait_delta'
+ORDER BY date, fight_pool_id
+LIMIT 20;
+```
+
+The pool also includes opponent-quality v0 fields derived point-in-time from Sergey fight history:
+
+```text
+pick_avg_prior_opponent_elo
+opponent_avg_prior_opponent_elo
+pick_recent3_prior_opponent_elo
+opponent_recent3_prior_opponent_elo
+pick_best_win_opponent_elo
+opponent_best_win_opponent_elo
+pick_opponent_quality_diff
+pick_current_vs_peak_decline
+opponent_current_vs_peak_decline
+pick_decline_diff
+pick_recent_fights_json
+opponent_recent_fights_json
+market_implied_prob
+elo_implied_prob
+model_minus_elo_prob
+market_minus_elo_prob
+model_market_elo_triangle
+```
+
+For a target fight on date D, these fields use fights before D; same-date fights are not allowed to leak into each other.
+The recent-fight JSON fields store the actual last three prior fights with opponent name, opponent ELO, result, method, date, and fight ID; packet output prints these under the opponent-quality section.
+
+---
+
+## Step 6 — Single-Fight Context Packet (optional report)
+
+`backtest/context_packet.py` generates a deterministic JSON evidence packet for one fight from `context_pool.sqlite`. It attaches model/market result, ELO context, matching aggregate patterns, support/risk flags, and nearest historical examples.
+
+```bash
+python backtest/context_packet.py \
+  --fighter1 "Dominick Reyes" \
+  --fighter2 "Johnny Walker" \
+  --date 2026-04-11
+
+# JSON-only for future LLM/tool consumption
+python backtest/context_packet.py \
+  --fighter1 "Dominick Reyes" \
+  --fighter2 "Johnny Walker" \
+  --date 2026-04-11 \
+  --json-only
+
+# Audit the exact graded rows behind the selected pattern_score_v0 source pattern
+python backtest/context_packet.py \
+  --fighter1 "Dominick Reyes" \
+  --fighter2 "Johnny Walker" \
+  --date 2026-04-11 \
+  --expand-source-pattern
+
+# Include current/future pending rows in that expansion
+python backtest/context_packet.py \
+  --fighter1 "Dominick Reyes" \
+  --fighter2 "Johnny Walker" \
+  --date 2026-04-11 \
+  --expand-source-pattern \
+  --include-pending
+```
+
+Run `python backtest/build_context_pool.py` first if `data/enrichment/context_pool.sqlite` is missing or stale.
+
+The packet JSON/human summary includes `trait_deltas_v0` when `trait_delta` evidence exists in `evidence_items`. These deltas are context only; the aggregate `pattern_score_v0` remains ELO-pattern evidence and reports traits separately.
+
+Project subagent for this workflow:
+
+```text
+.claude/agents/ufc-fight-context-analyst.md
+```
+
+Use it when the task is "tell me about this fight" style analysis. It is instructed to:
+- start with structured MCP fight tools (`search_context_targets` -> `get_fight_basics` -> `get_fight_model_market` -> `get_fight_historical_patterns` -> `get_fight_style_flags`)
+- treat `get_fight_elo_context` and `get_fighter_elo_history` as first-class ELO tools rather than relying on one monolithic packet
+- treat those focused tools as the primary first-pass evidence surface, not a single monolithic packet
+- drill into read-only SQL / validation only when the structured tools suggest uncertainty or a promising line of inquiry
+
+`backtest/context_agent_review.py` is the review harness on top of `v_agent_packet_evidence`.
+
+```bash
+# Deterministic cited scaffold
+python backtest/context_agent_review.py \
+  --fighter1 "Dominick Reyes" \
+  --fighter2 "Johnny Walker" \
+  --date 2026-04-11
+
+# Optional LLM-backed evidence-only cited reasoning
+python backtest/context_agent_review.py \
+  --fighter1 "Dominick Reyes" \
+  --fighter2 "Johnny Walker" \
+  --date 2026-04-11 \
+  --llm \
+  --json-only
+```
+
+The default output groups evidence deterministically into support/caution/context/audit buckets. `--llm` uses that deterministic scaffold plus raw evidence rows as prompt input and validates that every generated claim cites known `evidence_id` values from the packet. It is still evidence-only and should not emit a recommendation.
+
+Evidence roles:
+- `matching_patterns` are decision support because they come from aggregate `pattern_stats`.
+- `nearest_historical_examples` are qualitative sanity checks only; do not treat small nearest-neighbor samples as backtested rules.
+
+Packets also include `pattern_score_v0`, a data-derived score from the strongest specific applicable aggregate pattern. Current thresholds:
+- strong: `N>=50`, win rate `>=70%`, ROI `>=15%` → score 8
+- moderate: `N>=30`, win rate `>=65%`, ROI `>=5%` → score 7
+- mild: `N>=20`, win rate `>=60%`, ROI `>0%` → score 6
+- negative/unprofitable: `N>=20`, ROI `<=0%` → score 4
+
+`N` means graded outcomes only. Packet output also shows pending/ungraded matches separately, e.g. `N=64 graded + 4 pending`.
+`--expand-source-pattern` is graded-only by default so the printed audit rows match the scored sample.
+
+`pattern_score_v0` is empirical evidence only, not a final betting action. Labels such as `strong_empirical_support` and `negative_empirical_signal` describe evidence strength for a downstream analyst/agent.
+
+---
+
+## Step 7 — Batch Context Evidence Watchlist (optional report)
+
+`backtest/context_candidates.py` scans pending/ungraded skipped picks in `context_pool.sqlite`, scores each with the same `pattern_score_v0` logic, and prints a ranked watchlist of spots where historical aggregate evidence may justify deeper review. It is not a betting recommendation or rule engine.
+
+```bash
+# Current/future skipped picks only, min empirical score 7 by default
+python backtest/context_candidates.py
+
+# Strong evidence only
+python backtest/context_candidates.py --min-score 8
+
+# Include older pending rows such as no-contests or unresolved historical rows
+python backtest/context_candidates.py --include-past-pending
+
+# JSON for downstream tooling
+python backtest/context_candidates.py --json-only
+```
+
+This report does not change betting rules. It is a deterministic audit/watchlist for skipped model picks that deserve context review.
+
+---
+
+## Step 8 — Independent Context Pipeline Validation
+
+`backtest/validate_context_pipeline.py` stress-tests `pattern_score_v0` on historical graded rows without wiring the context layer into the app or betting rules. Default mode is leave-one-out: each target fight is scored using aggregate pattern evidence that excludes that target row.
+
+```bash
+# Validate all graded historical rows with leave-one-out aggregates
+python backtest/validate_context_pipeline.py
+
+# Validate only rows the current betting rules skipped
+python backtest/validate_context_pipeline.py --skips-only
+
+# Focus on stronger scores
+python backtest/validate_context_pipeline.py --min-score 7
+
+# More conservative chronological evidence: only prior fights can support a target
+python backtest/validate_context_pipeline.py --mode temporal
+```
+
+The report groups results by score, source pattern, season, bet/skip status, edge bucket, and odds bucket. Use this as the promotion gate before exposing context scores in `/api/predict`, `/events`, or any LLM review layer.
+
+---
+
+## Step 8b — Combined Evidence Temporal Validation
+
+`backtest/validate_combined_evidence.py` now supports explicit target-date windows and multi-mode comparison so you can isolate later holdout slices without changing the evidence families themselves.
+
+```bash
+# Compare leave-one-out / temporal / in-sample on a holdout window
+python backtest/validate_combined_evidence.py \
+  --compare-modes \
+  --dedupe-main-fight \
+  --min-date 2026-01-01
+
+# Audit the cardio-supported family on a holdout window
+python backtest/validate_combined_evidence.py \
+  --dedupe-main-fight \
+  --min-date 2026-01-01 \
+  --audit-rule golden_elo_not_expensive_plus_cardio
+```
+
+Audit output now includes:
+- source-row verification status
+- odds provenance presence vs legacy-missing
+- temporal half split
+- temporal quartile split
+
+This is useful for checking whether the cardio-supported ELO family stays intact across later chronological slices instead of only looking good in pooled historical results.
+
+---
+
+## Step 9 — Trait Snapshots (independent Phase 3 sidecar)
+
+`backtest/build_trait_snapshots.py` builds the first point-in-time fighter trait layer from UFCStats fight-total JSON plus Sergey identity mapping. It writes a generated SQLite sidecar and does not mutate the main DB.
+
+```bash
+.venv/bin/python backtest/build_trait_snapshots.py
+# outputs data/enrichment/trait_snapshots.sqlite
+
+.venv/bin/python backtest/validate_trait_snapshots.py
+```
+
+Generated objects:
+
+| Object | Purpose |
+|---|---|
+| `fighter_trait_snapshots` | One row per fighter before a target fight, using only prior fights |
+| `v_trait_pair_deltas` | Fighter-vs-opponent trait deltas for matchup/backtest inspection |
+
+Current v0 trait scores:
+
+```text
+experience_score
+recent_form_score
+cardio_score
+durability_risk_score
+defensive_exposure_score
+offensive_control_score
+anti_control_score
+scramble_score
+striking_pressure_score
+striking_efficiency_score
+grappling_threat_score
+finishing_threat_score
+variance_score
+trait_confidence
+```
+
+Important limitations:
+- `round_by_round` is currently empty in `fight_stats`, so `cardio_score` is a late-fight outcome/control proxy, not a true round-to-round pace-retention metric.
+- Higher risk scores mean more risk; higher ability scores mean more evidence of that ability.
+- Traits are packet evidence only until validated; do not wire them into live betting logic.
+
+Current coverage baseline:
+
+```text
+snapshots: 17,310
+with prior fight history: 14,563 (84.1%)
+with 3+ prior fights: 10,434 (60.3%)
+with Sergey identity: 15,224 (87.9%)
+with cardio proxy: 9,459 (54.6%)
+```
+
+Current Sergey assessment sanity checks:
+
+```text
+pace_retention vs cardio_score                  n=77   corr=+0.454
+distance_control vs striking_efficiency_score   n=154  corr=+0.244
+fight_iq vs recent_form_score                   n=145  corr=+0.167
+scramble vs scramble_score                      n=152  corr=+0.186
+scramble vs anti_control_score                  n=152  corr=+0.145
+hittability vs defensive_exposure_score         n=138  corr=-0.135
+hittability vs defensive_responsibility_score   n=138  corr=+0.135
+```
+
+Treat these as formula-validation evidence, not betting rules. Cardio/late-fight and striking-efficiency are the strongest first-pass alignments. Anti-control was revised in `trait_v0_1_stats_totals`; defensive exposure remains ambiguous and should be interpreted with its inverse responsibility score in mind.
+
+Combined evidence validation:
+
+```bash
+.venv/bin/python backtest/validate_combined_evidence.py
+.venv/bin/python backtest/validate_combined_evidence.py --mode temporal
+```
+
+Current preservation targets:
+
+```text
+golden_elo_plus_trait_support                  N=33  W-L=29-4  WR=87.9%  ROI=+29.7%
+golden_elo_not_expensive_plus_trait_support    N=22  W-L=19-3  WR=86.4%  ROI=+39.5%
+golden_elo_not_expensive_plus_cardio           N=14  W-L=14-0  WR=100.0% ROI=+61.3%
+golden_elo_not_expensive_non_cardio_trait      N=8   W-L=5-3   WR=62.5%  ROI=+1.4%
+```
+
+These are empirical evidence families only. The current useful split is cardio/late-fight support, not generic trait support.
+
+Artifact audit:
+
+```bash
+.venv/bin/python backtest/validate_combined_evidence.py \
+  --audit-rule golden_elo_not_expensive_plus_trait_support \
+  --show-rows
+```
+
+Current audit notes:
+- Unique main fights: `N=21`, `W-L=18-3`, `ROI=+38.2%`; one duplicate line row exists for Alexander Volkanovski vs Diego Lopes.
+- By season: 2025 `11-2`, 2026 `8-1`.
+- By gender: men `17-3`, WMMA `2-0`.
+- Best price band: `-200` to `-101` went `12-0`; `-299` to `-201` was weaker at `7-2`; the lone `>= +200` row lost.
+- Bookmaker coverage is incomplete in the main DB for 8/22 rows, so line-source rigor remains a promotion blocker.
+
+---
+
+## Step 10 — Deterministic Agent Evidence Review
+
+`backtest/context_agent_review.py` is the non-LLM harness for the future agent-review flow. It consumes `v_agent_packet_evidence`, groups rows into support/caution/context/audit sections, and cites `evidence_id` values.
+
+```bash
+.venv/bin/python backtest/context_agent_review.py \
+  --fighter1 "Dominick Reyes" \
+  --fighter2 "Johnny Walker" \
+  --date 2026-04-11
+
+# Or by context pool row
+.venv/bin/python backtest/context_agent_review.py --fight-pool-id 443
+```
+
+Rules:
+- It does not create probabilities, stakes, or bet/skip recommendations.
+- Every claim should cite an `evidence_id` such as `[E4861]`.
+- Future LLM review should consume this cited evidence, not raw tables alone.
+
+---
+
+## Golden Context Baseline — `skip_50_65_elo_50_plus`
+
+This is the current strongest independent context signal and should be preserved while adding new signals.
+
+Definition:
+
+```text
+current rules skipped the pick
+AND 50% <= model pick probability < 65%
+AND model pick has at least +50 pre-fight Sergey ELO over opponent
+```
+
+Current expected result:
+
+```text
+N=64 graded + 4 pending
+W-L=51-13
+WR=79.7%
+ROI=+18.4%
+score=8/10
+```
+
+Reproduce it:
+
+```bash
+.venv/bin/python backtest/build_context_pool.py
+
+.venv/bin/python backtest/context_packet.py \
+  --fighter1 "Dominick Reyes" \
+  --fighter2 "Johnny Walker" \
+  --date 2026-04-11 \
+  --expand-source-pattern
+
+.venv/bin/python backtest/validate_context_pipeline.py --skips-only --min-score 7
+```
+
+Expected packet line:
+
+```text
+skip_50_65_elo_50_plus  N=64 graded + 4 pending  W-L=51-13  WR=79.7%  ROI=+18.4%
+```
+
+Expected validation line:
+
+```text
+skip_50_65_elo_50_plus | 64 | 51-13 | 79.7% | +11.76 | +18.4%
+```
+
+Do not allow broad `model_pick_higher_elo` to upgrade skipped fights by itself; validation showed the skipped-fight subset was not strong enough. For skipped upgrades, prefer specific, audited opportunity patterns.
+
+Opponent-quality v0 currently supports packet context but is not a standalone upgrade rule:
+
+```text
+skip_50_65_elo_50_plus_opp_quality_support  N=35  W-L=28-7  WR=80.0%  ROI=+15.5%
+skip_50_65_elo_50_plus_opp_quality_against  N=29  W-L=23-6  WR=79.3%  ROI=+21.9%
+```
+
+Model/market/ELO triangle fields are also included. ELO-implied probability uses:
+
+```text
+elo_implied_prob = 1 / (1 + 10 ** (-pick_elo_diff / 400))
+```
+
+Current pricing refinement to preserve/test:
+
+```text
+skip_50_65_elo_50_plus_not_expensive
+N=44
+W-L=35-9
+WR=79.5%
+ROI=+27.6%
+```
+
+Walk-forward checks for the same rule:
+
+```text
+after prior N>=10: N=34, W-L=26-8, ROI=+24.5%
+after prior N>=20: N=24, W-L=18-6, ROI=+22.2%
+after prior N>=30 / prior rule grade>=7: N=12, W-L=10-2, ROI=+39.6%
+```
+
+Definition:
+
+```text
+current rules skipped the pick
+AND 50% <= model pick probability < 65%
+AND pick_elo_diff >= +50
+AND pick_odds > -300
+```
+
+The simple `market_minus_elo_prob <= -10%` split was weaker:
+
+```text
+N=14
+W-L=8-6
+WR=57.1%
+ROI=+4.2%
+```
+
+So do not use that market-gap split as a standalone upgrade rule yet.
+
+---
+
 ## Config Files
 
 ### `backtest/backtest_config.json` — per-run backtest parameters
@@ -238,6 +732,7 @@ Canonical backtesting now lives in a small active surface:
 | `backtest/bucket_analysis.py` | Active analyzer |
 | `backtest/confidence_profile.py` | Active confidence scoring helper |
 | `backtest/optimize_config.py` | Optional active grid-search helper |
+| `backtest/elo_analysis.py` | Optional Sergey sidecar ELO analyzer |
 | `backtest/odds/ufc_2025_odds.csv` | Tracked canonical 2025 odds input |
 | `backtest/odds/ufc_2026_odds.csv` | Generated/ignored 2026 odds input |
 | `backtest/archive/backtest_live.py` | Archived legacy prototype; do not use for formal backtesting |

@@ -1,0 +1,46 @@
+{
+  "bfo_url": "https://www.bestfightodds.com/events/ufc-perth-4079",
+  "ufc_stats_url": "",
+  "scraped_at": "2026-04-23T14:10:16.388392+00:00",
+  "event_name": "UFC Perth",
+  "event_date": "May 2nd",
+  "fights": [
+    {
+      "event_name": "UFC Perth",
+      "event_date": "May 2nd",
+      "event_url": "https://www.bestfightodds.com/events/ufc-perth-4079",
+      "fighter1": "Carlos Prates",
+      "fighter2": "Jack Della Maddalena",
+      "fighter1_odds": -115,
+      "fighter2_odds": -110,
+      "fighter1_prob": 0.5349,
+      "fighter2_prob": 0.5238,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Perth",
+      "event_date": "May 2nd",
+      "event_url": "https://www.bestfightodds.com/events/ufc-perth-4079",
+      "fighter1": "Steve Erceg",
+      "fighter2": "Tim Elliott",
+      "fighter1_odds": -450,
+      "fighter2_odds": 333,
+      "fighter1_prob": 0.8182,
+      "fighter2_prob": 0.2309,
+      "source_type": "user_added"
+    },
+    {
+      "event_name": "UFC Perth",
+      "event_date": "May 2nd",
+      "event_url": "https://www.bestfightodds.com/events/ufc-perth-4079",
+      "fighter1": "Brando Pericic",
+      "fighter2": "Shamil Gaziev",
+      "fighter1_odds": -150,
+      "fighter2_odds": 120,
+      "fighter1_prob": 0.6,
+      "fighter2_prob": 0.4545,
+      "source_type": "user_added"
+    }
+  ],
+  "outcomes": []
+}

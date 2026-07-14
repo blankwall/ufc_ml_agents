@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +29,7 @@ from sqlalchemy.orm import sessionmaker
 from features.matchup_features import MatchupFeatureExtractor
 from database.schema import Event as _Event, Fight as _Fight
 from models.utils import resolve_model_dir
+from fastapi_app.services.bet_evaluator import evaluate_bet_decision
 from fastapi_app.services.the_odds_api_service import get_bet_placed_map
 from fastapi_app.services.fighter_identity import FIGHTER_ALIASES, resolve_fighter as _resolve_fighter
 
@@ -115,6 +116,22 @@ def _parse_event_date_any(s: str) -> Optional[datetime]:
         return pd.to_datetime(cleaned, errors="raise").to_pydatetime()
     except Exception:
         return None
+
+
+def _prediction_cutoff_datetime(value: date | datetime | str | None) -> Optional[datetime]:
+    """Map an explicit fight/event date to the prior-day feature snapshot cutoff."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        parsed = value.replace(tzinfo=None)
+    elif isinstance(value, date):
+        parsed = datetime.combine(value, datetime.min.time())
+    else:
+        parsed = _parse_event_date_any(str(value).strip())
+    if parsed is None:
+        return None
+    cutoff_date = parsed.date() - timedelta(days=1)
+    return datetime.combine(cutoff_date, datetime.min.time())
 
 
 def _prediction_cache_namespace() -> str:
@@ -445,6 +462,7 @@ def _run_prediction_loop(
     cache_dirty = False
     events_map: dict[str, dict] = {}
     tracked_bets = get_bet_placed_map()
+    snapshot_cache: dict[tuple[str, str | None], dict] = {}
 
     # norm_key → real event name (outcomes have the authoritative UFC names)
     fightkey_to_ev_name: dict[str, str] = {}
@@ -496,9 +514,9 @@ def _run_prediction_loop(
         f2_canonical = FIGHTER_ALIASES.get(f2_name, f2_name)
         fkey = _fight_key(f1_canonical, f2_canonical)
 
-        # Use the scheduled event date for point-in-time feature extraction so
-        # /events matches /api/predict on future fights too.
-        as_of = _parse_event_date_any(ev_date)
+        # Explicit event dates freeze predictions to the prior-day snapshot so
+        # fight-day requests do not drift within the calendar day.
+        as_of = _prediction_cutoff_datetime(ev_date)
 
         # Historical fights stay anchored to the event date; future fights roll
         # daily so newly ingested DB history doesn't leave /events stale.
@@ -562,6 +580,10 @@ def _run_prediction_loop(
             pick_model_prob = model_prob if model_prob >= 0.5 else 1 - model_prob
             pick_mkt_prob   = mkt_prob   if model_prob >= 0.5 else 1 - mkt_prob
             edge = round((pick_model_prob - pick_mkt_prob) * 100, 1)
+            pick_odds_int = int(f1_odds) if model_prob >= 0.5 and pd.notna(f1_odds) else (
+                int(f2_odds) if model_prob < 0.5 and pd.notna(f2_odds) else None
+            )
+            pick_slot = "fighter1" if model_prob >= 0.5 else "fighter2"
 
             if winner:
                 w_norm  = _normalize_name(winner)
@@ -579,6 +601,42 @@ def _run_prediction_loop(
                         if correct else -100.0,
                         1,
                     )
+        else:
+            pick_odds_int = None
+            pick_slot = "fighter1"
+
+        bet_eval = {
+            "bet": False,
+            "skip_code": None,
+            "skip_reason": None,
+            "decision_source": None,
+            "review_candidate": False,
+            "review_bucket": None,
+            "review_label": None,
+            "review_reason": None,
+            "signal_bucket": None,
+            "signal_label": None,
+            "signal_reason": None,
+            "signal_tags": [],
+            "pick_elo_diff": None,
+            "cardio_score_diff": None,
+        }
+        if model_prob is not None and pred.get("f1_db_name") and pred.get("f2_db_name"):
+            bet_eval = evaluate_bet_decision(
+                fighter1_name=pred["f1_db_name"],
+                fighter2_name=pred["f2_db_name"],
+                pick_slot=pick_slot,
+                pick_model_prob=pick_model_prob,
+                pick_mkt_prob=pick_mkt_prob,
+                pick_odds=pick_odds_int,
+                is_favorite=pick_odds_int is not None and pick_odds_int < 0,
+                is_wmma=pred.get("is_wmma") is True,
+                f1_count=pred.get("f1_fight_count", 0),
+                f2_count=pred.get("f2_fight_count", 0),
+                as_of=as_of,
+                session=session,
+                snapshot_cache=snapshot_cache,
+            )
 
         fight = {
             "fighter1":       f1_name,
@@ -601,6 +659,20 @@ def _run_prediction_loop(
             "f1_fight_count": pred.get("f1_fight_count"),
             "f2_fight_count": pred.get("f2_fight_count"),
             "is_wmma":        pred.get("is_wmma"),
+            "bet":            bet_eval.get("bet"),
+            "skip_code":      bet_eval.get("skip_code"),
+            "skip_reason":    bet_eval.get("skip_reason"),
+            "decision_source": bet_eval.get("decision_source"),
+            "review_candidate": bet_eval.get("review_candidate", False),
+            "review_bucket":  bet_eval.get("review_bucket"),
+            "review_label":   bet_eval.get("review_label"),
+            "review_reason":  bet_eval.get("review_reason"),
+            "signal_bucket":  bet_eval.get("signal_bucket"),
+            "signal_label":   bet_eval.get("signal_label"),
+            "signal_reason":  bet_eval.get("signal_reason"),
+            "signal_tags":    bet_eval.get("signal_tags", []),
+            "pick_elo_diff":  bet_eval.get("pick_elo_diff"),
+            "cardio_score_diff": bet_eval.get("cardio_score_diff"),
         }
 
         ev_name_real = fightkey_to_ev_name.get(fkey, ev_name)

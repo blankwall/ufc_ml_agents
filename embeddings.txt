@@ -1,0 +1,274 @@
+Yes — this is exactly where the sidecar becomes valuable. Think of it as building fighter trait vectors first, then embeddings second.
+
+The key idea: don’t ask the LLM to invent “bad cardio” or “weak chin.” Instead, create measurable trait scores, then let qualitative/manual labels help name or calibrate them.
+
+Core design
+
+For every fighter, as of a given date, build a vector like:
+
+ fighter_state_as_of_date = {
+   elo,
+   opponent_quality,
+   cardio_score,
+   durability_score,
+   wrestle_control_score,
+   anti_wrestling_score,
+   striking_pressure_score,
+   defensive_liability_score,
+   finishing_threat_score,
+   variance_score,
+   experience_score,
+   recent_trend_score
+ }
+
+Then embeddings are just a compressed/similarity-friendly version of those traits.
+
+What contextual per-fight stats are useful for
+
+The Sergey assessment table gives small but valuable human/contextual labels:
+
+┌────────────────────┬─────────────────────────────────────┐
+│ Assessment field   │ Likely trait                        │
+├────────────────────┼─────────────────────────────────────┤
+│ pace_retention     │ cardio / late-fight sustainability  │
+├────────────────────┼─────────────────────────────────────┤
+│ hittability        │ defensive liability / chin exposure │
+├────────────────────┼─────────────────────────────────────┤
+│ distance_control   │ range management                    │
+├────────────────────┼─────────────────────────────────────┤
+│ scramble           │ grappling chaos / get-up ability    │
+├────────────────────┼─────────────────────────────────────┤
+│ fight_iq           │ tactical reliability                │
+└────────────────────┴─────────────────────────────────────┘
+
+But there are only 280 rows, so I would use them as seed labels, not as the whole system.
+
+Best use:
+
+ 1. Build quantitative trait formulas from fight stats.
+ 2. Compare those formulas against Sergey qualitative ratings.
+ 3. Use the ratings to tune/validate the trait scores.
+ 4. Later, train small models to predict qualitative traits from quantitative history.
+
+Example trait definitions
+
+1. Cardio / pace retention
+
+Quantitative evidence:
+
+ round_3_output / round_1_output
+ round_3_strike_defense vs round_1_strike_defense
+ late takedown defense
+ late control time conceded
+ late knockdowns absorbed
+ 5-round performance if available
+
+Possible score:
+
+ cardio_score =
+   + R3 significant strike output retention
+   + R3 defensive retention
+   + late grappling activity retained
+   - late control time conceded
+   - late finish losses
+
+Qualitative backing:
+
+ Sergey pace_retention
+ DFS performance_trend
+ recent_fd_points_win/loss
+
+So if a fighter has low R3 output and Sergey says low pace_retention, you can confidently tag:
+
+ Cardio concern: supported by quantitative late-round decline and qualitative assessment.
+
+2. Chin / durability
+
+Be careful here: “chin” is hard to observe directly. Better split it into:
+
+ durability_score
+ defensive_exposure_score
+ early-finish-risk_score
+
+Quantitative evidence:
+
+ knockdowns absorbed per minute
+ KO/TKO losses
+ round 1 KO/TKO losses
+ significant strikes absorbed per minute
+ head strike absorbed rate if available
+ finish losses adjusted by opponent power/ELO
+ age + recent damage trend
+
+Possible distinction:
+
+ - Fighter gets hit a lot but rarely finished → durable but hittable
+ - Fighter gets hit little but has multiple early KO losses → low durability / high fragility
+ - Fighter absorbs heavy shots from elite opponents only → don’t over-penalize without opponent adjustment
+
+Qualitative backing:
+
+ Sergey hittability
+
+I would avoid calling it “weak chin” unless the evidence is strong. Internally call it:
+
+ durability_risk
+
+3. Wrestle control
+
+Quantitative evidence:
+
+ control time per 15
+ top control share
+ takedowns landed per 15
+ takedown accuracy
+ submission attempts
+ opponent control time conceded
+ get-up/reversal indicators if available
+
+Split into two traits:
+
+ offensive_control_score
+ anti_control_score
+
+Because a good wrestler and a good anti-wrestler are not the same.
+
+Qualitative backing:
+
+ Sergey scramble
+ opponent_td_defense
+ matchup_style
+
+4. Style/archetype
+
+Once the trait scores exist, fighter archetypes become natural:
+
+ pressure striker
+ low-volume counter striker
+ wrestle-control grappler
+ submission hunter
+ fragile finisher
+ durable grinder
+ front-runner
+ late-round improver
+ high-variance underdog
+
+These should be generated from trait clusters, not manually assigned first.
+
+Embedding architecture I’d use
+
+Layer 1 — Point-in-time trait table
+
+Create a table like:
+
+ fighter_trait_snapshots
+
+One row per fighter per date/fight:
+
+ fighter_id
+ fighter_name
+ as_of_date
+ elo_current
+ elo_peak
+ opponent_quality_avg
+ cardio_score
+ durability_risk
+ hittability_score
+ offensive_control_score
+ anti_control_score
+ striking_pressure_score
+ finishing_threat_score
+ variance_score
+ recent_form_score
+
+Important: every feature must be computed only using fights before as_of_date.
+
+Layer 2 — Embeddings
+
+Create embeddings from the trait snapshots.
+
+First version can be simple:
+
+ standardize trait columns
+ PCA / UMAP / nearest-neighbor vector
+
+Later version:
+
+ autoencoder or contrastive embedding
+
+But don’t start there. Start interpretable.
+
+Layer 3 — Similar fighter retrieval
+
+For a fighter:
+
+ find nearest fighters by trait vector
+
+Example output:
+
+ Carlos Ulberg similar fighters:
+ - tall orthodox range striker
+ - high striking defense
+ - low grappling sample
+ - strong recent ELO trend
+
+Then for matchups:
+
+ fighter A vector vs fighter B vector
+ retrieve historical matchups with similar vector deltas
+
+That is the goldmine.
+
+Layer 4 — Contextual decision support
+
+For a prediction:
+
+ base model says 61%
+ context says:
+ + ELO advantage
+ + similar archetype matchups perform well
+ + opponent historically struggles with wrestle control
+ - cardio concern in 5-round fights
+ 
+ Adjusted confidence tier: upgrade / hold / downgrade
+
+Not replacing the model — explaining whether the 61% is a strong 61% or weak 61%.
+
+The safest build order
+
+ 1. ELO + opponent quality first
+  - easiest
+  - highest confidence
+  - low subjectivity
+ 2. Trait snapshot table
+  - cardio
+  - durability risk
+  - wrestle control
+  - anti-wrestling
+  - striking pressure
+  - recent trend
+ 3. Use Sergey qualitative rows as validation labels
+  - check whether low pace_retention aligns with low cardio score
+  - check whether high hittability aligns with absorbed-strike/knockdown metrics
+ 4. Similarity search
+  - fighter-to-fighter
+  - matchup-to-matchup
+ 5. Observation layer
+  - LLM summarizes evidence
+  - no free-form opinions without citations to trait data
+
+My strong recommendation
+
+Build this as an evidence-backed trait system, not just embeddings.
+
+Embeddings are useful for similarity, but the real betting value comes from being able to say:
+
+ We upgraded this 61% because:
+ 1. +142 ELO edge
+ 2. opponent has poor anti-control score
+ 3. similar wrestle-control matchups went 18-9 historically
+ 4. fighter has positive cardio retention in R3
+
+That is much more defensible than:
+
+ embedding says similar fighter good
