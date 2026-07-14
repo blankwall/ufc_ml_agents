@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -117,6 +117,27 @@ def _parse_event_date_any(s: str) -> Optional[datetime]:
         return pd.to_datetime(cleaned, errors="raise").to_pydatetime()
     except Exception:
         return None
+
+
+def _prediction_cutoff_datetime(value: date | datetime | str | None) -> Optional[datetime]:
+    """Map an explicit fight/event date to the prior-day feature snapshot cutoff.
+
+    Used by point-in-time analysis surfaces (e.g. the MCP fight_init context) to
+    build leakage-safe fighter snapshots as of the day before the fight. The core
+    prediction path intentionally does not use this helper.
+    """
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        parsed = value.replace(tzinfo=None)
+    elif isinstance(value, date):
+        parsed = datetime.combine(value, datetime.min.time())
+    else:
+        parsed = _parse_event_date_any(str(value).strip())
+    if parsed is None:
+        return None
+    cutoff_date = parsed.date() - timedelta(days=1)
+    return datetime.combine(cutoff_date, datetime.min.time())
 
 
 def _prediction_cache_namespace() -> str:
