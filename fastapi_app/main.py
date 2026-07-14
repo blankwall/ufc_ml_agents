@@ -12,6 +12,7 @@ from routers.backtest import router as backtest_router
 from routers.bucket_analysis import router as bucket_analysis_router
 from routers.database import router as database_router
 from routers.events import router as events_router
+from routers.ingest import router as ingest_router
 from routers.predict import router as predict_router
 from routers.scraper import router as scraper_router
 from services.runtime_status import configure_job, get_runtime_health, mark_task_started, mark_task_stopped
@@ -67,6 +68,7 @@ app.include_router(backtest_router, prefix="/api")
 app.include_router(bucket_analysis_router, prefix="/api")
 app.include_router(database_router, prefix="/api")
 app.include_router(events_router, prefix="/api")
+app.include_router(ingest_router, prefix="/api")
 app.include_router(predict_router, prefix="/api")
 app.include_router(scraper_router, prefix="/api")
 
@@ -136,7 +138,7 @@ async def backtest_page(request: Request):
 
 @app.get("/ingest", response_class=HTMLResponse)
 async def ingest_page(request: Request):
-    return RedirectResponse(url="/events")
+    return templates.TemplateResponse("ingest.html", {"request": request})
 
 
 @app.get("/fighter", response_class=HTMLResponse)

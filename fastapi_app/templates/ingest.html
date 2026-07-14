@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/style.css?v=8" />
-  <link rel="stylesheet" href="/static/css/ingest.css?v=1" />
+  <link rel="stylesheet" href="/static/css/ingest.css?v=2" />
 </head>
 <body>
 
@@ -88,8 +88,73 @@
 
   </div>
 
+  <!-- ══ Fighter Ingest & Aliases ═════════════════════════════════════════════ -->
+  <section class="section-divider">Fighter Ingest &amp; Aliases</section>
+
+  <section class="ingest-form-card">
+    <div class="form-title">Ingest Fighter from Sherdog</div>
+    <div class="form-row">
+      <input type="url" id="sherdogUrl" class="form-input"
+             placeholder="https://www.sherdog.com/fighter/Richard-Harris-429363" />
+      <input type="text" id="requestedName" class="form-input" style="max-width:220px"
+             placeholder="Name as in odds (e.g. RJ Harris)" />
+      <button class="form-submit" id="previewBtn">Preview</button>
+    </div>
+    <div class="form-hint">Paste a Sherdog fighter URL. Preview scrapes without writing; Save commits to the DB and (optionally) stores a name alias.</div>
+  </section>
+
+  <div id="fPreviewLoading" class="loading-state hidden">
+    <div class="spinner-large"></div>
+    <p>Scraping Sherdog…</p>
+  </div>
+  <div id="fError" class="error-banner hidden"></div>
+  <div id="fSuccess" class="success-banner hidden"></div>
+
+  <!-- Fighter preview + save -->
+  <div id="fPreview" class="fighter-preview hidden">
+    <div class="fp-grid" id="fpGrid"></div>
+
+    <div class="alias-edit">
+      <label class="alias-check">
+        <input type="checkbox" id="writeAlias" /> Write / update alias
+      </label>
+      <div class="form-row">
+        <input type="text" id="aliasFrom" class="form-input" placeholder="alias (odds-source name)" />
+        <span class="alias-arrow">→</span>
+        <input type="text" id="aliasTo" class="form-input" placeholder="canonical DB name" />
+      </div>
+    </div>
+
+    <div class="form-row" style="margin-top:12px">
+      <button class="form-submit" id="saveFighterBtn">Save to Database</button>
+    </div>
+  </div>
+
+  <!-- Alias manager -->
+  <div class="table-section" id="aliasSection">
+    <div class="table-header">
+      <h3>Fighter Aliases</h3>
+      <span class="alias-count" id="aliasCount"></span>
+    </div>
+    <div class="alias-add form-row">
+      <input type="text" id="newAliasFrom" class="form-input" placeholder="new alias" />
+      <span class="alias-arrow">→</span>
+      <input type="text" id="newAliasTo" class="form-input" placeholder="canonical DB name" />
+      <button class="form-submit" id="addAliasBtn">Add</button>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>Alias (source name)</th><th>Canonical (DB name)</th><th></th></tr>
+        </thead>
+        <tbody id="aliasTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
 </main>
 
 <script src="/static/js/ingest.js?v=1"></script>
+<script src="/static/js/ingest_fighter.js?v=1"></script>
 </body>
 </html>

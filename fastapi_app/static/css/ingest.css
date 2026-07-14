@@ -126,3 +126,91 @@
 .table-wrapper {
   max-height: 600px;
 }
+
+/* ── Fighter Ingest & Aliases ──────────────────────────────────────────────── */
+.section-divider {
+  margin-top: 0.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+.error-banner,
+.success-banner {
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: 0.85rem;
+}
+.error-banner {
+  background: rgba(255, 75, 110, 0.1);
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+.success-banner {
+  background: rgba(0, 212, 170, 0.1);
+  border: 1px solid var(--green);
+  color: var(--green);
+}
+
+.fighter-preview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+.fp-grid {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 8px 16px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+.fp-k { color: var(--text-muted); }
+.fp-v { color: var(--text); }
+.fp-warn { color: var(--red); }
+.fp-ok { color: var(--green); }
+
+.alias-edit {
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+.alias-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+.alias-arrow {
+  color: var(--text-dim);
+  font-size: 1rem;
+}
+
+.alias-add {
+  margin-bottom: 1rem;
+}
+.alias-count {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.alias-del {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.alias-del:hover {
+  border-color: var(--red);
+  color: var(--red);
+}

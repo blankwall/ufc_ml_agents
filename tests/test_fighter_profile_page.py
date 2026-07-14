@@ -23,13 +23,19 @@ def test_fighter_profile_returns_display_friendly_summary():
     assert set(profile["ufc_record"].keys()) == {"wins", "losses", "draws", "no_contests"}
 
 
-def test_backtest_and_ingest_routes_redirect_to_events():
+def test_backtest_route_redirects_to_events():
     client = TestClient(app)
 
     backtest = client.get("/backtest", follow_redirects=False)
-    ingest = client.get("/ingest", follow_redirects=False)
 
     assert backtest.status_code in {302, 307}
-    assert ingest.status_code in {302, 307}
     assert backtest.headers["location"] == "/events"
-    assert ingest.headers["location"] == "/events"
+
+
+def test_ingest_route_renders_page():
+    client = TestClient(app)
+
+    ingest = client.get("/ingest")
+
+    assert ingest.status_code == 200
+    assert "Fighter Ingest" in ingest.text

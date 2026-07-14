@@ -77,33 +77,11 @@ def _load_underdog_model():
 
 
 # ── fighter aliases (real-name → DB name or nickname stored in DB) ───────────
-# Add entries here when a CSV uses a name variant the DB doesn't recognise.
-FIGHTER_ALIASES: dict[str, str] = {
-    "Bobby Green":            "King Green",
-    "Sean Omalley":           "Sean O'Malley",
-    "Charles Johson":         "Charles Johnson",
-    "Michal Oleksiejczluk":   "Michal Oleksiejczuk",
-    "Waldo Cortes-Acosta":    "Waldo Cortes Acosta",
-    "Loneer Kavanagh":        "Lone'er Kavanagh",
-    "Carlos Leal Miranda":    "Carlos Leal",
-    "Long Xiao":              "Xiao Long",
-    "Lupita Godinez":         "Loopy Godinez",
-    "Benoit St. Denis":       "Benoit Saint Denis",
-    "Benoit St Denis":        "Benoit Saint Denis",
-    "Kim Sang Wook":          "Sangwook Kim",
-    "Jose Medina":            "Jose Daniel Medina",
-    "Montserrat Rendon":      "Montse Rendon",
-    "Azamt Bekoev":           "Azamat Bekoev",
-    "Casey Oneill":           "Casey O'Neill",
-    "Soo Young Yoo":          "SuYoung You",
-    # Outcome name mismatches (odds source vs UFC stats canonical)
-    "Michael Aswell":         "Michael Aswell Jr.",
-    "Cameron Rowston":        "Cam Rowston",
-    "Don Mar Fan":            "Dom Mar Fan",
-    "Juan Martinetti":        "Adrian Luna Martinetti",
-    # Sergey sidecar / alternate-source name for the same fighter.
-    "Konklak Suphisara":      "Loma Lookboonmee",
-}
+# Aliases are now stored in config/fighter_aliases.json and loaded/persisted via
+# fighter_alias_service. FIGHTER_ALIASES is the same dict object the service
+# mutates in place, so runtime upserts (e.g. from the ingest UI) are visible to
+# every module that imports this name.
+from fastapi_app.services.fighter_alias_service import ALIASES as FIGHTER_ALIASES
 
 
 # ── fighter resolver ──────────────────────────────────────────────────────────

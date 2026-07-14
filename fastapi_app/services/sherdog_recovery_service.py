@@ -136,14 +136,33 @@ def _collect_missing_fighters(odds_df, session) -> list[dict[str, Any]]:
     return sorted(candidates.values(), key=lambda item: item["canonical_name"].lower())
 
 
+def _split_name_nickname(raw: str | None) -> tuple[str, str | None]:
+    """
+    Split a Sherdog display name like 'Richard "The Hammer" Harris' into a clean
+    name ('Richard Harris') and nickname ('The Hammer'). Handles straight and
+    curly quotes. Returns (name, nickname) with nickname None when absent.
+    """
+    if not raw:
+        return "", None
+    text = str(raw).strip()
+    match = re.search(r'["\u201c\u201d\u2018\u2019\'](.+?)["\u201c\u201d\u2018\u2019\']', text)
+    nickname = None
+    if match:
+        nickname = match.group(1).strip() or None
+        text = (text[: match.start()] + " " + text[match.end():])
+    clean = re.sub(r"\s+", " ", text).strip()
+    return clean, nickname
+
+
 def _map_recovered_fighter(scraped: dict[str, Any], *, requested_name: str) -> dict[str, Any]:
     breakdown = scraped.get("method_breakdown", {})
     wins = int((breakdown.get("wins") or {}).get("total") or 0)
     losses = int((breakdown.get("losses") or {}).get("total") or 0)
+    clean_name, nickname = _split_name_nickname(scraped.get("name") or requested_name)
     return {
         "fighter_id": f"sherdog:{scraped['fighter_id']}",
-        "name": scraped.get("name") or requested_name,
-        "nickname": None,
+        "name": clean_name or requested_name,
+        "nickname": nickname,
         "height": scraped.get("height"),
         "weight": scraped.get("weight"),
         "date_of_birth": scraped.get("date_of_birth"),
@@ -205,18 +224,22 @@ def recover_fighter_from_url(
         if not scraped:
             raise ValueError("Unable to scrape Sherdog fighter page")
 
-        recovered_name = scraped.get("name") or requested_name or fighter_id
+        recovered_name, _nick = _split_name_nickname(
+            scraped.get("name") or requested_name or fighter_id
+        )
+        recovered_name = recovered_name or requested_name or fighter_id
         mapped = _map_recovered_fighter(scraped, requested_name=recovered_name)
         fighter_state["requested_name"] = requested_name or recovered_name
         fighter_state["canonical_name"] = recovered_name
-        fighter_state["scraped_name"] = scraped.get("name")
+        fighter_state["scraped_name"] = recovered_name
         fighter_state["fighter_url"] = scraped.get("url") or fighter_url
         fighter_state["sherdog_fighter_id"] = scraped.get("fighter_id")
 
         result = {
             "status": "recovered",
             "requested_name": requested_name or recovered_name,
-            "scraped_name": scraped.get("name"),
+            "scraped_name": recovered_name,
+            "nickname": mapped.get("nickname"),
             "fighter_url": scraped.get("url") or fighter_url,
             "fighter_id": mapped["fighter_id"],
             "dry_run": dry_run,
