@@ -334,12 +334,13 @@ def sync_completed_ufcstats_events(*, dry_run: bool = False) -> dict[str, Any]:
     known_event_ids = _known_event_ids_from_db()
     recent_events = _recent_completed_events(now=started_at)
 
-    synced_event_ids = {
-        event_id
-        for event_id, payload in state.get("events", {}).items()
-        if isinstance(payload, dict) and payload.get("status") == "synced"
-    }
-    candidates = [event for event in recent_events if event["event_id"] not in known_event_ids and event["event_id"] not in synced_event_ids]
+    # The DB is the single source of truth for what has actually been ingested.
+    # We intentionally do NOT skip events based solely on a "synced" marker in the
+    # state file: if the state says an event was synced but it is missing from the
+    # DB (e.g. after a DB restore/rebuild that reverted committed events while the
+    # state file kept its flags), that stale marker must not permanently shadow the
+    # DB and block re-syncing. Only presence in the DB skips an event.
+    candidates = [event for event in recent_events if event["event_id"] not in known_event_ids]
     candidates = candidates[: _int_env(MAX_EVENTS_PER_RUN_ENV, DEFAULT_MAX_EVENTS_PER_RUN)]
 
     backup_path = None

@@ -111,18 +111,14 @@ def test_sync_completed_ufcstats_events_stops_on_dry_run_failure(monkeypatch, tm
     assert fake.calls == [("populate", "http://ufcstats.com/event-details/evt-123", False)]
 
 
-def test_sync_completed_ufcstats_events_skips_known_and_synced(monkeypatch, tmp_path):
+def test_sync_completed_ufcstats_events_skips_events_already_in_db(monkeypatch, tmp_path):
     state_path = tmp_path / "ufcstats_sync_state.json"
-    state_path.write_text(
-        json.dumps({"events": {"evt-synced": {"status": "synced"}}})
-    )
     monkeypatch.setattr(sync_service, "STATE_PATH", state_path)
     monkeypatch.setattr(
         sync_service,
         "_recent_completed_events",
         lambda now=None: [
             {"event_id": "evt-known", "name": "Known", "url": "http://ufcstats.com/event-details/evt-known", "date": "May 17, 2026", "location": ""},
-            {"event_id": "evt-synced", "name": "Synced", "url": "http://ufcstats.com/event-details/evt-synced", "date": "May 17, 2026", "location": ""},
         ],
     )
     monkeypatch.setattr(sync_service, "_known_event_ids_from_db", lambda: {"evt-known"})
@@ -131,7 +127,39 @@ def test_sync_completed_ufcstats_events_skips_known_and_synced(monkeypatch, tmp_
     result = sync_service.sync_completed_ufcstats_events()
 
     assert result["candidates_considered"] == 0
-    assert result["skipped_existing"] == 2
+    assert result["skipped_existing"] == 1
+
+
+def test_sync_reingests_synced_marker_missing_from_db(monkeypatch, tmp_path):
+    """A stale 'synced' state marker must NOT shadow the DB.
+
+    Regression test: if the state file says an event was synced but it is absent
+    from the DB (e.g. after a DB restore that reverted committed events), the
+    event must be re-ingested. Previously the state marker permanently skipped it.
+    """
+    state_path = tmp_path / "ufcstats_sync_state.json"
+    state_path.write_text(json.dumps({"events": {"evt-synced": {"status": "synced"}}}))
+    monkeypatch.setattr(sync_service, "STATE_PATH", state_path)
+    monkeypatch.setattr(
+        sync_service,
+        "_recent_completed_events",
+        lambda now=None: [
+            {"event_id": "evt-synced", "name": "Synced", "url": "http://ufcstats.com/event-details/evt-synced", "date": "May 17, 2026", "location": ""},
+        ],
+    )
+    # State claims synced, but the DB does NOT contain it.
+    monkeypatch.setattr(sync_service, "_known_event_ids_from_db", lambda: set())
+    monkeypatch.setattr(sync_service, "_create_db_backup", lambda: "data/backups/ufc_database_20260518.db")
+    fake = _FakePopulator(
+        dry_run_summary={"event_name": "Synced", "fights_total": 12, "fights_upserted": 12, "fighters_failed": 0},
+        commit_summary={"event_name": "Synced", "fights_total": 12, "fights_upserted": 12, "fighters_failed": 0, "committed": True},
+    )
+    monkeypatch.setattr(sync_service, "_build_populator", lambda: fake)
+
+    result = sync_service.sync_completed_ufcstats_events()
+
+    assert result["candidates_considered"] == 1
+    assert result["synced_events"] == 1
     state = json.loads(state_path.read_text())
     assert state["events"]["evt-synced"]["status"] == "synced"
 

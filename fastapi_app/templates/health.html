@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/style.css?v=8" />
-  <link rel="stylesheet" href="/static/css/health.css?v=1" />
+  <link rel="stylesheet" href="/static/css/health.css?v=2" />
 </head>
 <body>
 <header>
@@ -34,23 +34,40 @@
       <h1>Background job health</h1>
       <p class="hero-copy">Live runtime status for schedulers and recovery flows. JSON remains available at <code>/api/health</code>.</p>
     </div>
-    <div class="hero-status {{ 'is-ok' if payload.status == 'ok' else 'is-bad' }}">
+    <div class="hero-status {{ 'is-ok' if payload.status == 'ok' else ('is-warn' if payload.status == 'degraded' else 'is-bad') }}">
       {{ payload.status|upper }}
     </div>
   </section>
 
+  {% if issues %}
+  <section class="issues-banner {{ 'is-bad' if payload.status == 'error' else 'is-warn' }}">
+    <div class="issues-title">⚠ {{ issues|length }} issue{{ 's' if issues|length != 1 else '' }} need attention</div>
+    <ul class="issues-list">
+      {% for issue in issues %}
+      <li>{{ issue }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% else %}
+  <section class="issues-banner is-ok">
+    <div class="issues-title">✓ All systems current — no issues detected</div>
+  </section>
+  {% endif %}
+
   <section class="summary-grid">
-    <article class="summary-card">
-      <div class="summary-label">Started</div>
-      <div class="summary-value">{{ app_health.started_at or '—' }}</div>
-    </article>
-    <article class="summary-card">
-      <div class="summary-label">Now</div>
-      <div class="summary-value">{{ app_health.now or '—' }}</div>
+    <article class="summary-card {{ 'summary-alert' if data_freshness.stale else '' }}">
+      <div class="summary-label">Latest completed event</div>
+      <div class="summary-value">{{ data_freshness.latest_event_date or '—' }}</div>
+      <div class="summary-sub">{{ data_freshness.age_human }} old{{ ' · STALE' if data_freshness.stale else '' }}</div>
     </article>
     <article class="summary-card">
       <div class="summary-label">Uptime</div>
       <div class="summary-value">{{ app_health.uptime_seconds }}s</div>
+      <div class="summary-sub">since {{ app_health.started_at or '—' }}</div>
+    </article>
+    <article class="summary-card">
+      <div class="summary-label">Now</div>
+      <div class="summary-value">{{ app_health.now or '—' }}</div>
     </article>
     <article class="summary-card">
       <div class="summary-label">Tracked jobs</div>
@@ -67,6 +84,11 @@
           <div class="job-subtitle">{{ job.state_file or 'In-memory runtime job' }}</div>
         </div>
         <div class="status-pills">
+          {% if job.health %}
+          <span class="pill {{ 'pill-green' if job.health.level == 'ok' else ('pill-amber' if job.health.level == 'degraded' else 'pill-red') }}">
+            {{ job.health.level }}
+          </span>
+          {% endif %}
           <span class="pill {{ 'pill-green' if job.enabled else 'pill-muted' }}">
             {{ 'enabled' if job.enabled else 'disabled' }}
           </span>
@@ -75,6 +97,14 @@
           </span>
         </div>
       </div>
+
+      {% if job.health and job.health.issues %}
+      <div class="job-issues">
+        {% for issue in job.health.issues %}
+        <div class="job-issue">⚠ {{ issue }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
 
       <div class="metric-grid">
         <div class="metric">
@@ -152,6 +182,49 @@
       {% endif %}
     </article>
     {% endfor %}
+  </section>
+
+  <section class="evidence-section">
+    <div class="evidence-header">
+      <h2>Run evidence &amp; raw data</h2>
+      <p class="hero-copy">Raw artifacts written by each job — open to verify real data is flowing. JSON files are viewable inline.</p>
+    </div>
+    <div class="evidence-grid">
+      {% for artifact in evidence %}
+      {% if artifact.kind == 'dir' %}
+      <article class="evidence-card">
+        <div class="evidence-card-head">
+          <div class="evidence-label">{{ artifact.label }}</div>
+          <span class="pill pill-muted">{{ artifact.count }} files</span>
+        </div>
+        <div class="evidence-path"><code>{{ artifact.path }}/</code></div>
+        <div class="evidence-files">
+          {% for f in artifact.recent %}
+          <div class="evidence-file-row">
+            <span class="evidence-file-name">{{ f.label }}</span>
+            <span class="evidence-file-meta">{{ f.size_human }} · {{ f.age_human }} ago</span>
+          </div>
+          {% endfor %}
+        </div>
+      </article>
+      {% else %}
+      <article class="evidence-card {{ 'evidence-missing' if not artifact.exists }}">
+        <div class="evidence-card-head">
+          <div class="evidence-label">{{ artifact.label }}</div>
+          {% if artifact.viewable %}
+          <a class="evidence-view" href="/health/evidence/{{ artifact.id }}" target="_blank" rel="noopener">view raw ↗</a>
+          {% elif not artifact.exists %}
+          <span class="pill pill-red">missing</span>
+          {% endif %}
+        </div>
+        <div class="evidence-path"><code>{{ artifact.path }}</code></div>
+        <div class="evidence-file-meta">
+          {% if artifact.exists %}{{ artifact.size_human }} · updated {{ artifact.age_human }} ago ({{ artifact.modified_at or '—' }}){% else %}not created yet{% endif %}
+        </div>
+      </article>
+      {% endif %}
+      {% endfor %}
+    </div>
   </section>
 </main>
 </body>

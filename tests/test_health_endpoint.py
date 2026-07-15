@@ -42,20 +42,28 @@ def test_health_endpoint_reports_runtime_and_background_jobs(monkeypatch):
     response = client.get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "ok",
-        "app": {
-            "started_at": "2026-05-19T12:00:00Z",
-            "now": "2026-05-19T12:10:00Z",
-            "uptime_seconds": 600,
-            "jobs": {"the_odds_api_sync": {"task_active": True}},
-        },
-        "background_jobs": {
-            "the_odds_api_sync": {"enabled": True, "task_active": True, "runs_since_launch": 2},
-            "sherdog_recovery": {"enabled": True, "task_active": False, "runs_since_launch": 2},
-            "ufcstats_completed_sync": {"enabled": False, "task_active": False, "runs_since_launch": 0},
-        },
+    body = response.json()
+
+    # Overall status is now computed from job health + data freshness.
+    assert body["status"] in {"ok", "degraded", "error"}
+    assert isinstance(body["issues"], list)
+    assert isinstance(body["data_freshness"], dict)
+    assert "age_days" in body["data_freshness"]
+
+    assert body["app"] == {
+        "started_at": "2026-05-19T12:00:00Z",
+        "now": "2026-05-19T12:10:00Z",
+        "uptime_seconds": 600,
+        "jobs": {"the_odds_api_sync": {"task_active": True}},
     }
+
+    jobs = body["background_jobs"]
+    assert set(jobs) == {"the_odds_api_sync", "sherdog_recovery", "ufcstats_completed_sync"}
+    # Original per-job fields are preserved, plus an injected health verdict.
+    assert jobs["the_odds_api_sync"]["runs_since_launch"] == 2
+    assert jobs["ufcstats_completed_sync"]["enabled"] is False
+    for job in jobs.values():
+        assert job["health"]["level"] in {"ok", "degraded", "error"}
 
 
 def test_health_page_renders_styled_dashboard(monkeypatch):

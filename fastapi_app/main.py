@@ -1,9 +1,10 @@
 import asyncio
+import json
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
-from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -16,6 +17,7 @@ from routers.ingest import router as ingest_router
 from routers.predict import router as predict_router
 from routers.scraper import router as scraper_router
 from services.runtime_status import configure_job, get_runtime_health, mark_task_started, mark_task_stopped
+from services.health_eval import evaluate_health, list_evidence, resolve_evidence_file, MAX_VIEW_BYTES
 from services.sherdog_recovery_service import get_health_status as sherdog_recovery_health_status, recovery_enabled as sherdog_recovery_enabled
 from services.the_odds_api_service import get_health_status as odds_health_status
 from services.the_odds_api_service import run_sync_loop as run_odds_sync_loop, scheduler_enabled as odds_scheduler_enabled
@@ -79,14 +81,21 @@ async def index(request: Request):
 
 
 def _health_payload():
+    background_jobs = {
+        "the_odds_api_sync": odds_health_status(),
+        "sherdog_recovery": sherdog_recovery_health_status(),
+        "ufcstats_completed_sync": ufcstats_health_status(),
+    }
+    verdict = evaluate_health(background_jobs)
+    for name, job_eval in verdict["job_eval"].items():
+        if name in background_jobs:
+            background_jobs[name]["health"] = job_eval
     return {
-        "status": "ok",
+        "status": verdict["status"],
+        "issues": verdict["issues"],
+        "data_freshness": verdict["data_freshness"],
         "app": get_runtime_health(),
-        "background_jobs": {
-            "the_odds_api_sync": odds_health_status(),
-            "sherdog_recovery": sherdog_recovery_health_status(),
-            "ufcstats_completed_sync": ufcstats_health_status(),
-        },
+        "background_jobs": background_jobs,
     }
 
 
@@ -105,8 +114,30 @@ async def health_page(request: Request):
             "payload": payload,
             "app_health": payload["app"],
             "background_jobs": payload["background_jobs"],
+            "issues": payload.get("issues", []),
+            "data_freshness": payload.get("data_freshness", {}),
+            "evidence": list_evidence(),
         },
     )
+
+
+@app.get("/health/evidence")
+async def health_evidence():
+    return {"artifacts": list_evidence()}
+
+
+@app.get("/health/evidence/{artifact_id}")
+async def health_evidence_file(artifact_id: str):
+    path = resolve_evidence_file(artifact_id)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Unknown or missing evidence artifact")
+    if path.stat().st_size > MAX_VIEW_BYTES:
+        raise HTTPException(status_code=413, detail="Artifact too large to view inline")
+    text = path.read_text()
+    try:
+        return JSONResponse(json.loads(text))
+    except json.JSONDecodeError:
+        return PlainTextResponse(text)
 
 
 @app.get("/health.json")
