@@ -523,6 +523,15 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
          data-event-date="${escAttr(eventDate)}">${f2OddsFmt} · mkt ${(100 - f.market_prob_f1).toFixed(1)}%</button>`
     : `<span class="fighter-odds">${f2OddsFmt} · mkt ${(100 - f.market_prob_f1).toFixed(1)}%</span>`;
 
+  // Per-fighter ELO chips (higher rating highlighted)
+  const hasElo = f.f1_elo !== null && f.f1_elo !== undefined && f.f2_elo !== null && f.f2_elo !== undefined;
+  const f1EloHi = hasElo && f.f1_elo > f.f2_elo ? ' elo-higher' : '';
+  const f2EloHi = hasElo && f.f2_elo > f.f1_elo ? ' elo-higher' : '';
+  const f1EloDisplay = (f.f1_elo !== null && f.f1_elo !== undefined)
+    ? `<span class="fighter-elo${f1EloHi}">ELO ${f.f1_elo}</span>` : '';
+  const f2EloDisplay = (f.f2_elo !== null && f.f2_elo !== undefined)
+    ? `<span class="fighter-elo${f2EloHi}">ELO ${f.f2_elo}</span>` : '';
+
   // Probability bar width: model if available, else market
   const barWidth = hasPred ? f.model_prob_f1 : (f.market_prob_f1 || 50);
   const mktLabel = hasPred ? `${f.model_prob_f1}%` : '?';
@@ -599,11 +608,13 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
           <div class="fighter-block f1">
             <span class="${f1Class} fighter-clickable" data-fighter="${f.fighter1}">${f.fighter1}</span>${f1BetBadge}
             ${f1OddsDisplay}
+            ${f1EloDisplay}
           </div>
           <span class="vs-divider">VS</span>
           <div class="fighter-block f2">
             <span class="${f2Class} fighter-clickable" data-fighter="${f.fighter2}">${f.fighter2}</span>${f2BetBadge}
             ${f2OddsDisplay}
+            ${f2EloDisplay}
           </div>
         </div>
         ${noBetBadge}

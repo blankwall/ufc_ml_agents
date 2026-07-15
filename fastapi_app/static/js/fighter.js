@@ -16,14 +16,18 @@ const $compareSection = document.getElementById('compareSection');
 const $compareStatus = document.getElementById('compareStatus');
 const $comparePrediction = document.getElementById('comparePrediction');
 const $compareTableWrap = document.getElementById('compareTableWrap');
+const $eloChart = document.getElementById('eloChart');
+const $eloEmpty = document.getElementById('eloEmpty');
+const $eloSubtitle = document.getElementById('eloSubtitle');
 
 let currentFighter = null;
 let compareFighter = null;
 const searchTimers = new WeakMap();
 
 const COMPARE_METRICS = [
+  { key: 'elo_current', label: 'ELO', format: formatInt },
   { key: 'age', label: 'Age', format: formatInt },
-  { key: 'height_cm', label: 'Height', format: v => formatNumber(v, ' cm') },
+  { key: 'height_inches', label: 'Height', format: v => formatNumber(v, '"') },
   { key: 'weight_lbs', label: 'Weight', format: v => formatNumber(v, ' lbs') },
   { key: 'reach_inches', label: 'Reach', format: v => formatNumber(v, '"') },
   { key: 'sig_strikes_landed_per_min', label: 'SLpM', format: v => formatNumber(v) },
@@ -133,6 +137,10 @@ async function loadFighter(name) {
     $fighterSearch.value = data.name;
     renderProfile(data);
     $profile.classList.remove('hidden');
+    // Chart was drawn while the profile was hidden (0-width); resize to fill now.
+    if (typeof Plotly !== 'undefined' && $eloChart.data) {
+      Plotly.Plots.resize($eloChart);
+    }
     if (compareFighter && compareFighter !== data.name) {
       await loadComparison(compareFighter);
     } else {
@@ -166,12 +174,12 @@ function renderProfile(fighter) {
   `;
 
   $summaryGrid.innerHTML = [
+    { label: 'ELO Rating', value: formatEloSummary(fighter.elo_current, fighter.elo_peak) },
     { label: 'Overall Win Rate', value: formatPercent(fighter.win_rate_pct) },
     { label: 'UFC Win Rate', value: formatPercent(fighter.ufc_win_rate_pct) },
     { label: 'UFC Bouts', value: formatInt(fighter.ufc_bout_count) },
     { label: 'Age', value: formatInt(fighter.age) },
     { label: 'Stance', value: fighter.stance || '—' },
-    { label: 'No Contests', value: formatInt(fighter.overall_record.no_contests || 0) },
   ].map(item => `
     <div class="summary-card">
       <div class="summary-label">${item.label}</div>
@@ -205,7 +213,7 @@ function renderProfile(fighter) {
   `;
 
   $physGrid.innerHTML = [
-    { label: 'Height', value: formatNumber(fighter.height_cm, ' cm') },
+    { label: 'Height', value: formatNumber(fighter.height_inches, '"') },
     { label: 'Weight', value: formatNumber(fighter.weight_lbs, ' lbs') },
     { label: 'Reach', value: formatNumber(fighter.reach_inches, '"') },
   ].map(item => `
@@ -214,6 +222,8 @@ function renderProfile(fighter) {
       <div class="phys-value">${esc(item.value)}</div>
     </div>
   `).join('');
+
+  renderEloChart([{ name: fighter.name, history: fighter.elo_history }]);
 
   const stats = [
     { label: 'Strikes Landed / Min', value: formatNumber(fighter.sig_strikes_landed_per_min) },
@@ -306,6 +316,10 @@ function renderComparison(other, prediction) {
   $compareStatus.textContent = 'Neutral-line model comparison';
   $comparePrediction.innerHTML = renderMatchupPanel(currentFighter, other, prediction);
   $compareTableWrap.innerHTML = '';
+  renderEloChart([
+    { name: currentFighter.name, history: currentFighter.elo_history },
+    { name: other.name, history: other.elo_history },
+  ]);
 }
 
 function renderCompareRow(left, right, metric) {
@@ -331,6 +345,9 @@ function resetComparison(message = 'Select another fighter to compare.') {
   $compareStatus.textContent = message;
   $comparePrediction.innerHTML = '';
   $compareTableWrap.innerHTML = '';
+  if (currentFighter) {
+    renderEloChart([{ name: currentFighter.name, history: currentFighter.elo_history }]);
+  }
 }
 
 function renderMatchupPanel(left, right, prediction) {
@@ -408,6 +425,141 @@ function showError(message) {
 
 function hideError() {
   $error.classList.add('hidden');
+}
+
+function formatEloSummary(current, peak) {
+  if (current === null || current === undefined) return '—';
+  const peakPart = (peak !== null && peak !== undefined && peak !== current) ? ` (peak ${peak})` : '';
+  return `${current}${peakPart}`;
+}
+
+const ELO_COLORS = ['#4f9cf9', '#f0883e'];
+const ELO_WIN = '#3fb950';
+const ELO_LOSS = '#f85149';
+
+function cssVar(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
+// Convert an elo_history entry to an {x: Date, y: elo} point.
+function eloPoint(entry, lastRealDate) {
+  let x;
+  if (entry.date === 'current') {
+    // Plot the current (post-last-fight) rating shortly after the last bout.
+    const base = entry.after_date ? new Date(entry.after_date) : lastRealDate;
+    x = base ? new Date(base.getTime() + 45 * 864e5) : new Date();
+  } else {
+    x = new Date(entry.date);
+  }
+  return { x, y: entry.elo, entry };
+}
+
+function renderEloChart(fighters) {
+  if (typeof Plotly === 'undefined') return;
+
+  const traces = [];
+  let fightersPlotted = 0;
+  fighters.forEach((f, idx) => {
+    const history = (f.history || []).filter(h => h && h.elo !== null && h.elo !== undefined);
+    if (!history.length) return;
+    fightersPlotted += 1;
+    const realDates = history.filter(h => h.date !== 'current').map(h => new Date(h.date));
+    const lastRealDate = realDates.length ? new Date(Math.max(...realDates.map(d => d.getTime()))) : null;
+    const points = history.map(h => eloPoint(h, lastRealDate)).sort((a, b) => a.x - b.x);
+    const color = ELO_COLORS[idx % ELO_COLORS.length];
+    const markerColors = points.map(p => {
+      if (p.entry.result === 'W') return ELO_WIN;
+      if (p.entry.result === 'L') return ELO_LOSS;
+      return color;
+    });
+
+    // Opponent pre-fight ELO at each bout (skip the trailing "current" point).
+    const oppPoints = points.filter(p => p.entry.date !== 'current'
+      && p.entry.opp_elo !== null && p.entry.opp_elo !== undefined);
+
+    // Dotted connectors from the fighter's ELO to the opponent's ELO per bout,
+    // so the rating gap at each fight is easy to read.
+    const connX = [];
+    const connY = [];
+    oppPoints.forEach(p => {
+      connX.push(p.x, p.x, null);
+      connY.push(p.y, p.entry.opp_elo, null);
+    });
+    if (connX.length) {
+      traces.push({
+        type: 'scatter', mode: 'lines', showlegend: false, hoverinfo: 'skip',
+        x: connX, y: connY,
+        line: { color, width: 1, dash: 'dot' }, opacity: 0.4,
+      });
+    }
+
+    // Opponent markers (hollow diamonds in the fighter's colour).
+    if (oppPoints.length) {
+      traces.push({
+        type: 'scatter', mode: 'markers', showlegend: false,
+        name: `${f.name} — opponents`,
+        x: oppPoints.map(p => p.x),
+        y: oppPoints.map(p => p.entry.opp_elo),
+        marker: { color, size: 9, symbol: 'diamond-open', line: { color, width: 1.5 } },
+        hovertemplate: oppPoints.map(p =>
+          `Opponent: ${p.entry.opponent || '?'}<br>Their ELO %{y}<extra></extra>`),
+      });
+    }
+
+    traces.push({
+      type: 'scatter',
+      mode: 'lines+markers',
+      name: f.name,
+      x: points.map(p => p.x),
+      y: points.map(p => p.y),
+      line: { color, width: 2, shape: 'hv' },
+      marker: {
+        color: markerColors,
+        size: 9,
+        line: { color: cssVar('--surface', '#181c28'), width: 1.5 },
+      },
+      hovertemplate: points.map(p => {
+        if (p.entry.date === 'current') return `<b>${f.name}</b><br>Current ELO %{y}<extra></extra>`;
+        const res = p.entry.result ? ` (${p.entry.result})` : '';
+        const oppElo = (p.entry.opp_elo !== null && p.entry.opp_elo !== undefined)
+          ? `<br>opp ELO ${p.entry.opp_elo}` : '';
+        const opp = p.entry.opponent ? `<br>vs ${p.entry.opponent}${res}${oppElo}` : '';
+        return `<b>${f.name}</b><br>%{x|%b %Y} · ELO %{y}${opp}<extra></extra>`;
+      }),
+    });
+  });
+
+  if (!traces.length) {
+    $eloChart.classList.add('hidden');
+    $eloEmpty.classList.remove('hidden');
+    Plotly.purge($eloChart);
+    return;
+  }
+  $eloChart.classList.remove('hidden');
+  $eloEmpty.classList.add('hidden');
+  if ($eloSubtitle) {
+    const legend = ' Filled dots = fighter (green win / red loss); hollow diamonds = opponent ELO.';
+    $eloSubtitle.textContent = (fightersPlotted > 1
+      ? 'Cross-promotion ELO over career — both fighters overlaid.'
+      : 'Cross-promotion ELO over career. Compare a fighter to overlay both curves.') + legend;
+  }
+
+  const text = cssVar('--text-secondary', '#9aa4b2');
+  const grid = cssVar('--border', 'rgba(255,255,255,0.08)');
+  const layout = {
+    margin: { l: 52, r: 24, t: 10, b: 44 },
+    height: 460,
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor: 'rgba(0,0,0,0)',
+    font: { color: text, family: 'Inter, sans-serif', size: 12 },
+    xaxis: { gridcolor: grid, zeroline: false, type: 'date' },
+    yaxis: { gridcolor: grid, zeroline: false, title: { text: 'ELO' } },
+    legend: { orientation: 'h', y: 1.12, x: 0, font: { color: text } },
+    showlegend: fightersPlotted > 1,
+    hovermode: 'closest',
+  };
+  Plotly.react($eloChart, traces, layout, { displayModeBar: false, responsive: true });
 }
 
 function formatNumber(value, suffix = '') {

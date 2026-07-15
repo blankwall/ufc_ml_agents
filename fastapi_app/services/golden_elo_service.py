@@ -80,6 +80,141 @@ def _current_elo(name: str, *, sidecar_path: Path = SIDECAR_PATH) -> float | Non
     return fighters.get(canonical_name(name, _aliases()))
 
 
+@lru_cache(maxsize=4)
+def _sidecar_fighter_index(sidecar_path: str, mtime_ns: int) -> dict[str, dict[str, Any]]:
+    """Map canonical name -> identity/rating fields from the sidecar fighters table."""
+    path = Path(sidecar_path)
+    if not path.exists():
+        return {}
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            "SELECT fighter_id, full_name, elo_current, elo_peak "
+            "FROM fighters WHERE full_name IS NOT NULL"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    index: dict[str, dict[str, Any]] = {}
+    aliases = _aliases()
+    for row in rows:
+        normalized = canonical_name(row["full_name"], aliases)
+        # Prefer the row with the highest current ELO on a name collision
+        # (e.g. namesake / whitespace-variant duplicates in the source data).
+        existing = index.get(normalized)
+        cur = row["elo_current"]
+        if existing is not None and (cur is None or (existing["elo_current"] or -1) >= (cur or -1)):
+            continue
+        index[normalized] = {
+            "fighter_id": row["fighter_id"],
+            "full_name": row["full_name"],
+            "elo_current": cur,
+            "elo_peak": row["elo_peak"],
+        }
+    return index
+
+
+def _fighter_record(name: str, *, sidecar_path: Path = SIDECAR_PATH) -> dict[str, Any] | None:
+    if not sidecar_path.exists():
+        return None
+    index = _sidecar_fighter_index(str(sidecar_path), sidecar_path.stat().st_mtime_ns)
+    return index.get(canonical_name(name, _aliases()))
+
+
+def current_elo(name: str, *, sidecar_path: Path = SIDECAR_PATH) -> int | None:
+    """Public: current cross-promotion ELO for a fighter, or None if unknown."""
+    rec = _fighter_record(name, sidecar_path=sidecar_path)
+    if not rec or rec.get("elo_current") is None:
+        return None
+    return int(round(rec["elo_current"]))
+
+
+def peak_elo(name: str, *, sidecar_path: Path = SIDECAR_PATH) -> int | None:
+    """Public: peak ELO for a fighter, or None if unknown."""
+    rec = _fighter_record(name, sidecar_path=sidecar_path)
+    if not rec or rec.get("elo_peak") is None:
+        return None
+    return int(round(rec["elo_peak"]))
+
+
+def elo_history(name: str, *, sidecar_path: Path = SIDECAR_PATH) -> list[dict[str, Any]]:
+    """
+    Chronological pre-fight ELO snapshots for a fighter from the sidecar fights
+    table, with a final point at the fighter's current ELO. Each entry:
+    {date, elo, opponent, result, division, promotion, is_ufc}.
+    """
+    rec = _fighter_record(name, sidecar_path=sidecar_path)
+    if not rec:
+        return []
+    fighter_id = rec["fighter_id"]
+    conn = sqlite3.connect(f"file:{sidecar_path}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            """
+            SELECT fight_date, event_date, division, promotion,
+                   fighter_red_id, fighter_blue_id,
+                   fighter_red_name, fighter_blue_name,
+                   fighter_red_elo, fighter_blue_elo, winner_id
+            FROM fights
+            WHERE fighter_red_id = ? OR fighter_blue_id = ?
+            """,
+            (fighter_id, fighter_id),
+        ).fetchall()
+    except sqlite3.Error:
+        return []
+    finally:
+        conn.close()
+
+    history: list[dict[str, Any]] = []
+    for row in rows:
+        is_red = row["fighter_red_id"] == fighter_id
+        elo = row["fighter_red_elo"] if is_red else row["fighter_blue_elo"]
+        opp_elo = row["fighter_blue_elo"] if is_red else row["fighter_red_elo"]
+        if elo is None:
+            continue
+        date_str = row["fight_date"] or row["event_date"]
+        if not date_str:
+            continue
+        opponent = row["fighter_blue_name"] if is_red else row["fighter_red_name"]
+        winner_id = row["winner_id"]
+        if winner_id is None:
+            result = None
+        elif winner_id == fighter_id:
+            result = "W"
+        else:
+            result = "L"
+        promotion = row["promotion"] or ""
+        history.append({
+            "date": date_str,
+            "elo": int(round(elo)),
+            "opp_elo": int(round(opp_elo)) if opp_elo is not None else None,
+            "opponent": opponent,
+            "result": result,
+            "division": row["division"],
+            "promotion": promotion,
+            "is_ufc": "ultimate fighting" in promotion.lower() or promotion.strip().upper() == "UFC",
+        })
+
+    history.sort(key=lambda h: h["date"])
+
+    # Append a final point at the current ELO so the line ends at today's rating.
+    if rec.get("elo_current") is not None:
+        last_date = history[-1]["date"] if history else None
+        history.append({
+            "date": "current",
+            "elo": int(round(rec["elo_current"])),
+            "opponent": None,
+            "result": None,
+            "division": None,
+            "promotion": None,
+            "is_ufc": None,
+            "after_date": last_date,
+        })
+    return history
+
+
 @lru_cache(maxsize=32)
 def _historical_rows(context_pool_path: str, mtime_ns: int, golden_only: bool) -> list[dict[str, Any]]:
     path = Path(context_pool_path)

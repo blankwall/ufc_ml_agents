@@ -108,10 +108,32 @@
 .stats-section,
 .table-section,
 .recent-form-card,
+.elo-section,
 .compare-section {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 18px;
+}
+
+.elo-section {
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.elo-section .section-header {
+  margin-bottom: 12px;
+}
+
+.elo-chart {
+  width: 100%;
+  min-height: 460px;
+}
+
+.elo-empty {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
 }
 
 .profile-header {

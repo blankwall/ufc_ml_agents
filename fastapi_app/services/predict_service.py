@@ -32,6 +32,7 @@ from models.utils import resolve_model_dir
 from fastapi_app.services.bet_evaluator import evaluate_bet_decision
 from fastapi_app.services.the_odds_api_service import get_bet_placed_map
 from fastapi_app.services.fighter_identity import FIGHTER_ALIASES, resolve_fighter as _resolve_fighter
+from fastapi_app.services import golden_elo_service
 
 ODDS_DIR         = ROOT_DIR / "data" / "future_fight_odds"
 USER_EVENTS_DIR  = ROOT_DIR / "data" / "user_events"
@@ -649,6 +650,12 @@ def _run_prediction_loop(
                         1,
                     )
 
+        f1_elo = golden_elo_service.current_elo(f1_name)
+        f2_elo = golden_elo_service.current_elo(f2_name)
+        pick_elo_diff = None
+        if f1_elo is not None and f2_elo is not None and model_prob is not None:
+            pick_elo_diff = (f1_elo - f2_elo) if model_prob >= 0.5 else (f2_elo - f1_elo)
+
         fight = {
             "fighter1":       f1_name,
             "fighter2":       f2_name,
@@ -677,7 +684,9 @@ def _run_prediction_loop(
             "review_bucket":  bet_eval.get("review_bucket"),
             "review_tier":    bet_eval.get("review_tier"),
             "review_label":   bet_eval.get("review_label"),
-            "pick_elo_diff":  bet_eval.get("pick_elo_diff"),
+            "pick_elo_diff":  pick_elo_diff if pick_elo_diff is not None else bet_eval.get("pick_elo_diff"),
+            "f1_elo":         f1_elo,
+            "f2_elo":         f2_elo,
         }
 
         ev_name_real = fightkey_to_ev_name.get(fkey, ev_name)

@@ -27,6 +27,7 @@ from sqlalchemy.orm import sessionmaker
 
 from database.schema import BettingOdds, Event, Fight, Fighter
 from scrapers.event_populator import EventPopulator, PopulatorOptions
+from fastapi_app.services import golden_elo_service
 
 router = APIRouter()
 
@@ -59,6 +60,15 @@ def _display_pct(value: Optional[float]) -> Optional[float]:
     if value is None:
         return None
     return round(value * 100, 1) if value <= 1 else round(value, 1)
+
+
+def _cm_to_inches(cm: Optional[float]) -> Optional[float]:
+    if cm is None:
+        return None
+    try:
+        return round(float(cm) / 2.54, 1)
+    except (TypeError, ValueError):
+        return None
 
 
 def _fight_result_for_fighter(fight: Fight, fighter_id: int) -> str:
@@ -233,6 +243,11 @@ async def get_fighter_profile(name: str):
         win_rate = round((fighter.wins / max(fighter.wins + fighter.losses + fighter.draws, 1)) * 100, 1)
         ufc_win_rate = round((ufc_wins / max(decided_bouts, 1)) * 100, 1) if decided_bouts else None
 
+        # ELO (from Sergey cross-promotion sidecar)
+        elo_current = golden_elo_service.current_elo(fighter.name)
+        elo_peak = golden_elo_service.peak_elo(fighter.name)
+        elo_history = golden_elo_service.elo_history(fighter.name)
+
         return {
             "name": fighter.name,
             "nickname": nickname,
@@ -252,8 +267,12 @@ async def get_fighter_profile(name: str):
             "age": fighter.age,
             "stance": fighter.stance,
             "height_cm": fighter.height_cm,
+            "height_inches": _cm_to_inches(fighter.height_cm),
             "weight_lbs": fighter.weight_lbs,
             "reach_inches": fighter.reach_inches,
+            "elo_current": elo_current,
+            "elo_peak": elo_peak,
+            "elo_history": elo_history,
             "sig_strikes_landed_per_min": fighter.sig_strikes_landed_per_min,
             "striking_accuracy": fighter.striking_accuracy,
             "striking_accuracy_pct": _display_pct(fighter.striking_accuracy),
