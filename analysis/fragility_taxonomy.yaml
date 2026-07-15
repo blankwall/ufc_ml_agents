@@ -1,0 +1,57 @@
+fragility_flags:
+  elo_disagrees_with_model:
+    meaning: "Model pick is not supported by the ELO side."
+    review_prompt: "Why does the model like this side more than ELO does?"
+  low_confidence_dog:
+    meaning: "Model likes an underdog, but the confidence band is weak."
+    review_prompt: "Is the edge real, or just a thin plus-money opinion?"
+  narrow_win_condition:
+    meaning: "The pick mostly wins through one primary path."
+    review_prompt: "If the main win condition underperforms, what is the backup path?"
+  control_without_damage_risk:
+    meaning: "Wrestling or control may not score well if it creates little damage or submission threat."
+    review_prompt: "Does this fighter turn takedowns into damage, dominant rounds, or submission danger?"
+  declining_form:
+    meaning: "Recent trajectory or current-vs-peak indicators are slipping."
+    review_prompt: "Are we backing the current fighter or an older version of him?"
+  market_resistance:
+    meaning: "Market meaningfully disagrees with the model side."
+    review_prompt: "What does the market see that the model may be underweighting?"
+  elo_support_low_sample:
+    meaning: "The pick's ELO support exists, but it is built on too little fighter history to trust."
+    review_prompt: "Is the ELO edge real, or is it coming from a tiny and unstable sample?"
+  large_edge_low_confidence:
+    meaning: "The model shows a big edge, but the confidence band still signals fragility."
+    review_prompt: "Why is confidence still weak if the numerical edge is supposedly strong?"
+  veteran_class_gap:
+    meaning: "The underdog is stepping up against a much more proven veteran or schedule."
+    review_prompt: "Is the pick's recent form masking a real class-of-competition gap?"
+  pick_loses_efficiency_axes:
+    meaning: "The pick trails on important efficiency or control-denial indicators despite broader momentum."
+    review_prompt: "Is the pick losing the cleaner, more repeatable scoring axes?"
+  tiny_sample_confidence:
+    meaning: "The model is showing strong confidence even though the fighter evidence base is very small."
+    review_prompt: "Is this confidence earned by stable data, or is it inflated by a tiny sample?"
+  grappling_path_without_scramble_support:
+    meaning: "The pick's main path relies on grappling, but anti-control or scramble support is weak."
+    review_prompt: "If the wrestling gets contested, does this fighter have the transition and control resilience to stay on script?"
+
+failure_mode_tags:
+  control_without_damage_realized:
+    meaning: "The control-based path happened, but it failed to create enough scoring offense."
+  striking_gap_overrode_control:
+    meaning: "Opponent won the fight on damage or volume despite conceding control."
+  market_disagreement_not_overturned:
+    meaning: "The model edge did not overcome the market's skepticism."
+  thin_elo_support_failed:
+    meaning: "The pick's apparent ELO support did not hold up because it was too thin or unstable."
+  veteran_class_gap_realized:
+    meaning: "The more proven veteran's class advantage showed up clearly in the fight."
+  efficiency_gap_overrode_volume:
+    meaning: "The losing side generated volume, but the opponent's efficiency and cleaner offense won out."
+  small_sample_overconfidence_realized:
+    meaning: "The model showed more confidence than the underlying fighter sample really supported."
+  grappling_path_collapsed:
+    meaning: "The pick's expected wrestling or grappling route failed to materialize."
+  control_lost_despite_projection:
+    meaning: "The pick was expected to compete or lead in control but was instead badly out-controlled."

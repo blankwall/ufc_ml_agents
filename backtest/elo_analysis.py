@@ -36,6 +36,7 @@ from typing import Any, Iterable
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_SIDECAR = ROOT_DIR / "data" / "enrichment" / "sergey_sidecar.sqlite"
 DEFAULT_ALIAS_SOURCES = [
+    ROOT_DIR / "config" / "fighter_aliases.json",
     ROOT_DIR / "fastapi_app" / "services" / "predict_service.py",
     ROOT_DIR / "backtest" / "backtest_2025.py",
 ]
@@ -197,6 +198,19 @@ def parse_aliases_from_file(path: Path) -> dict[str, str]:
     if not path.exists():
         return {}
     aliases: dict[str, str] = {}
+    if path.suffix == ".json":
+        # config/fighter_aliases.json — the runtime-writable alias store.
+        import json
+
+        try:
+            data = json.loads(path.read_text())
+        except (json.JSONDecodeError, OSError):
+            return {}
+        if isinstance(data, dict):
+            for raw, canonical in data.items():
+                if isinstance(raw, str) and isinstance(canonical, str):
+                    aliases[normalize_name(raw)] = normalize_name(canonical)
+        return aliases
     try:
         tree = ast.parse(path.read_text())
     except SyntaxError:
