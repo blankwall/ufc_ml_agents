@@ -109,3 +109,7 @@ agent_loop/agent_artifacts/
 
 # Database backups (large binaries)
 data/backups/
+
+# Local sidecar/DB backups (large, regenerable) — never commit
+data/enrichment/*.bak_*
+*.sqlite.bak_*
