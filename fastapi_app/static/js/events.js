@@ -52,7 +52,7 @@ async function init() {
     contentEl.classList.remove('hidden');
     renderOverall();
     renderTabs();
-    selectEvent(0);
+    selectEvent(defaultEventIndex());
     wireFilters();
   } catch (err) {
     loadingEl.classList.add('hidden');
@@ -347,21 +347,128 @@ function renderOverall() {
 }
 
 /* ── Event tabs ──────────────────────────────────────────────────────────────── */
-function renderTabs() {
-  tabsEl.innerHTML = allEvents.map((ev, i) => {
-    const roi = filteredRoi(ev);
-    const cls = roi !== null ? (roi > 0 ? 'pos' : roi < 0 ? 'neg' : '') : '';
-    const roiStr = roi !== null ? (roi >= 0 ? `+${roi}%` : `${roi}%`) : '?';
-    const label = shortEventName(ev.event_name, ev.event_date);
-    const userCls = ev.source_type === 'user_added' ? ' user-added' : '';
-    return `<button class="event-tab${userCls}" onclick="selectEvent(${i})" id="etab-${i}"
+/* ── Event date parsing + recency ───────────────────────────────────────────── */
+const RECENT_WINDOW_MONTHS = 1;   // events within ~1 month stay as tabs
+const MIN_VISIBLE_TABS      = 3;  // never collapse the newest few into the dropdown
+
+const _MONTHS = { january:0, february:1, march:2, april:3, may:4, june:5,
+  july:6, august:7, september:8, october:9, november:10, december:11,
+  jan:0, feb:1, mar:2, apr:3, jun:5, jul:6, aug:7, sep:8, sept:8, oct:9, nov:10, dec:11 };
+
+function parseEventDate(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);       // ISO: 2026-07-11
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  const cleaned = s.replace(/(\d+)(st|nd|rd|th)/i, '$1');
+  m = cleaned.match(/^([A-Za-z]+)\s+(\d{1,2})(?:,\s*(\d{4}))?$/);  // "May 2nd" / "February 15, 2025"
+  if (m) {
+    const mo = _MONTHS[m[1].toLowerCase()];
+    if (mo === undefined) return null;
+    const year = m[3] ? +m[3] : _inferYear(mo, +m[2]);
+    return new Date(year, mo, +m[2]);
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Yearless dates: pick the year that places the date nearest today without being
+// more than ~1 month in the future (cards a long way "ahead" are last year's).
+function _inferYear(mo, day) {
+  const now = new Date();
+  const cand = new Date(now.getFullYear(), mo, day);
+  const oneMonthAhead = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  return cand > oneMonthAhead ? now.getFullYear() - 1 : now.getFullYear();
+}
+
+function eventDate(ev) { return parseEventDate(ev && ev.event_date); }
+
+function isRecentEvent(ev) {
+  const d = eventDate(ev);
+  if (!d) return true;   // unknown date → keep visible rather than hide
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - RECENT_WINDOW_MONTHS);
+  cutoff.setHours(0, 0, 0, 0);
+  return d >= cutoff;
+}
+
+// Index of the newest event (largest date) — used as the default active tab.
+function defaultEventIndex() {
+  let best = -1, bestT = -Infinity;
+  allEvents.forEach((ev, i) => {
+    const d = eventDate(ev);
+    const t = d ? d.getTime() : -Infinity;
+    if (t >= bestT) { bestT = t; best = i; }
+  });
+  return best >= 0 ? best : Math.max(0, allEvents.length - 1);
+}
+
+function _byNewest(a, b) {
+  const da = eventDate(allEvents[a]), db = eventDate(allEvents[b]);
+  return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+}
+
+/* ── Tabs (recent) + dropdown (older than 1 month) ──────────────────────────── */
+function eventTabHtml(ev, i) {
+  const roi = filteredRoi(ev);
+  const cls = roi !== null ? (roi > 0 ? 'pos' : roi < 0 ? 'neg' : '') : '';
+  const roiStr = roi !== null ? (roi >= 0 ? `+${roi}%` : `${roi}%`) : '?';
+  const label = shortEventName(ev.event_name, ev.event_date);
+  const userCls = ev.source_type === 'user_added' ? ' user-added' : '';
+  return `<button class="event-tab${userCls}" onclick="selectEvent(${i})" id="etab-${i}"
       data-event-name="${escAttr(ev.event_name || '')}"
       data-event-date="${escAttr(ev.event_date || '')}"
       title="${escAttr(ev.event_name || '')}">
       ${label}${ev.source_type === 'user_added' ? '<span class="ua-dot" title="User-added event">●</span>' : ''}
       <span class="tab-roi ${cls}">${roiStr}</span>
     </button>`;
-  }).join('');
+}
+
+function renderTabs() {
+  const recent = [], older = [];
+  allEvents.forEach((ev, i) => (isRecentEvent(ev) ? recent : older).push(i));
+
+  // Guard: keep at least the newest few as tabs so the bar is never empty
+  // (e.g. when every event is already older than a month).
+  if (recent.length < MIN_VISIBLE_TABS && older.length) {
+    const byNewest = older.slice().sort(_byNewest);
+    while (recent.length < MIN_VISIBLE_TABS && byNewest.length) {
+      const idx = byNewest.shift();
+      recent.push(idx);
+      older.splice(older.indexOf(idx), 1);
+    }
+    recent.sort((a, b) => a - b);
+  }
+
+  const tabsHtml = recent.map(i => eventTabHtml(allEvents[i], i)).join('');
+
+  let dropdownHtml = '';
+  if (older.length) {
+    const opts = older.slice().sort(_byNewest).map(i => {
+      const ev = allEvents[i];
+      const roi = filteredRoi(ev);
+      const roiStr = roi !== null ? (roi >= 0 ? ` (+${roi}%)` : ` (${roi}%)`) : '';
+      return `<option value="${i}">${escHtml(shortEventName(ev.event_name, ev.event_date) + roiStr)}</option>`;
+    }).join('');
+    dropdownHtml = `<select class="event-older-select" id="olderEventSelect"
+        onchange="if(this.value!=='')selectEvent(parseInt(this.value,10))"
+        title="Events older than one month">
+        <option value="">Older events (${older.length}) ▾</option>
+        ${opts}
+      </select>`;
+  }
+
+  tabsEl.innerHTML = tabsHtml + dropdownHtml;
+  syncActiveTab(activeIndex);
+}
+
+// Highlight the active tab by id and reflect an older selection in the dropdown.
+function syncActiveTab(idx) {
+  document.querySelectorAll('.event-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.id === `etab-${idx}`);
+  });
+  const sel = document.getElementById('olderEventSelect');
+  if (sel) sel.value = document.getElementById(`etab-${idx}`) ? '' : String(idx);
 }
 
 function filteredRoi(ev) {
@@ -407,10 +514,8 @@ function truncateLabel(text, maxLen) {
 function selectEvent(idx) {
   activeIndex = idx;
 
-  // Highlight active tab
-  document.querySelectorAll('.event-tab').forEach((btn, i) => {
-    btn.classList.toggle('active', i === idx);
-  });
+  // Highlight active tab (id-based, since older events live in the dropdown)
+  syncActiveTab(idx);
 
   const ev = allEvents[idx];
   if (!ev) return;

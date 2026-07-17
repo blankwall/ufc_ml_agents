@@ -312,6 +312,31 @@
   opacity: .8;
 }
 
+.event-older-select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .15s;
+  max-width: 260px;
+}
+
+.event-older-select:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.event-older-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  color: var(--text);
+}
+
 /* Event panel */
 .event-panel {
   background: var(--surface);
