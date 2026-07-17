@@ -203,7 +203,11 @@ class CachedFeatureBuilder(FeatureBuilder):
             date_key = str(as_of_date)  # Fallback to string
 
         feature_set_key = tuple(sorted(feature_set))
-        cache_key = (fighter_id, feature_set_key, date_key)
+        # Include the active fight-exclusion set so features computed with the
+        # predicted bout excluded never collide with an unfiltered entry for the
+        # same (fighter, as_of_date).
+        excl_key = frozenset(getattr(self, '_excluded_fight_ids', set()))
+        cache_key = (fighter_id, feature_set_key, date_key, excl_key)
 
         # Check cache
         if cache_key in self._cache:

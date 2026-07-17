@@ -670,9 +670,11 @@ def main():
     for idx, row in past_fights.iterrows():
         date = row["date"].strftime("%Y-%m-%d")
         provenance = odds_provenance(row, odds_path=csv_path, source_line=int(idx) + 2)
-        # Use the fight date as the feature cutoff.  get_fight_history uses a strict
-        # < comparison, so same-event fights (stored with the same date) are excluded
-        # automatically — no need to subtract a day.  This matches the site's behaviour.
+        # Use the fight date as the feature cutoff.  get_fight_history uses a
+        # strict < comparison, and MatchupFeatureExtractor additionally excludes
+        # the predicted bout by fighter-pair identity within a few days of the
+        # anchor — so the fight can't leak even when the odds-CSV date is a day
+        # off from the DB event date (a common cross-source disagreement).
         as_of_date = date
         f1 = row["fighter1"]
         f2 = row["fighter2"]

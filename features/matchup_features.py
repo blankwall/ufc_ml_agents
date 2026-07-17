@@ -31,6 +31,15 @@ except ImportError:
     CACHED_FEATURE_BUILDER_AVAILABLE = False
 
 
+# When anchoring point-in-time features to a fight date, the bout being
+# predicted is excluded from history by identity (fighter pair) if its DB event
+# date falls within this many days of the anchor. This absorbs date
+# disagreements between data sources (e.g. odds feed vs UFCStats being off by a
+# day) without touching legitimate earlier meetings between the same two
+# fighters (rematches are months/years apart).
+PREDICTED_FIGHT_DATE_TOLERANCE_DAYS = 3
+
+
 class MatchupFeatureExtractor:
     """Extract features for a specific fight matchup"""
 
@@ -83,38 +92,88 @@ class MatchupFeatureExtractor:
         Returns:
             Dictionary with matchup features
         """
-        # Get individual fighter features
-        f1_features = self.fighter_extractor.extract_features(
-            fighter_1_id, as_of_date, feature_set=feature_set
-        )
-        f2_features = self.fighter_extractor.extract_features(
-            fighter_2_id, as_of_date, feature_set=feature_set
-        )
-        
-        matchup_features = {}
-        
-        # Add individual features with prefixes
-        for key, value in f1_features.items():
-            matchup_features[f'f1_{key}'] = value
-        
-        for key, value in f2_features.items():
-            matchup_features[f'f2_{key}'] = value
-        
-        # Add differential features
-        matchup_features.update(self._calculate_differentials(f1_features, f2_features))
-        
-        # Add style matchup features
-        matchup_features.update(self._calculate_style_matchup(f1_features, f2_features))
-        
-        # Add style volatility mismatch feature
-        matchup_features.update(self._calculate_style_volatility_mismatch(
+        # Exclude the specific bout being predicted from both fighters' history
+        # by identity, so date-source disagreements can't leak its outcome.
+        excluded_ids = self._predicted_fight_ids(
             fighter_1_id, fighter_2_id, as_of_date
-        ))
-        
-        # Add common opponent analysis
-        matchup_features.update(self._calculate_common_opponents(fighter_1_id, fighter_2_id, as_of_date))
-        
+        )
+        builder = getattr(self.fighter_extractor, 'feature_builder', None)
+        prev_excluded = getattr(builder, '_excluded_fight_ids', set()) if builder else set()
+        if builder is not None:
+            builder._excluded_fight_ids = excluded_ids
+
+        try:
+            # Get individual fighter features
+            f1_features = self.fighter_extractor.extract_features(
+                fighter_1_id, as_of_date, feature_set=feature_set
+            )
+            f2_features = self.fighter_extractor.extract_features(
+                fighter_2_id, as_of_date, feature_set=feature_set
+            )
+
+            matchup_features = {}
+
+            # Add individual features with prefixes
+            for key, value in f1_features.items():
+                matchup_features[f'f1_{key}'] = value
+
+            for key, value in f2_features.items():
+                matchup_features[f'f2_{key}'] = value
+
+            # Add differential features
+            matchup_features.update(self._calculate_differentials(f1_features, f2_features))
+
+            # Add style matchup features
+            matchup_features.update(self._calculate_style_matchup(f1_features, f2_features))
+
+            # Add style volatility mismatch feature
+            matchup_features.update(self._calculate_style_volatility_mismatch(
+                fighter_1_id, fighter_2_id, as_of_date
+            ))
+
+            # Add common opponent analysis
+            matchup_features.update(self._calculate_common_opponents(fighter_1_id, fighter_2_id, as_of_date))
+        finally:
+            if builder is not None:
+                builder._excluded_fight_ids = prev_excluded
+
         return matchup_features
+
+    def _predicted_fight_ids(
+        self,
+        fighter_1_id: int,
+        fighter_2_id: int,
+        as_of_date: Optional[Union[datetime, str]] = None
+    ) -> set:
+        """
+        Identify the DB fight(s) representing the bout being predicted.
+
+        Returns the set of fight IDs between these two fighters whose event date
+        is within PREDICTED_FIGHT_DATE_TOLERANCE_DAYS of the anchor date. This is
+        the bout to exclude from point-in-time history by identity; earlier
+        meetings (rematches) fall outside the window and are preserved.
+        """
+        if as_of_date is None:
+            return set()
+        as_of_dt = pd.to_datetime(as_of_date, errors='coerce')
+        if pd.isna(as_of_dt):
+            return set()
+
+        fights = self.session.query(Fight).filter(
+            ((Fight.fighter_1_id == fighter_1_id) & (Fight.fighter_2_id == fighter_2_id)) |
+            ((Fight.fighter_1_id == fighter_2_id) & (Fight.fighter_2_id == fighter_1_id))
+        ).join(Fight.event).all()
+
+        tolerance = pd.Timedelta(days=PREDICTED_FIGHT_DATE_TOLERANCE_DAYS)
+        excluded = set()
+        for fight in fights:
+            event_date = pd.to_datetime(getattr(fight.event, 'date', None), errors='coerce')
+            if pd.isna(event_date):
+                continue
+            if abs(event_date - as_of_dt) <= tolerance:
+                excluded.add(fight.id)
+        return excluded
+
     
     def _calculate_differentials(self, f1_features: Dict, f2_features: Dict) -> Dict:
         """Calculate differential features (advantages)"""

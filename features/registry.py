@@ -429,6 +429,12 @@ class FeatureBuilder:
         self.lambda_decay = lambda_decay
         # Cache key is (fighter_id, as_of_date_iso_or_none)
         self._fighter_record_cache: Dict[Tuple[int, Optional[str]], Dict] = {}
+        # Fight IDs to exclude from history by identity (e.g. the specific bout
+        # being predicted). This immunises point-in-time features against date
+        # disagreements between data sources: relying on a strict `<` cutoff
+        # leaks the outcome whenever the anchor date is later than the DB event
+        # date for the same fight. Set/cleared by MatchupFeatureExtractor.
+        self._excluded_fight_ids: set = set()
     
     def get_fighter_record(
         self,
@@ -454,7 +460,7 @@ class FeatureBuilder:
         else:
             cache_key_date = as_of_date.isoformat()
         
-        cache_key = (fighter_id, cache_key_date)
+        cache_key = (fighter_id, cache_key_date, frozenset(self._excluded_fight_ids))
         
         if cache_key in self._fighter_record_cache:
             return self._fighter_record_cache[cache_key]
@@ -556,7 +562,14 @@ class FeatureBuilder:
                 
                 # CRITICAL: Use < not <= to exclude the fight we're predicting
                 df = df[df['event_date_parsed'] < as_of_date_dt]
-            
+
+            # Identity-based exclusion of the specific bout being predicted.
+            # The `<` cutoff above misses it whenever the anchor date is later
+            # than the DB event date for the same fight (data-source date
+            # disagreement), which would leak the outcome into the features.
+            if self._excluded_fight_ids:
+                df = df[~df['fight_id'].isin(self._excluded_fight_ids)]
+
             df = df.sort_values('event_date_parsed', ascending=False).reset_index(drop=True)
         
         return df

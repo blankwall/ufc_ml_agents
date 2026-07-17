@@ -24,6 +24,7 @@ class FightData:
     pick_prob: float
     bet: bool
     skip_reason: str
+    resolved: bool = True
 
 
 BUCKET_RANGES = {
@@ -148,6 +149,7 @@ def parse_csv(filepath: str, bets: set | None = None) -> list[FightData]:
 
             pnl = float(row["actual_pnl"]) if row.get("actual_pnl") else 0.0
             correct = row.get("pick_correct") == "True"
+            resolved = row.get("pick_correct") in ("True", "False")
             female = row.get("female") == "True"
             bet = row.get("bet") == "True"
             skip_reason = row.get("skip_reason", "").strip()
@@ -162,6 +164,7 @@ def parse_csv(filepath: str, bets: set | None = None) -> list[FightData]:
                     pick_prob=pick_prob,
                     bet=bet,
                     skip_reason=skip_reason,
+                    resolved=resolved,
                 )
             )
 
@@ -298,6 +301,81 @@ def analyze_edge_tiers(rows):
 
     print("-" * 75)
     print(_bucket_row("TOTAL", "ALL", all_entries))
+    print()
+
+
+# ---------------------------------------------------------------------------
+# Section 2b: Favorite / underdog × magnitude, with edge≥15% highlight
+# ---------------------------------------------------------------------------
+
+# Magnitude tiers keyed by American odds of the pick.
+FAV_MAG_TIERS = {
+    "Low fav (-100..-150)":  lambda o: -150 <= o < 0,
+    "Mid fav (-150..-250)":  lambda o: -250 <= o < -150,
+    "High fav (<=-250)":     lambda o: o < -250,
+}
+DOG_MAG_TIERS = {
+    "Low dog (+100..+150)":  lambda o: 100 <= o < 150,
+    "Mid dog (+150..+250)":  lambda o: 150 <= o < 250,
+    "High dog (>=+250)":     lambda o: o >= 250,
+}
+
+EDGE_HIGH = 0.15  # "big edge" threshold the operator cares about
+
+
+def _favdog_group(entries, tiers, *, edge_min=None):
+    """Yield (label, subset) for each magnitude tier, optionally edge-filtered."""
+    for label, pred in tiers.items():
+        subset = [e for e in entries if pred(e.pick_odds)]
+        if edge_min is not None:
+            subset = [e for e in subset if e.edge >= edge_min]
+        yield label, subset
+
+
+def analyze_favdog_edge(rows):
+    """Favorite/underdog breakdown by magnitude, restricted to placed bets.
+
+    Highlights underdogs with edge >= 15% — the bucket the operator flags as
+    the sharpest signal — and shows low/mid/high favorites and dogs both
+    overall and filtered to the >=15% edge band.
+    """
+    bets = [r for r in rows if r.bet and r.resolved]
+
+    print("=" * 75)
+    print("FAVORITE / UNDERDOG x MAGNITUDE  (placed bets, resolved outcomes only)")
+    print("=" * 75)
+    print(_bucket_header())
+    print("-" * 75)
+
+    favs = [e for e in bets if e.pick_odds < 0]
+    dogs = [e for e in bets if e.pick_odds > 0]
+
+    print(_bucket_row("FAVORITES", "ALL", favs))
+    for label, subset in _favdog_group(bets, FAV_MAG_TIERS):
+        print(_bucket_row("  " + label, "ALL", subset))
+    print(_bucket_row("UNDERDOGS", "ALL", dogs))
+    for label, subset in _favdog_group(bets, DOG_MAG_TIERS):
+        print(_bucket_row("  " + label, "ALL", subset))
+
+    print()
+    print(f"  --- EDGE >= {EDGE_HIGH:.0%} FILTER ---")
+    print("-" * 75)
+
+    favs_hi = [e for e in favs if e.edge >= EDGE_HIGH]
+    dogs_hi = [e for e in dogs if e.edge >= EDGE_HIGH]
+
+    print(_bucket_row("FAVORITES e>=15%", "ALL", favs_hi))
+    for label, subset in _favdog_group(bets, FAV_MAG_TIERS, edge_min=EDGE_HIGH):
+        print(_bucket_row("  " + label, "ALL", subset))
+    print(_bucket_row("UNDERDOGS e>=15%", "ALL", dogs_hi))
+    for label, subset in _favdog_group(bets, DOG_MAG_TIERS, edge_min=EDGE_HIGH):
+        print(_bucket_row("  " + label, "ALL", subset))
+
+    print("-" * 75)
+    # Headline bucket the operator specifically asked to highlight.
+    print(_bucket_row(">> UNDERDOGS e>=15%", "ALL", dogs_hi))
+    print(_bucket_row("", "M", [e for e in dogs_hi if not e.female]))
+    print(_bucket_row("", "F", [e for e in dogs_hi if e.female]))
     print()
 
 
@@ -512,7 +590,7 @@ def main():
     parser.add_argument(
         "--section",
         type=str,
-        choices=["buckets", "edge", "confidence", "skip_reasons", "weighted", "all"],
+        choices=["buckets", "edge", "favdog", "confidence", "skip_reasons", "weighted", "all"],
         default="all",
         help="Which analysis section to show (default: all)",
     )
@@ -539,6 +617,8 @@ def main():
         analyze_confidence_buckets(rows)
     if args.section in ("edge", "all"):
         analyze_edge_tiers(rows)
+    if args.section in ("favdog", "all"):
+        analyze_favdog_edge(rows)
     if args.section in ("confidence", "all"):
         analyze_confidence_scores(rows)
     if args.section in ("skip_reasons", "all") and bets_filter is None:
