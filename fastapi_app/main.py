@@ -1,6 +1,8 @@
 import asyncio
 import json
+import re
 from contextlib import asynccontextmanager, suppress
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -25,6 +27,7 @@ from services.ufcstats_sync_service import get_health_status as ufcstats_health_
 from services.ufcstats_sync_service import run_sync_loop as run_ufcstats_sync_loop, scheduler_enabled as ufcstats_scheduler_enabled
 
 BASE_DIR = Path(__file__).parent
+REPORTS_DIR = BASE_DIR / "reports"
 
 
 async def _run_background_loop(job_name: str, runner):
@@ -175,6 +178,54 @@ async def ingest_page(request: Request):
 @app.get("/fighter", response_class=HTMLResponse)
 async def fighter_page(request: Request):
     return templates.TemplateResponse("fighter.html", {"request": request})
+
+
+_SLUG_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+
+
+def _report_title(path: Path) -> str:
+    """Best-effort <title> extraction, falling back to a prettified slug."""
+    try:
+        with path.open("r", encoding="utf-8", errors="ignore") as fh:
+            head = fh.read(4096)
+        match = _TITLE_RE.search(head)
+        if match:
+            return " ".join(match.group(1).split())
+    except OSError:
+        pass
+    return path.stem.replace("_", " ").replace("-", " ").title()
+
+
+def _list_reports() -> list[dict]:
+    if not REPORTS_DIR.exists():
+        return []
+    reports = []
+    for path in sorted(REPORTS_DIR.glob("*.html")):
+        reports.append({
+            "slug": path.stem,
+            "title": _report_title(path),
+            "modified": datetime.fromtimestamp(path.stat().st_mtime).strftime("%b %d, %Y"),
+        })
+    reports.sort(key=lambda r: r["title"].lower())
+    return reports
+
+
+@app.get("/reports", response_class=HTMLResponse)
+async def reports_index(request: Request):
+    return templates.TemplateResponse(
+        request, "reports.html", {"reports": _list_reports()}
+    )
+
+
+@app.get("/reports/{slug}", response_class=HTMLResponse)
+async def report_detail(slug: str):
+    if not _SLUG_RE.match(slug):
+        raise HTTPException(status_code=404, detail="Report not found")
+    path = (REPORTS_DIR / f"{slug}.html").resolve()
+    if REPORTS_DIR.resolve() not in path.parents or not path.is_file():
+        raise HTTPException(status_code=404, detail="Report not found")
+    return FileResponse(path, media_type="text/html")
 
 
 @app.get("/favicon.ico", include_in_schema=False)

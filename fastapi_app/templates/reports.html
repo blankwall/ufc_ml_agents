@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reports · ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css?v=8" />
+  <style>
+    .reports-wrap { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; }
+    .reports-wrap h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: .35rem; }
+    .reports-wrap .sub { color: var(--text-muted, #7b85a0); font-size: .9rem; margin-bottom: 1.5rem; }
+    .report-list { display: flex; flex-direction: column; gap: .6rem; }
+    .report-card {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface, #181c28); border: 1px solid var(--border, #252a3a);
+      border-radius: var(--radius, 8px); padding: .9rem 1.1rem; text-decoration: none;
+      color: var(--text, #dde3f0); transition: border-color .15s, background .15s;
+    }
+    .report-card:hover { border-color: var(--accent, #4facfe); background: var(--surface2, #1e2335); }
+    .report-card .r-title { font-weight: 500; }
+    .report-card .r-meta { color: var(--text-muted, #7b85a0); font-size: .8rem; }
+    .reports-empty { color: var(--text-muted, #7b85a0); padding: 2rem 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <span class="logo-text">UFC<strong>ML</strong></span>
+    </div>
+    <nav class="header-nav">
+      <a href="/events" class="nav-link">Events</a>
+      <a href="/bets" class="nav-link">Bets</a>
+      <a href="/fighter" class="nav-link">Fighter</a>
+      <a href="/reports" class="nav-link active">Reports</a>
+    </nav>
+    <div class="header-meta">
+      <span class="badge">Reports</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="reports-wrap">
+    <h1>Fight Reports</h1>
+    <div class="sub">{{ reports|length }} report{{ '' if reports|length == 1 else 's' }} available</div>
+    {% if reports %}
+    <div class="report-list">
+      {% for r in reports %}
+      <a class="report-card" href="/reports/{{ r.slug }}">
+        <span class="r-title">{{ r.title }}</span>
+        <span class="r-meta">{{ r.modified }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="reports-empty">
+      No reports yet. Drop a self-contained <code>.html</code> file into
+      <code>fastapi_app/reports/</code> and it will appear here.
+    </div>
+    {% endif %}
+  </div>
+</main>
+
+</body>
+</html>
