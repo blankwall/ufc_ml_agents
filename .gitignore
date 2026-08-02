@@ -113,3 +113,13 @@ data/backups/
 # Local sidecar/DB backups (large, regenerable) — never commit
 data/enrichment/*.bak_*
 *.sqlite.bak_*
+
+# Generated UFC upcoming allowlist (schedule cache)
+data/ufc_schedule/
+
+# Live SQLite database — diverges independently between environments
+# (local dev vs. production) and must never be synced through git.
+# See merge tooling for reconciling local/production copies when needed.
+data/ufc_database.db
+data/ufc_database_local.db
+data/ufc_database_live.db
