@@ -23,9 +23,16 @@ def test_remap_fight_details_to_db_slots_swaps_when_detail_page_order_differs():
             "fighter_1": {"sig_strikes_total": "36 of 77"},
             "fighter_2": {"sig_strikes_total": "58 of 104"},
         },
+        "round_by_round": [
+            {
+                "round": 1,
+                "fighter_1": {"totals": {"knockdowns": "0"}, "significant_strikes": {}},
+                "fighter_2": {"totals": {"knockdowns": "1"}, "significant_strikes": {}},
+            }
+        ],
     }
 
-    f1_totals, f2_totals, sig = DatabaseManager.remap_fight_details_to_db_slots(
+    f1_totals, f2_totals, sig, round_by_round = DatabaseManager.remap_fight_details_to_db_slots(
         details,
         _fight("charles", "kyler"),
     )
@@ -34,6 +41,10 @@ def test_remap_fight_details_to_db_slots_swaps_when_detail_page_order_differs():
     assert f2_totals == {"control_time": "7:13"}
     assert sig["fighter_1"] == {"sig_strikes_total": "58 of 104"}
     assert sig["fighter_2"] == {"sig_strikes_total": "36 of 77"}
+    # Every round payload swaps fighter slots too; round number is preserved.
+    assert round_by_round[0]["round"] == 1
+    assert round_by_round[0]["fighter_1"]["totals"] == {"knockdowns": "1"}
+    assert round_by_round[0]["fighter_2"]["totals"] == {"knockdowns": "0"}
 
 
 def test_remap_fight_details_to_db_slots_keeps_aligned_payload():
@@ -48,9 +59,16 @@ def test_remap_fight_details_to_db_slots_keeps_aligned_payload():
             "fighter_1": {"sig_strikes_total": "58 of 104"},
             "fighter_2": {"sig_strikes_total": "36 of 77"},
         },
+        "round_by_round": [
+            {
+                "round": 1,
+                "fighter_1": {"totals": {"knockdowns": "1"}, "significant_strikes": {}},
+                "fighter_2": {"totals": {"knockdowns": "0"}, "significant_strikes": {}},
+            }
+        ],
     }
 
-    f1_totals, f2_totals, sig = DatabaseManager.remap_fight_details_to_db_slots(
+    f1_totals, f2_totals, sig, round_by_round = DatabaseManager.remap_fight_details_to_db_slots(
         details,
         _fight("charles", "kyler"),
     )
@@ -59,3 +77,6 @@ def test_remap_fight_details_to_db_slots_keeps_aligned_payload():
     assert f2_totals == {"control_time": "7:13"}
     assert sig["fighter_1"] == {"sig_strikes_total": "58 of 104"}
     assert sig["fighter_2"] == {"sig_strikes_total": "36 of 77"}
+    # Aligned order: round payloads pass through untouched.
+    assert round_by_round[0]["fighter_1"]["totals"] == {"knockdowns": "1"}
+    assert round_by_round[0]["fighter_2"]["totals"] == {"knockdowns": "0"}

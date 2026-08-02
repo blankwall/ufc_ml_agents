@@ -84,11 +84,24 @@ class DatabaseManager:
         return remapped
 
     @staticmethod
-    def remap_fight_details_to_db_slots(details: Dict[str, Any], fight: Fight) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    def _swap_round_by_round_slots(rounds: Optional[list]) -> Optional[list]:
+        """Swap fighter_1/fighter_2 in every round payload of a round_by_round list."""
+        if not isinstance(rounds, list):
+            return rounds
+        return [
+            DatabaseManager._swap_fighter_slot_payload(round_payload)
+            if isinstance(round_payload, dict)
+            else round_payload
+            for round_payload in rounds
+        ]
+
+    @staticmethod
+    def remap_fight_details_to_db_slots(details: Dict[str, Any], fight: Fight) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]], Optional[Dict[str, Any]], Optional[list]]:
         totals = details.get("totals") or {}
         f1_totals = totals.get("fighter_1")
         f2_totals = totals.get("fighter_2")
         significant_strikes = details.get("significant_strikes")
+        round_by_round = details.get("round_by_round")
 
         detail_f1_id = (details.get("fighter_1_id") or "").strip()
         detail_f2_id = (details.get("fighter_2_id") or "").strip()
@@ -96,16 +109,17 @@ class DatabaseManager:
         db_f2_id = ((fight.fighter_2.fighter_id if fight.fighter_2 else None) or "").strip()
 
         if not detail_f1_id or not detail_f2_id or not db_f1_id or not db_f2_id:
-            return f1_totals, f2_totals, significant_strikes
+            return f1_totals, f2_totals, significant_strikes, round_by_round
 
         if detail_f1_id == db_f1_id and detail_f2_id == db_f2_id:
-            return f1_totals, f2_totals, significant_strikes
+            return f1_totals, f2_totals, significant_strikes, round_by_round
 
         if detail_f1_id == db_f2_id and detail_f2_id == db_f1_id:
             return (
                 f2_totals,
                 f1_totals,
                 DatabaseManager._swap_fighter_slot_payload(significant_strikes),
+                DatabaseManager._swap_round_by_round_slots(round_by_round),
             )
 
         logger.warning(
@@ -116,7 +130,7 @@ class DatabaseManager:
             db_f2_id,
             fight.fight_id,
         )
-        return f1_totals, f2_totals, significant_strikes
+        return f1_totals, f2_totals, significant_strikes, round_by_round
     
     def _parse_height(self, height_str: str) -> Optional[float]:
         """Parse height string like '5\' 8"' to cm"""
@@ -585,20 +599,23 @@ class DatabaseManager:
                         # Check if stats already exist
                         existing_stats = session.query(FightStats).filter_by(fight_id=fight.id).first()
                         
-                        f1_totals, f2_totals, sig = self.remap_fight_details_to_db_slots(details, fight)
+                        f1_totals, f2_totals, sig, round_by_round = self.remap_fight_details_to_db_slots(details, fight)
 
                         if existing_stats:
                             # Update existing stats
                             existing_stats.fighter_1_totals = f1_totals
                             existing_stats.fighter_2_totals = f2_totals
                             existing_stats.significant_strikes = sig
+                            if not existing_stats.round_by_round:
+                                existing_stats.round_by_round = round_by_round
                         else:
                             # Create new stats
                             fight_stats = FightStats(
                                 fight_id=fight.id,
                                 fighter_1_totals=f1_totals,
                                 fighter_2_totals=f2_totals,
-                                significant_strikes=sig
+                                significant_strikes=sig,
+                                round_by_round=round_by_round
                             )
                             session.add(fight_stats)
                         
