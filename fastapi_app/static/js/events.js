@@ -816,13 +816,17 @@ function renderDecisionBadge(item) {
   if (!result || result.bet === 'error') return '';
   const pct = (result.confidence * 100).toFixed(1);
   const selection = result.selection === 'finish' ? 'Finish' : 'Decision';
-  if (result.tier === 'strong') {
-    return `<span class="decision-signal-badge decision-signal-strong">Strong ${selection} ${pct}%</span>`;
-  }
-  if (result.tier === 'eligible') {
-    return `<span class="decision-signal-badge decision-signal-eligible">${selection} ${pct}%</span>`;
-  }
-  return `<span class="decision-signal-badge decision-signal-ineligible">Below bar ${pct}%</span>`;
+  const opportunity = result.confidence >= 0.60 && result.eligible;
+  const inactiveStatus = result.confidence >= 0.60
+    ? 'History Ineligible'
+    : 'Below 60% Bar';
+  return `
+    <div class="decision-signal-block ${opportunity ? 'decision-signal-opportunity' : 'decision-signal-ineligible'}"
+         title="${opportunity ? 'Confidence threshold cleared; check market price before wagering.' : 'Below the 60% confidence/history eligibility threshold.'}">
+      <span class="decision-signal-label">${selection}</span>
+      <strong class="decision-signal-confidence">${pct}%</strong>
+      <span class="decision-signal-status">${opportunity ? 'Bet Opportunity' : inactiveStatus}</span>
+    </div>`;
 }
 
 function renderDecisionMeta(item) {
