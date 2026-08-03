@@ -26,7 +26,7 @@ BATCH_SCRIPT = ROOT_DIR / "scripts" / "run_finish_card_batch.py"
 SKILL_PYTHON = SKILL_ROOT / ".venv" / "bin" / "python"
 MANIFEST_PATH = SKILL_ROOT / "artifacts" / "manifest.json"
 CARD_TIMEOUT_SECONDS = 900
-CACHE_VERSION = "decision-card-v1"
+CACHE_VERSION = "decision-card-v2"
 
 _lock = threading.RLock()
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="decision-card")

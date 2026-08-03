@@ -43,7 +43,10 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from fastapi_app.services.fighter_identity import resolve_fighter as _resolve_fighter
+from fastapi_app.services.fighter_identity import (
+    FIGHTER_ALIASES,
+    resolve_fighter as _resolve_fighter,
+)
 
 SCHEDULE_DIR = ROOT_DIR / "data" / "ufc_schedule"
 ALLOWLIST_PATH = SCHEDULE_DIR / "upcoming_allowlist.json"
@@ -138,6 +141,11 @@ def _name_match(a: str, b: str) -> bool:
     return fa == fb or fa[:3] == fb[:3] or fa.startswith(fb) or fb.startswith(fa)
 
 
+def _canonical_name(name: str) -> str:
+    raw = str(name).strip()
+    return str(FIGHTER_ALIASES.get(raw, raw)).strip()
+
+
 # ── identity resolution (reuses the alias DB via resolve_fighter) ─────────────
 
 def _resolve_id(session, name: str) -> Optional[int]:
@@ -215,6 +223,9 @@ def find_upcoming_bout(
     if not al or target is None:
         return None
 
+    canonical_fighter1 = _canonical_name(fighter1)
+    canonical_fighter2 = _canonical_name(fighter2)
+
     for event in al.get("events", []):
         current_date = _parse_card_date(event.get("date"))
         if current_date is None or abs((current_date - target).days) > tolerance_days:
@@ -223,8 +234,14 @@ def find_upcoming_bout(
             left, right = _bout_names(bout)
             if not left or not right:
                 continue
-            direct = _name_match(fighter1, left) and _name_match(fighter2, right)
-            reverse = _name_match(fighter1, right) and _name_match(fighter2, left)
+            direct = (
+                _name_match(canonical_fighter1, _canonical_name(left))
+                and _name_match(canonical_fighter2, _canonical_name(right))
+            )
+            reverse = (
+                _name_match(canonical_fighter1, _canonical_name(right))
+                and _name_match(canonical_fighter2, _canonical_name(left))
+            )
             if not direct and not reverse:
                 continue
             metadata = bout if isinstance(bout, dict) else {}
