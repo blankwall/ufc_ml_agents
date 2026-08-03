@@ -58,6 +58,7 @@ data/future_fight_odds/predictions_cache.json
 data/future_fight_odds/the_odds_api*.csv
 data/future_fight_odds/the_odds_api_events.json
 data/future_fight_odds/the_odds_api_sync.json
+data/future_fight_odds/decision_card_cache.json
 data/ufcstats_sync_state.json
 
 # Generated backtest inputs

@@ -14,6 +14,7 @@ from routers.analyze import router as analyze_router
 from routers.backtest import router as backtest_router
 from routers.bucket_analysis import router as bucket_analysis_router
 from routers.database import router as database_router
+from routers.decision_cards import router as decision_cards_router
 from routers.events import router as events_router
 from routers.ingest import router as ingest_router
 from routers.predict import router as predict_router
@@ -72,6 +73,7 @@ app.include_router(analyze_router, prefix="/api")
 app.include_router(backtest_router, prefix="/api")
 app.include_router(bucket_analysis_router, prefix="/api")
 app.include_router(database_router, prefix="/api")
+app.include_router(decision_cards_router, prefix="/api")
 app.include_router(events_router, prefix="/api")
 app.include_router(ingest_router, prefix="/api")
 app.include_router(predict_router, prefix="/api")

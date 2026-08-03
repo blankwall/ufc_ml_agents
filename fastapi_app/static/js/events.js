@@ -3,6 +3,8 @@
 /* ── State ─────────────────────────────────────────────────────────────────── */
 let allEvents   = [];
 let activeIndex = 0;
+const decisionCards = new Map();
+const decisionPolls = new Map();
 
 /* ── Betting config (loaded from /api/config) ──────────────────────────────── */
 let bettingConfig = null;
@@ -519,6 +521,7 @@ function selectEvent(idx) {
 
   const ev = allEvents[idx];
   if (!ev) return;
+  const decisionCard = decisionCards.get(ev.event_date);
 
   // Recompute stats for filtered fights only
   const filtered    = ev.fights.filter(passesFilter);
@@ -538,8 +541,16 @@ function selectEvent(idx) {
 
   const fightCards = ev.fights.map(f => {
     const decision = getBetDecision(f);
-    return renderFightCard(f, ev.event_date, decision.visible, decision.multiplier);
+    return renderFightCard(
+      f,
+      ev.event_date,
+      decision.visible,
+      decision.multiplier,
+      findDecisionFight(decisionCard, f),
+    );
   }).join('');
+
+  const decisionControls = renderDecisionControls(decisionCard);
 
   panelEl.innerHTML = `
     <div class="event-panel">
@@ -547,6 +558,7 @@ function selectEvent(idx) {
         <div>
           <div class="event-panel-title">${ev.event_name || 'UFC Event'}</div>
           <div class="event-panel-date">${ev.event_date}${ev.event_url ? ` · <a href="${ev.event_url}" target="_blank" style="color:var(--text-secondary);text-decoration:none;">odds source ↗</a>` : ''}</div>
+          ${decisionControls}
         </div>
         <div class="event-stats-row">
           <div class="ev-stat">
@@ -572,10 +584,12 @@ function selectEvent(idx) {
       </div>
     </div>
   `;
+
+  if (!decisionCards.has(ev.event_date)) loadCachedDecisionCard(ev, idx);
 }
 
 /* ── Fight card ──────────────────────────────────────────────────────────────── */
-function renderFightCard(f, eventDate, visible = true, multiplier = null) {
+function renderFightCard(f, eventDate, visible = true, multiplier = null, decisionFight = null) {
   const hasPred   = f.model_prob_f1 !== null;
   const hasResult = f.winner !== null;
   const isWin     = f.correct === true;
@@ -696,6 +710,7 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
 
   const noBetBadge = visible ? '' : `<span class="no-bet-badge">no bet</span>`;
   const goldenEloBadge = f.review_tier ? `<span class="bet-size-badge bet-size-low">Golden ELO T${f.review_tier}</span>` : '';
+  const decisionBadge = renderDecisionBadge(decisionFight);
 
   // Bet-size badge (1x, 1.5x, 2x) — only for visible fights with a multiplier
   let betSizeBadge = '';
@@ -725,6 +740,7 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
         ${noBetBadge}
         ${goldenEloBadge}
         ${betSizeBadge}
+        ${decisionBadge}
       </div>
 
       ${hasPred ? `
@@ -745,6 +761,7 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
         ${reviewMeta}
         ${srcMeta}
         ${fightsMeta}
+        ${renderDecisionMeta(decisionFight)}
       </div>
       ${errorNote}
       <button class="matchup-expand-btn"
@@ -754,6 +771,158 @@ function renderFightCard(f, eventDate, visible = true, multiplier = null) {
       <div class="matchup-panel hidden"></div>
     </div>
   `;
+}
+
+function decisionFightKey(fighter1, fighter2) {
+  return [normalizeFightName(fighter1), normalizeFightName(fighter2)].sort().join('::');
+}
+
+function findDecisionFight(card, fight) {
+  if (!card || card.status !== 'complete') return null;
+  const key = decisionFightKey(fight.fighter1, fight.fighter2);
+  return (card.fights || []).find(item =>
+    decisionFightKey(item.fighter1, item.fighter2) === key
+  ) || null;
+}
+
+function renderDecisionControls(card) {
+  if (!card) {
+    return `<div class="decision-card-controls">
+      <button class="decision-card-btn" onclick="analyzeDecisionCard(event)">Analyze Finish / Decision</button>
+      <span class="decision-card-note">Runs once for the full card and caches results.</span>
+    </div>`;
+  }
+  if (card.status === 'queued' || card.status === 'running') {
+    return `<div class="decision-card-controls">
+      <button class="decision-card-btn" disabled><span class="decision-spinner"></span> Analyzing card…</button>
+      <span class="decision-card-note">Winner predictions remain available while this runs.</span>
+    </div>`;
+  }
+  if (card.status === 'error') {
+    return `<div class="decision-card-controls">
+      <button class="decision-card-btn" onclick="analyzeDecisionCard(event, true)">Retry Finish / Decision</button>
+      <span class="decision-card-note decision-card-error">${escHtml(card.error_message || 'Card analysis failed.')}</span>
+    </div>`;
+  }
+  const eligible = (card.fights || []).filter(item => item.result?.eligible).length;
+  return `<div class="decision-card-controls">
+    <button class="decision-card-btn decision-card-btn-cached" onclick="analyzeDecisionCard(event, true)">Refresh Finish / Decision</button>
+    <span class="decision-card-note">${eligible} threshold signal${eligible === 1 ? '' : 's'} · cached ${formatDecisionTimestamp(card.completed_at)}</span>
+  </div>`;
+}
+
+function renderDecisionBadge(item) {
+  const result = item?.result;
+  if (!result || result.bet === 'error') return '';
+  const pct = (result.confidence * 100).toFixed(1);
+  const selection = result.selection === 'finish' ? 'Finish' : 'Decision';
+  if (result.tier === 'strong') {
+    return `<span class="decision-signal-badge decision-signal-strong">Strong ${selection} ${pct}%</span>`;
+  }
+  if (result.tier === 'eligible') {
+    return `<span class="decision-signal-badge decision-signal-eligible">${selection} ${pct}%</span>`;
+  }
+  return `<span class="decision-signal-badge decision-signal-ineligible">Below bar ${pct}%</span>`;
+}
+
+function renderDecisionMeta(item) {
+  if (!item) return '';
+  const result = item.result;
+  if (!result) return '';
+  if (result.bet === 'error') {
+    return `<span class="fight-meta-item">Finish/Decision: <span class="meta-val decision-card-error">${escHtml(result.error_code || 'error')}</span></span>`;
+  }
+  const finish = (result.probabilities.finish * 100).toFixed(1);
+  const decision = (result.probabilities.decision * 100).toFixed(1);
+  return `<span class="fight-meta-item">Finish/Decision: <span class="meta-val">${finish}% / ${decision}%</span></span>
+    <span class="fight-meta-item">Division: <span class="meta-val">${escHtml(item.weight_class || '—')} · #${item.fight_number || '—'}</span></span>`;
+}
+
+function formatDecisionTimestamp(value) {
+  if (!value) return 'previously';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 'previously' : parsed.toLocaleString();
+}
+
+async function loadCachedDecisionCard(ev, idx) {
+  decisionCards.set(ev.event_date, null);
+  try {
+    const res = await fetch(`/api/decision-cards?event_date=${encodeURIComponent(ev.event_date)}`);
+    if (res.status === 404) return;
+    if (!res.ok) throw new Error(`${res.status}`);
+    const card = await res.json();
+    const current = decisionCards.get(ev.event_date);
+    if (current?.status === 'queued' || current?.status === 'running') return;
+    decisionCards.set(ev.event_date, card);
+    if (card.status === 'queued' || card.status === 'running') pollDecisionCard(ev.event_date, card.card_key);
+    if (activeIndex === idx) selectEvent(idx);
+  } catch (err) {
+    console.error('decision-card cache lookup failed:', err);
+  }
+}
+
+async function analyzeDecisionCard(event, force = false) {
+  event?.stopPropagation();
+  const ev = allEvents[activeIndex];
+  if (!ev) return;
+
+  decisionCards.set(ev.event_date, {
+    status: 'queued',
+    event_date: ev.event_date,
+    fights: [],
+  });
+  selectEvent(activeIndex);
+
+  try {
+    const res = await fetch('/api/decision-cards/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_name: ev.event_name,
+        event_date: ev.event_date,
+        fights: ev.fights.map(f => ({ fighter1: f.fighter1, fighter2: f.fighter2 })),
+        force,
+      }),
+    });
+    if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+    const card = await res.json();
+    decisionCards.set(ev.event_date, card);
+    selectEvent(activeIndex);
+    if (card.status === 'queued' || card.status === 'running') {
+      pollDecisionCard(ev.event_date, card.card_key);
+    }
+  } catch (err) {
+    decisionCards.set(ev.event_date, {
+      status: 'error',
+      event_date: ev.event_date,
+      error_message: err.message,
+      fights: [],
+    });
+    selectEvent(activeIndex);
+  }
+}
+
+function pollDecisionCard(eventDate, cardKey) {
+  if (!cardKey || decisionPolls.has(cardKey)) return;
+  const timer = setInterval(async () => {
+    try {
+      const res = await fetch(`/api/decision-cards/${encodeURIComponent(cardKey)}`);
+      if (!res.ok) throw new Error(`${res.status}`);
+      const card = await res.json();
+      decisionCards.set(eventDate, card);
+      const ev = allEvents[activeIndex];
+      if (ev?.event_date === eventDate) selectEvent(activeIndex);
+      if (card.status === 'complete' || card.status === 'error') {
+        clearInterval(timer);
+        decisionPolls.delete(cardKey);
+      }
+    } catch (err) {
+      clearInterval(timer);
+      decisionPolls.delete(cardKey);
+      console.error('decision-card polling failed:', err);
+    }
+  }, 2500);
+  decisionPolls.set(cardKey, timer);
 }
 
 /* ── Helpers ─────────────────────────────────────────────────────────────────── */

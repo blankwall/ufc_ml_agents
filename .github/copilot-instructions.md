@@ -111,9 +111,9 @@ python backtest/optimize_config.py --results backtest/backtest_2026_results.csv 
 `config/betting_config.json` drives everything: filter thresholds (min confidence, odds caps, min edge), edge-based bet sizing (skip 0-5%, 1x at 5-10%, 1.5x at 10-20%, 2x at 20%+), and WMMA rules. The frontend fetches this via `GET /api/config` on boot.
 
 ### Finish/Decision Model (`ufc_decision_skill`)
-`POST /api/predict` returns an independent `finish_prediction` block powered by the protected, standalone [`ufc_decision_skill`](https://github.com/blankwall/ufc_decision_skill) package (pinned commit `da46562`, cloned locally at `~/ufc_decision_skill`). It predicts `P(finish)` vs `P(decision)` and a KO/TKO-vs-submission method split, gated by a 2-prior-fight-per-fighter and 60%/62.5% confidence rule. It is entirely decoupled from the winner model above: separate inputs (weight class, fight number, optional finish/decision market odds), separate probabilities, and it never reads or writes `model_prob_f1`/`model_prob_f2`/`model_pick`/`edge`/the betting decision.
+The protected, standalone [`ufc_decision_skill`](https://github.com/blankwall/ufc_decision_skill) package is intentionally excluded from `POST /api/predict`; winner predictions stay fast and unchanged. Finish/decision analysis runs explicitly per card through `POST /api/decision-cards/analyze`, with status/cache reads through `GET /api/decision-cards/{card_key}` and `GET /api/decision-cards?event_date=...`.
 
-`fastapi_app/services/finish_prediction_service.py` shells out to the skill's own CLI (`~/ufc_decision_skill/.venv/bin/ufc-decision`, which just wraps `ufc_decision_skill.inference.predict()`) rather than importing it in-process, so the skill's pinned dependency versions (numpy/pandas/scikit-learn/xgboost/scipy) never collide with this app's own versions — important because each `predict()` call retrains the model from scratch and exact library versions affect the floating-point result. If the skill can't run for any reason, `finish_prediction.bet` is the string `"error"` with an explicit `error_code`/`error_message`; it never substitutes a probability or fails the rest of `/api/predict`. See `.claude/skills/fastapi_app.md` for the full request/response contract.
+`decision_card_service.py` runs one background card job at a time and persists results in the ignored `data/future_fight_odds/decision_card_cache.json`. `ufc_schedule_service.py` supplies authoritative UFCStats weight class and card order. `scripts/run_finish_card_batch.py` executes inside the skill's pinned venv and calls `ufc_decision_skill.inference.predict()` for every matchup while memoizing shared immutable date-level work. Per-fight failures are explicit and do not discard successful fights.
 
 ### FastAPI App Structure
 - **Routers** (`fastapi_app/routers/`): 6 routers, all mounted at `/api` prefix
@@ -166,7 +166,9 @@ If `THE_ODDS_API_KEY` is set, `fastapi_app/main.py` starts a background loop tha
 | `test_predict_response.py` | `/api/predict` endpoint response shape and field presence. |
 | `test_predict_symmetry.py` | Model is symmetric: `P(A beats B) + P(B beats A) ≈ 1.0`. |
 | `test_finish_prediction_service.py` | `finish_prediction_service` subprocess wrapper: missing-input guards, error-code mapping (timeout, bad JSON, non-zero exit, fighter-not-found), de-vig math — all with `subprocess.run` mocked, no real skill call. |
-| `test_predict_finish_contract.py` | `/api/predict`'s `finish_prediction` block contract: shape, error passthrough, market odds de-vig wiring, and that the winner model fields are unaffected. Mocks `_run_finish_prediction`. |
+| `test_predict_finish_contract.py` | Confirms `/api/predict` remains winner-only and does not synchronously run or return finish analysis. |
+| `test_decision_card_service.py` | Card batch persistence, result shaping, and decision-card API endpoints. |
+| `test_ufc_schedule_metadata.py` | UFCStats upcoming-card weight class/fight-number metadata and legacy cache compatibility. |
 | `test_finish_prediction_acceptance.py` | Real end-to-end parity against the protected `ufc_decision_skill` model (golden fixture values, fighter-order invariance, eligibility gate boundaries, market de-vig). Skipped automatically if `~/ufc_decision_skill` isn't installed/bootstrapped. |
 | `test_ufc_328_consistency.py` | Event-level regression: UFC 328 predictions are stable across runs. |
 

@@ -125,54 +125,46 @@ Behavior:
 
 Use this endpoint for direct API prediction. Use `/api/events` for card-level predictions from stored odds files.
 
-### Finish/decision model (`finish_prediction` block)
+### Card-level finish/decision model
 
-`/api/predict` also returns an independent `finish_prediction` block, powered by
-the protected, standalone [`ufc_decision_skill`](https://github.com/blankwall/ufc_decision_skill)
-package (pinned commit `da46562`, cloned locally at `~/ufc_decision_skill`).
-This model is completely separate from the winner model above — it never
-reads, writes, or influences `model_prob_f1`/`model_prob_f2`, `model_pick`,
-`edge`, or the betting decision, and vice versa.
+The protected `ufc_decision_skill` runs independently from `/api/predict`.
+Winner predictions remain fast and never execute the finish model.
 
-**Integration boundary:** `fastapi_app/services/finish_prediction_service.py`
-shells out to the skill's own CLI (`~/ufc_decision_skill/.venv/bin/ufc-decision`),
-which is a thin wrapper around `ufc_decision_skill.inference.predict()`. This
-keeps the skill's pinned dependency versions (numpy `2.2.0`, pandas `2.2.3`,
-scikit-learn `1.6.0`, xgboost `3.2.0`, scipy `1.14.1` — see its
-`pyproject.toml`) fully isolated from this app's own dependency set, so a
-future `pip install`/upgrade here can never silently perturb the skill's
-validated walk-forward parity (each `predict()` call retrains from scratch,
-so exact library versions affect the floating-point result). No model logic
-is duplicated or reimplemented in this repo.
+Card workflow:
 
-Additional request fields specific to `finish_prediction`:
+- `POST /api/decision-cards/analyze` accepts an event date/name and matchup list,
+  queues one background card job, and returns a `card_key`.
+- `GET /api/decision-cards/{card_key}` returns queued/running/complete/error state.
+- `GET /api/decision-cards?event_date=YYYY-MM-DD` returns the latest persistent
+  cached result for that card date.
+- The events UI starts analysis explicitly and polls without blocking normal API
+  traffic. Completed signals are restored from cache on later page loads.
 
-- `weight_class` (str, required by the skill — if omitted, `finish_prediction`
-  reports `bet: "error", error_code: "missing_input"`, winner model is unaffected)
-- `fight_number` (int, optional — card position, `1` = main event; defaults to
-  `5`, a non-main-event slot, when omitted, matching the skill's own CLI default)
-- `finish_odds` / `decision_odds` (int, American odds — optional; when **both**
-  are supplied they are de-vigged into `market_finish_probability` and passed
-  to the skill so it can compute a model-vs-market edge)
+`ufc_schedule_service.refresh_allowlist()` preserves UFCStats `weight_class`
+and `fight_number` for every upcoming bout. The card service resolves these
+required model inputs from UFCStats rather than guessing from fighter history.
 
-Response shape:
+`scripts/run_finish_card_batch.py` runs under the skill's isolated pinned venv.
+It still calls `ufc_decision_skill.inference.predict()` for each fight, but
+memoizes immutable frame/history work shared by a card date inside that one
+process. No protected feature, model, or decision logic is duplicated.
 
-```jsonc
-"finish_prediction": {
-  "bet": true,               // or false, or the string "error"
-  "error_code": null,        // e.g. "missing_input", "skill_not_installed",
-                             // "timeout", "invalid_output", "fighter_not_found",
-                             // "subprocess_error", "unexpected_error"
-  "error_message": null,
-  "selection": "finish",     // or "decision"
-  "confidence": 0.627,       // max(P(finish), P(decision))
-  "tier": "strong",          // "strong" (>=62.5%), "eligible" (>=60%), "ineligible" (<60%)
-  "eligible": true,
-  "probabilities": { "finish": 0.627, "decision": 0.373 },
-  "method_probabilities": { "decision": 0.360, "ko_tko": 0.474, "submission": 0.166 },
-  "history": { "fighter_a_prior": 17, "fighter_b_prior": 11 },
-  "market": { "available": true, "selected_probability": 0.55, "edge": 0.077, "actionable": true },
-  "fight_number": 5
+Each completed fight contains the existing shaped result:
+
+```json
+{
+  "fighter1": "Diego Ferreira",
+  "fighter2": "Billy Quarantillo",
+  "weight_class": "Lightweight",
+  "fight_number": 3,
+  "result": {
+    "bet": false,
+    "selection": "finish",
+    "confidence": 0.627,
+    "tier": "strong",
+    "eligible": true,
+    "probabilities": {"finish": 0.627, "decision": 0.373}
+  }
 }
 ```
 
@@ -186,10 +178,9 @@ Gate rules (owned entirely by `ufc_decision_skill`, never re-implemented here):
   positive model-minus-market edge.
 - The rejected top-two/double-chance product method is never used.
 
-If the skill can't run (not installed, times out, crashes, or returns
-malformed output), `finish_prediction.bet` is the **string** `"error"` with an
-explicit `error_code`/`error_message` — never a silently substituted
-probability, and never something that fails the whole `/api/predict` request.
+Card-level and per-fight failures carry explicit error codes. A failed matchup
+does not suppress other fight results, and high confidence without market odds
+remains a model signal rather than an actionable bet.
 
 Bootstrapping the skill's local (git-excluded) data:
 
