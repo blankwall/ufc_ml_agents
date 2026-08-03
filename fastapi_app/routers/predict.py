@@ -34,6 +34,10 @@ from services.predict_service import (
     _resolve_fighter,
     _score_row,
 )
+from services.finish_prediction_service import (
+    devig_finish_probability,
+    run_finish_prediction as _run_finish_prediction,
+)
 
 router = APIRouter()
 
@@ -50,6 +54,13 @@ class PredictRequest(BaseModel):
     fight_date:    Optional[date] = None   # used as as_of_date for feature extraction
     fighter1_odds: Optional[int]  = None   # American odds, e.g. -380 or +310
     fighter2_odds: Optional[int]  = None
+    # ── Independent finish/decision model (ufc_decision_skill) inputs ────────
+    # These are unrelated to the winner model above and never affect its
+    # probabilities, pick, or betting decision.
+    weight_class:  Optional[str]  = None   # required by ufc_decision_skill; omit to skip it
+    fight_number:  Optional[int]  = None   # card position, 1 = main event; defaults to a non-main-event slot
+    finish_odds:   Optional[int]  = None   # American odds on "fight finishes"
+    decision_odds: Optional[int]  = None   # American odds on "fight goes to decision"
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -257,6 +268,41 @@ async def predict_fight(req: PredictRequest):
         decision = _predict_decision_label(bet_eval)
         explanation = _predict_explanation(bet_eval)
 
+        # ── Independent finish/decision model (ufc_decision_skill) ───────────
+        # Entirely separate from the winner model above: its own inputs, its
+        # own probabilities, its own eligibility gate. Never substitutes for
+        # or alters model_prob_f1/f2, model_pick, edge, or the bet decision.
+        market_finish_probability = None
+        if req.finish_odds is not None and req.decision_odds is not None:
+            market_finish_probability = devig_finish_probability(
+                req.finish_odds, req.decision_odds
+            )
+
+        try:
+            finish_prediction = _run_finish_prediction(
+                f1_name,
+                f2_name,
+                fight_date=req.fight_date,
+                weight_class=req.weight_class,
+                fight_number=req.fight_number,
+                market_finish_probability=market_finish_probability,
+            )
+        except Exception as exc:  # noqa: BLE001 — never let this break the winner response
+            finish_prediction = {
+                "bet": "error",
+                "error_code": "unexpected_error",
+                "error_message": str(exc),
+                "selection": None,
+                "confidence": None,
+                "tier": None,
+                "eligible": None,
+                "probabilities": None,
+                "method_probabilities": None,
+                "history": None,
+                "market": None,
+                "fight_number": None,
+            }
+
         return {
             "fighter1":           req.fighter1,
             "fighter2":           req.fighter2,
@@ -276,6 +322,7 @@ async def predict_fight(req: PredictRequest):
             "decision":           decision,
             "explanation":        explanation,
             "historical_context": historical_context,
+            "finish_prediction":  finish_prediction,
         }
 
     finally:

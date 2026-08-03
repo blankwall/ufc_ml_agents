@@ -428,6 +428,54 @@
   color: var(--yellow);
 }
 
+.fighter-finish-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.fighter-finish-panel-unavailable {
+  opacity: 0.7;
+}
+
+.fighter-finish-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fighter-finish-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.mp-finish-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.mp-meta-chip.tier-strong {
+  color: var(--green);
+  border-color: rgba(0, 212, 170, 0.35);
+}
+
+.mp-meta-chip.tier-eligible {
+  color: var(--accent);
+  border-color: rgba(79, 172, 254, 0.35);
+}
+
+.mp-meta-chip.tier-ineligible {
+  color: var(--text-muted);
+}
+
 .mp-stats-table {
   width: 100%;
   border-collapse: collapse;

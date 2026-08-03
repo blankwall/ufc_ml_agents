@@ -110,6 +110,11 @@ python backtest/optimize_config.py --results backtest/backtest_2026_results.csv 
 ### Config-Driven Betting
 `config/betting_config.json` drives everything: filter thresholds (min confidence, odds caps, min edge), edge-based bet sizing (skip 0-5%, 1x at 5-10%, 1.5x at 10-20%, 2x at 20%+), and WMMA rules. The frontend fetches this via `GET /api/config` on boot.
 
+### Finish/Decision Model (`ufc_decision_skill`)
+`POST /api/predict` returns an independent `finish_prediction` block powered by the protected, standalone [`ufc_decision_skill`](https://github.com/blankwall/ufc_decision_skill) package (pinned commit `da46562`, cloned locally at `~/ufc_decision_skill`). It predicts `P(finish)` vs `P(decision)` and a KO/TKO-vs-submission method split, gated by a 2-prior-fight-per-fighter and 60%/62.5% confidence rule. It is entirely decoupled from the winner model above: separate inputs (weight class, fight number, optional finish/decision market odds), separate probabilities, and it never reads or writes `model_prob_f1`/`model_prob_f2`/`model_pick`/`edge`/the betting decision.
+
+`fastapi_app/services/finish_prediction_service.py` shells out to the skill's own CLI (`~/ufc_decision_skill/.venv/bin/ufc-decision`, which just wraps `ufc_decision_skill.inference.predict()`) rather than importing it in-process, so the skill's pinned dependency versions (numpy/pandas/scikit-learn/xgboost/scipy) never collide with this app's own versions — important because each `predict()` call retrains the model from scratch and exact library versions affect the floating-point result. If the skill can't run for any reason, `finish_prediction.bet` is the string `"error"` with an explicit `error_code`/`error_message`; it never substitutes a probability or fails the rest of `/api/predict`. See `.claude/skills/fastapi_app.md` for the full request/response contract.
+
 ### FastAPI App Structure
 - **Routers** (`fastapi_app/routers/`): 6 routers, all mounted at `/api` prefix
 - **Services** (`fastapi_app/services/`): `predict_service.py` (model loading + prediction), `backtest_engine.py` (interactive backtest), `scraper_service.py` (BFO/UFC Stats scraping), `ai_service.py` (Claude integration), `the_odds_api_service.py` (daily new-event sync from The Odds API), `ufcstats_sync_service.py` (conservative completed-event UFCStats DB sync)
@@ -160,9 +165,12 @@ If `THE_ODDS_API_KEY` is set, `fastapi_app/main.py` starts a background loop tha
 | `test_no_lookahead_leakage.py` | Point-in-time integrity: features at `as_of=D` and `as_of=D-1day` must be identical (fight at D excluded from both). Features at `as_of=D+1day` must differ. Guards against `<` → `<=` regressions in feature extractor. |
 | `test_predict_response.py` | `/api/predict` endpoint response shape and field presence. |
 | `test_predict_symmetry.py` | Model is symmetric: `P(A beats B) + P(B beats A) ≈ 1.0`. |
+| `test_finish_prediction_service.py` | `finish_prediction_service` subprocess wrapper: missing-input guards, error-code mapping (timeout, bad JSON, non-zero exit, fighter-not-found), de-vig math — all with `subprocess.run` mocked, no real skill call. |
+| `test_predict_finish_contract.py` | `/api/predict`'s `finish_prediction` block contract: shape, error passthrough, market odds de-vig wiring, and that the winner model fields are unaffected. Mocks `_run_finish_prediction`. |
+| `test_finish_prediction_acceptance.py` | Real end-to-end parity against the protected `ufc_decision_skill` model (golden fixture values, fighter-order invariance, eligibility gate boundaries, market de-vig). Skipped automatically if `~/ufc_decision_skill` isn't installed/bootstrapped. |
 | `test_ufc_328_consistency.py` | Event-level regression: UFC 328 predictions are stable across runs. |
 
-**Note:** `test_ufc_328_consistency.py` requires `playwright` (`pip install playwright`). All others have no heavy external dependencies beyond the repo's `.venv`.
+**Note:** `test_ufc_328_consistency.py` requires `playwright` (`pip install playwright`). `test_finish_prediction_acceptance.py` requires `~/ufc_decision_skill` to be cloned/bootstrapped locally (see `.claude/skills/fastapi_app.md`). All others have no heavy external dependencies beyond the repo's `.venv`.
 
 ## Key Model Artifacts
 

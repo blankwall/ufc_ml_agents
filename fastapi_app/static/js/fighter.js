@@ -385,6 +385,8 @@ function renderMatchupPanel(left, right, prediction) {
         ${thinData}
       </div>
 
+      ${renderFinishPrediction(prediction.finish_prediction)}
+
       <table class="mp-stats-table">
         <tbody>
           ${COMPARE_METRICS.map(metric => renderCompareRow(left, right, metric)).join('')}
@@ -395,6 +397,50 @@ function renderMatchupPanel(left, right, prediction) {
         <div class="mp-recent-col">${renderRecentFights(left.fight_history, left.name)}</div>
         <div class="mp-recent-label">Recent</div>
         <div class="mp-recent-col right">${renderRecentFights(right.fight_history, right.name)}</div>
+      </div>
+    </div>
+  `;
+}
+
+// Renders the independent finish/decision model block returned by /api/predict
+// as `finish_prediction` (powered by the protected ufc_decision_skill package).
+// This is informational only — it never affects the winner pick/edge above.
+function renderFinishPrediction(finishPrediction) {
+  if (!finishPrediction) return '';
+
+  if (finishPrediction.bet === 'error') {
+    const reason = finishPrediction.error_code === 'missing_input'
+      ? 'Add a fight date and weight class to see the finish/decision read.'
+      : `Finish model unavailable (${esc(finishPrediction.error_code || 'error')}).`;
+    return `
+      <div class="fighter-finish-panel fighter-finish-panel-unavailable">
+        <span class="mp-meta-chip">Finish vs Decision: unavailable</span>
+        <span class="mp-finish-note">${reason}</span>
+      </div>
+    `;
+  }
+
+  const tierClass = finishPrediction.tier === 'strong' ? 'strong'
+    : finishPrediction.tier === 'eligible' ? 'eligible'
+    : 'ineligible';
+  const selectionLabel = finishPrediction.selection === 'finish' ? 'Finish' : 'Decision';
+  const finishPct = formatPercent(finishPrediction.probabilities.finish * 100);
+  const decisionPct = formatPercent(finishPrediction.probabilities.decision * 100);
+  const method = finishPrediction.method_probabilities;
+  const betChip = finishPrediction.bet
+    ? '<span class="mp-meta-chip pick">Actionable edge</span>'
+    : '<span class="mp-meta-chip">No market edge</span>';
+
+  return `
+    <div class="fighter-finish-panel">
+      <div class="fighter-finish-header">
+        <span class="mp-meta-chip">Finish vs Decision</span>
+        <span class="mp-meta-chip tier-${tierClass}">${esc(finishPrediction.tier)}</span>
+        ${betChip}
+      </div>
+      <div class="fighter-finish-body">
+        <span>Model favors <strong>${selectionLabel}</strong> (${finishPct} finish / ${decisionPct} decision)</span>
+        ${method ? `<span class="mp-finish-note">Method split — KO/TKO ${formatPercent(method.ko_tko * 100)} · Submission ${formatPercent(method.submission * 100)} · Decision ${formatPercent(method.decision * 100)}</span>` : ''}
       </div>
     </div>
   `;
