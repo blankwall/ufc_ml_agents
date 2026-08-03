@@ -137,6 +137,10 @@ Card workflow:
 - `GET /api/decision-cards/{card_key}` returns queued/running/complete/error state.
 - `GET /api/decision-cards?event_date=YYYY-MM-DD` returns the latest persistent
   cached result for that card date.
+- Both GET forms accept `view=all|signals|actionable`. `signals` returns fights
+  that clear the history/confidence threshold; `actionable` returns only true
+  market bets (`bet=true`), which requires supplied finish/decision prices and
+  positive model-minus-market edge.
 - The events UI starts analysis explicitly and polls without blocking normal API
   traffic. Completed signals are restored from cache on later page loads.
 

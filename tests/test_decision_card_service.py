@@ -98,6 +98,41 @@ def test_decision_card_endpoints_delegate(monkeypatch):
     assert client.get("/api/decision-cards?event_date=2026-08-08").status_code == 200
 
 
+def test_decision_card_get_views_filter_signals_and_actionable(monkeypatch):
+    card = {
+        "card_key": "abc",
+        "status": "complete",
+        "event_date": "2026-08-08",
+        "fights": [
+            {"fighter1": "Strong", "result": {"eligible": True, "tier": "strong", "bet": False}},
+            {"fighter1": "Bet", "result": {"eligible": True, "tier": "eligible", "bet": True}},
+            {"fighter1": "Below", "result": {"eligible": False, "tier": "ineligible", "bet": False}},
+            {"fighter1": "Error", "result": {"eligible": None, "tier": None, "bet": "error"}},
+        ],
+    }
+    monkeypatch.setattr(router, "get_card_analysis_by_date", lambda _date: card)
+    client = TestClient(app)
+
+    signals = client.get(
+        "/api/decision-cards?event_date=2026-08-08&view=signals"
+    ).json()
+    actionable = client.get(
+        "/api/decision-cards?event_date=2026-08-08&view=actionable"
+    ).json()
+
+    assert signals["returned_fights"] == 2
+    assert [fight["fighter1"] for fight in signals["fights"]] == ["Strong", "Bet"]
+    assert actionable["returned_fights"] == 1
+    assert actionable["fights"][0]["fighter1"] == "Bet"
+    assert signals["summary"] == {
+        "total": 4,
+        "signals": 2,
+        "strong": 1,
+        "actionable": 1,
+        "errors": 1,
+    }
+
+
 def test_orphaned_running_job_is_marked_interrupted(monkeypatch, tmp_path):
     cache_path = tmp_path / "decision_cards.json"
     cache_path.write_text(json.dumps({

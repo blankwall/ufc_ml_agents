@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
+from typing import Literal
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
@@ -14,6 +16,7 @@ from services.decision_card_service import (
 )
 
 router = APIRouter()
+DecisionCardView = Literal["all", "signals", "actionable"]
 
 
 class DecisionFightRequest(BaseModel):
@@ -30,6 +33,33 @@ class DecisionCardRequest(BaseModel):
     force: bool = False
 
 
+def _apply_view(result: dict, view: DecisionCardView) -> dict:
+    payload = deepcopy(result)
+    fights = payload.get("fights", [])
+    summary = {
+        "total": len(fights),
+        "signals": sum(1 for fight in fights if fight.get("result", {}).get("eligible") is True),
+        "strong": sum(1 for fight in fights if fight.get("result", {}).get("tier") == "strong"),
+        "actionable": sum(1 for fight in fights if fight.get("result", {}).get("bet") is True),
+        "errors": sum(1 for fight in fights if fight.get("result", {}).get("bet") == "error"),
+    }
+    if view == "signals":
+        fights = [
+            fight for fight in fights
+            if fight.get("result", {}).get("eligible") is True
+        ]
+    elif view == "actionable":
+        fights = [
+            fight for fight in fights
+            if fight.get("result", {}).get("bet") is True
+        ]
+    payload["view"] = view
+    payload["summary"] = summary
+    payload["returned_fights"] = len(fights)
+    payload["fights"] = fights
+    return payload
+
+
 @router.post("/decision-cards/analyze")
 async def analyze_decision_card(request: DecisionCardRequest):
     return start_card_analysis(
@@ -41,16 +71,16 @@ async def analyze_decision_card(request: DecisionCardRequest):
 
 
 @router.get("/decision-cards/{card_key}")
-async def decision_card_status(card_key: str):
+async def decision_card_status(card_key: str, view: DecisionCardView = "all"):
     result = get_card_analysis(card_key)
     if result is None:
         raise HTTPException(status_code=404, detail="Decision card analysis not found.")
-    return result
+    return _apply_view(result, view)
 
 
 @router.get("/decision-cards")
-async def decision_card_by_date(event_date: str):
+async def decision_card_by_date(event_date: str, view: DecisionCardView = "all"):
     result = get_card_analysis_by_date(event_date)
     if result is None:
         raise HTTPException(status_code=404, detail="No cached decision analysis for this date.")
-    return result
+    return _apply_view(result, view)
