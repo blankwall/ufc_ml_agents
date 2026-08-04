@@ -65,6 +65,23 @@ def test_evaluate_job_disabled_is_not_alarmed():
     assert result["level"] == "ok"
 
 
+def test_marco_warm_partial_errors_are_degraded():
+    result = health_eval.evaluate_job(
+        "marco_cache_warm",
+        {
+            "enabled": True,
+            "runs_since_launch": 1,
+            "successes_since_launch": 1,
+            "failures_since_launch": 0,
+            "last_success_at": health_eval._now().isoformat(),
+            "last_summary": {"fights": 42, "errors": 2},
+        },
+    )
+
+    assert result["level"] == "degraded"
+    assert "2 future fight(s) failed Marco warming" in result["issues"]
+
+
 def test_data_freshness_stale_detection(monkeypatch, tmp_path):
     import sqlite3
 

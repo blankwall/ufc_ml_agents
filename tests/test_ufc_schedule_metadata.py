@@ -22,6 +22,7 @@ def test_find_upcoming_bout_reads_metadata_rich_cache(monkeypatch):
                     "fighter2": "Billy Quarantillo",
                     "weight_class": "Lightweight",
                     "fight_number": 3,
+                    "is_title_fight": True,
                 }],
             }],
         },
@@ -33,6 +34,7 @@ def test_find_upcoming_bout_reads_metadata_rich_cache(monkeypatch):
 
     assert result["weight_class"] == "Lightweight"
     assert result["fight_number"] == 3
+    assert result["is_title_fight"] is True
 
 
 def test_legacy_allowlist_bout_still_matches(monkeypatch):

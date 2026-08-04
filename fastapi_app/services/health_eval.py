@@ -33,6 +33,7 @@ JOB_STALE_HOURS: dict[str, int] = {
     "ufcstats_completed_sync": 48,
     "the_odds_api_sync": 48,
     "sherdog_recovery": 168,
+    "marco_cache_warm": 3,
 }
 DEFAULT_JOB_STALE_HOURS = 72
 
@@ -172,6 +173,11 @@ def evaluate_job(name: str, job: dict[str, Any]) -> dict[str, Any]:
         issues.append(f"{failures} failed run(s) since launch")
     if last_error:
         level = _worse(level, "error")
+    if name == "marco_cache_warm":
+        warm_errors = (job.get("last_summary") or {}).get("errors", 0)
+        if warm_errors:
+            level = _worse(level, "degraded")
+            issues.append(f"{warm_errors} future fight(s) failed Marco warming")
 
     # Staleness only alarms for jobs that are supposed to be running.
     if enabled:

@@ -253,6 +253,7 @@ def find_upcoming_bout(
                 "fighter2": right,
                 "weight_class": metadata.get("weight_class"),
                 "fight_number": metadata.get("fight_number"),
+                "is_title_fight": metadata.get("is_title_fight"),
             }
     return None
 
@@ -408,6 +409,7 @@ def refresh_allowlist(*, max_days_ahead: int = DEFAULT_MAX_DAYS_AHEAD,
                     "fighter2": n2,
                     "weight_class": str(fight.get("weight_class", "")).strip() or None,
                     "fight_number": fight.get("fight_number"),
+                    "is_title_fight": bool(fight.get("is_title_fight")),
                 })
         if not bouts:
             continue

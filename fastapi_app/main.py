@@ -22,6 +22,8 @@ from routers.scraper import router as scraper_router
 from services.runtime_status import configure_job, get_runtime_health, mark_task_started, mark_task_stopped
 from services.health_eval import evaluate_health, list_evidence, resolve_evidence_file, MAX_VIEW_BYTES
 from services.sherdog_recovery_service import get_health_status as sherdog_recovery_health_status, recovery_enabled as sherdog_recovery_enabled
+from services.marco_warm_service import get_health_status as marco_warm_health_status
+from services.marco_warm_service import run_sync_loop as run_marco_warm_loop, scheduler_enabled as marco_warm_enabled
 from services.the_odds_api_service import get_health_status as odds_health_status
 from services.the_odds_api_service import run_sync_loop as run_odds_sync_loop, scheduler_enabled as odds_scheduler_enabled
 from services.ufcstats_sync_service import get_health_status as ufcstats_health_status
@@ -45,10 +47,13 @@ async def lifespan(_app: FastAPI):
     configure_job("the_odds_api_sync", enabled=odds_scheduler_enabled())
     configure_job("ufcstats_completed_sync", enabled=ufcstats_scheduler_enabled())
     configure_job("sherdog_recovery", enabled=sherdog_recovery_enabled())
+    configure_job("marco_cache_warm", enabled=marco_warm_enabled())
     if odds_scheduler_enabled():
         sync_tasks.append(asyncio.create_task(_run_background_loop("the_odds_api_sync", run_odds_sync_loop)))
     if ufcstats_scheduler_enabled():
         sync_tasks.append(asyncio.create_task(_run_background_loop("ufcstats_completed_sync", run_ufcstats_sync_loop)))
+    if marco_warm_enabled():
+        sync_tasks.append(asyncio.create_task(_run_background_loop("marco_cache_warm", run_marco_warm_loop)))
     try:
         yield
     finally:
@@ -90,6 +95,7 @@ def _health_payload():
         "the_odds_api_sync": odds_health_status(),
         "sherdog_recovery": sherdog_recovery_health_status(),
         "ufcstats_completed_sync": ufcstats_health_status(),
+        "marco_cache_warm": marco_warm_health_status(),
     }
     verdict = evaluate_health(background_jobs)
     for name, job_eval in verdict["job_eval"].items():

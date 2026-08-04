@@ -7,6 +7,7 @@ and optional American odds.  No caching — runs fresh on every call.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 from datetime import date, datetime
@@ -26,6 +27,7 @@ from sqlalchemy.orm import sessionmaker
 from database.schema import Fighter
 from services.bet_evaluator import evaluate_bet_decision
 from services.historical_context_service import describe_historical_context
+from services.marco_service import evaluate_resurrection, run_marco_prediction
 from services.predict_service import (
     FIGHTER_ALIASES,
     MatchupFeatureExtractor,
@@ -253,8 +255,42 @@ async def predict_fight(req: PredictRequest):
             is_wmma=is_wmma,
         )
         historical_context = _minimize_historical_context(historical_context)
-        decision = _predict_decision_label(bet_eval)
-        explanation = _predict_explanation(bet_eval)
+        canonical_model_pick = f1.name if model_prob >= 0.5 else f2.name
+        try:
+            marco = await asyncio.to_thread(
+                run_marco_prediction,
+                f1.name,
+                f2.name,
+                fight_date=req.fight_date,
+            )
+        except Exception as exc:  # Marco must never take down winner prediction.
+            marco = {
+                "status": "error",
+                "error_code": "marco_unavailable",
+                "error_message": str(exc),
+                "cache_hit": False,
+                "pick": None,
+                "pick_probability": None,
+                "history": None,
+                "metadata": None,
+            }
+        resurrection = evaluate_resurrection(
+            marco=marco,
+            model_pick=canonical_model_pick,
+            original_bet=bool(bet_eval["bet"]),
+            skip_code=bet_eval.get("skip_code"),
+            skip_reason=bet_eval.get("skip_reason"),
+            pick_model_prob=pick_model_prob,
+            pick_market_prob=pick_mkt_prob,
+            pick_odds=pick_odds_int,
+        )
+        final_bet = resurrection["final_bet"]
+        if resurrection["resurrected"]:
+            decision = "Bet"
+            explanation = resurrection["reason"]
+        else:
+            decision = _predict_decision_label(bet_eval)
+            explanation = _predict_explanation(bet_eval)
 
         return {
             "fighter1":           req.fighter1,
@@ -270,11 +306,17 @@ async def predict_fight(req: PredictRequest):
             "thin_data_warning":  f1_count < 3 or f2_count < 3,
             "is_wmma":            is_wmma,
             "fight_date":         req.fight_date.isoformat() if req.fight_date else None,
-            "bet":                bet_eval["bet"],
-            "skip_reason":        bet_eval.get("skip_reason"),
+            "bet":                final_bet,
+            "skip_reason":        None if final_bet else bet_eval.get("skip_reason"),
             "decision":           decision,
             "explanation":        explanation,
             "historical_context": historical_context,
+            "resurrected_bet":    resurrection["resurrected"],
+            "stake_multiplier":   resurrection["stake_multiplier"],
+            "marco": {
+                **marco,
+                "resurrection": resurrection,
+            },
         }
 
     finally:

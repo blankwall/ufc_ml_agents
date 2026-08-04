@@ -43,6 +43,17 @@ def _patch_predict_dependencies(monkeypatch, *, model_prob: float, bet_eval: dic
     monkeypatch.setattr(predict_router, "_evaluate_bet", lambda **_kwargs: bet_eval)
     monkeypatch.setattr(
         predict_router,
+        "run_marco_prediction",
+        lambda *_args, **_kwargs: {
+            "status": "complete",
+            "pick": "Alex Perez" if model_prob >= 0.5 else "Charles Johnson",
+            "pick_probability": 0.65,
+            "history": {"fighter1_prior": 5, "fighter2_prior": 7},
+            "cache_hit": True,
+        },
+    )
+    monkeypatch.setattr(
+        predict_router,
         "describe_historical_context",
         lambda **_kwargs: {
             "primary_bucket": {
@@ -94,6 +105,8 @@ def test_predict_response_is_minimized_and_static_config_only(monkeypatch):
     assert result["decision"] == "Bet"
     assert result["explanation"] == "Bet: the model clears the current betting rules."
     assert result["skip_reason"] is None
+    assert result["resurrected_bet"] is False
+    assert result["marco"]["resurrection"]["reason_code"] == "existing_bet"
 
     assert "fighter1_db_name" not in result
     assert "fighter2_db_name" not in result
@@ -135,6 +148,7 @@ def test_predict_response_static_skip_cannot_be_reopened_by_elo(monkeypatch):
     assert result["skip_reason"] == "Favorite low edge"
     assert result["decision"] == "Pass"
     assert result["explanation"] == "Pass: the favorite edge is too small."
+    assert result["resurrected_bet"] is False
     assert "decision_source" not in result
     assert "review_bucket" not in result
     assert "review_tier" not in result
@@ -165,3 +179,79 @@ def test_evaluate_bet_decision_uses_only_static_config():
         "skip_reason": "Favorite low edge",
         "decision_source": "static_skip",
     }
+
+
+def test_predict_response_resurrects_marco_agreed_favorite(monkeypatch):
+    _patch_predict_dependencies(
+        monkeypatch,
+        model_prob=0.58,
+        bet_eval={
+            "bet": False,
+            "skip_code": "F1",
+            "skip_reason": "Favorite low confidence",
+            "decision_source": "static_skip",
+        },
+    )
+    monkeypatch.setattr(
+        predict_router,
+        "run_marco_prediction",
+        lambda *_args, **_kwargs: {
+            "status": "complete",
+            "pick": "Alex Perez",
+            "pick_probability": 0.61,
+            "history": {"fighter1_prior": 5, "fighter2_prior": 7},
+            "cache_hit": False,
+        },
+    )
+
+    result = asyncio.run(
+        predict_router.predict_fight(
+            predict_router.PredictRequest(
+                fighter1="Alex Perez",
+                fighter2="Charles Johnson",
+                fighter1_odds=-110,
+                fighter2_odds=-110,
+                fight_date="2026-08-08",
+            )
+        )
+    )
+
+    assert result["bet"] is True
+    assert result["resurrected_bet"] is True
+    assert result["stake_multiplier"] == 1.0
+    assert result["skip_reason"] is None
+    assert result["marco"]["resurrection"]["reason_code"] == "marco_reclaim"
+
+
+def test_predict_marco_exception_does_not_break_winner_prediction(monkeypatch):
+    _patch_predict_dependencies(
+        monkeypatch,
+        model_prob=0.58,
+        bet_eval={
+            "bet": False,
+            "skip_code": "F1",
+            "skip_reason": "Favorite low confidence",
+            "decision_source": "static_skip",
+        },
+    )
+    monkeypatch.setattr(
+        predict_router,
+        "run_marco_prediction",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("runtime unavailable")),
+    )
+
+    result = asyncio.run(
+        predict_router.predict_fight(
+            predict_router.PredictRequest(
+                fighter1="Alex Perez",
+                fighter2="Charles Johnson",
+                fighter1_odds=-110,
+                fighter2_odds=-110,
+                fight_date="2026-08-08",
+            )
+        )
+    )
+
+    assert result["bet"] is False
+    assert result["resurrected_bet"] is False
+    assert result["marco"]["error_code"] == "marco_unavailable"

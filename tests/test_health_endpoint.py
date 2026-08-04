@@ -37,6 +37,11 @@ def test_health_endpoint_reports_runtime_and_background_jobs(monkeypatch):
         "ufcstats_health_status",
         lambda: {"enabled": False, "task_active": False, "runs_since_launch": 0},
     )
+    monkeypatch.setattr(
+        main_module,
+        "marco_warm_health_status",
+        lambda: {"enabled": True, "task_active": True, "runs_since_launch": 1},
+    )
 
     client = TestClient(app)
     response = client.get("/api/health")
@@ -58,7 +63,12 @@ def test_health_endpoint_reports_runtime_and_background_jobs(monkeypatch):
     }
 
     jobs = body["background_jobs"]
-    assert set(jobs) == {"the_odds_api_sync", "sherdog_recovery", "ufcstats_completed_sync"}
+    assert set(jobs) == {
+        "the_odds_api_sync",
+        "sherdog_recovery",
+        "ufcstats_completed_sync",
+        "marco_cache_warm",
+    }
     # Original per-job fields are preserved, plus an injected health verdict.
     assert jobs["the_odds_api_sync"]["runs_since_launch"] == 2
     assert jobs["ufcstats_completed_sync"]["enabled"] is False
