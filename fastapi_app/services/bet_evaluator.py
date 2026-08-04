@@ -35,7 +35,7 @@ def evaluate_bet_decision(
     _ = (fighter1_name, fighter2_name, pick_slot, as_of_date)
 
     min_fights = filters.get("min_fights", 2)
-    fav_conf = filters.get("favorite_confidence_min", 0.60)
+    fav_conf = filters.get("favorite_confidence_min")
     ud_conf = filters.get("underdog_confidence_min", 0.53)
     fav_cap = filters.get("favorite_odds_cap", -300)
     ud_cap = filters.get("underdog_odds_cap", 300)
@@ -49,7 +49,7 @@ def evaluate_bet_decision(
     elif is_wmma and edge_pct < wmma_min_edge:
         result = {"bet": False, "skip_code": "W1", "skip_reason": SKIP_REASONS["W1"]}
     elif is_favorite:
-        if pick_model_prob < fav_conf:
+        if fav_conf is not None and pick_model_prob < fav_conf:
             result = {"bet": False, "skip_code": "F1", "skip_reason": SKIP_REASONS["F1"]}
         elif pick_odds is not None and pick_odds < fav_cap:
             result = {"bet": False, "skip_code": "F2", "skip_reason": SKIP_REASONS["F2"]}

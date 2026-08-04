@@ -72,14 +72,15 @@ function _applyConfigDefaults(cfg) {
   if (f.min_fights != null) THIN_DATA_MIN_FIGHTS = f.min_fights;
   if (f.edge_min != null) filters.minEdge = f.edge_min * 100;
   if (f.underdog_edge_min != null) filters.udEdge = f.underdog_edge_min * 100;
-  if (f.favorite_confidence_min != null) filters.favConf = f.favorite_confidence_min * 100;
+  filters.favConf = f.favorite_confidence_min != null ? f.favorite_confidence_min * 100 : null;
   if (f.underdog_confidence_min != null) filters.udConf  = f.underdog_confidence_min * 100;
   if (f.favorite_odds_cap != null) { filters.favCap = f.favorite_odds_cap; ODDS_CAP_FAV_DEFAULT = f.favorite_odds_cap; }
   if (f.underdog_odds_cap != null) { filters.dogCap = f.underdog_odds_cap; ODDS_CAP_UD_DEFAULT  = f.underdog_odds_cap; }
 
   const _setVal = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
   _setVal('minEdge', filters.minEdge);
-  _setVal('favConf', filters.favConf);
+  const favConfEl = document.getElementById('favConf');
+  if (favConfEl) favConfEl.value = filters.favConf ?? '';
   _setVal('udConf',  filters.udConf);
   _setVal('udEdge',  filters.udEdge);
   _setVal('favCap',  filters.favCap);
@@ -182,7 +183,7 @@ function wireFilters() {
 
   resetBtn.addEventListener('click', () => {
     minEdgeEl.value        = '';
-    favConfEl.value        = filters.favConf ?? 70;
+    favConfEl.value        = '';
     udConfEl.value         = '';
     udEdgeEl.value         = 10;
     favCapEl.value         = ODDS_CAP_FAV_DEFAULT;

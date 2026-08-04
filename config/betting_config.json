@@ -5,7 +5,7 @@
     "min_fights": 2,
     "edge_min": 0.04,
     "underdog_edge_min": 0.05,
-    "favorite_confidence_min": 0.60,
+    "favorite_confidence_min": null,
     "underdog_confidence_min": 0.53,
     "favorite_odds_cap": -300,
     "underdog_odds_cap": 300

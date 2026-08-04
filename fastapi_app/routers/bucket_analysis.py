@@ -380,7 +380,8 @@ def _build_fights_table(results_path: Path, bets_filter: set | None):
                     cfg = json.loads(_CONFIG_PATH.read_text())
                     filters = cfg.get("filters", {})
                     is_fav = pick_odds < 0
-                    if is_fav and pick_prob < filters.get("favorite_confidence_min", 0.7):
+                    fav_conf = filters.get("favorite_confidence_min")
+                    if is_fav and fav_conf is not None and pick_prob < fav_conf:
                         skip_code = "F1"
                     elif is_fav and pick_odds <= -abs(filters.get("favorite_odds_cap", 300)):
                         skip_code = "F2"
