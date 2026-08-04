@@ -162,6 +162,20 @@ def _minimize_historical_context(context: dict) -> dict:
     }
 
 
+def _public_marco_result(marco: dict, resurrection: dict) -> dict:
+    if marco.get("status") != "complete":
+        return {
+            "available": False,
+            "error": marco.get("error_code") or "marco_unavailable",
+        }
+    return {
+        "available": True,
+        "pick": marco.get("pick"),
+        "confidence": round(float(marco.get("pick_probability", 0)) * 100, 1),
+        "agrees": resurrection.get("agreement") is True,
+    }
+
+
 # ── endpoint ──────────────────────────────────────────────────────────────────
 
 @router.post("/predict")
@@ -313,10 +327,7 @@ async def predict_fight(req: PredictRequest):
             "historical_context": historical_context,
             "resurrected_bet":    resurrection["resurrected"],
             "stake_multiplier":   resurrection["stake_multiplier"],
-            "marco": {
-                **marco,
-                "resurrection": resurrection,
-            },
+            "marco":              _public_marco_result(marco, resurrection),
         }
 
     finally:

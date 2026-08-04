@@ -106,7 +106,12 @@ def test_predict_response_is_minimized_and_static_config_only(monkeypatch):
     assert result["explanation"] == "Bet: the model clears the current betting rules."
     assert result["skip_reason"] is None
     assert result["resurrected_bet"] is False
-    assert result["marco"]["resurrection"]["reason_code"] == "existing_bet"
+    assert result["marco"] == {
+        "available": True,
+        "pick": "Alex Perez",
+        "confidence": 65.0,
+        "agrees": True,
+    }
 
     assert "fighter1_db_name" not in result
     assert "fighter2_db_name" not in result
@@ -220,7 +225,12 @@ def test_predict_response_resurrects_marco_agreed_favorite(monkeypatch):
     assert result["resurrected_bet"] is True
     assert result["stake_multiplier"] == 1.0
     assert result["skip_reason"] is None
-    assert result["marco"]["resurrection"]["reason_code"] == "marco_reclaim"
+    assert result["marco"] == {
+        "available": True,
+        "pick": "Alex Perez",
+        "confidence": 61.0,
+        "agrees": True,
+    }
 
 
 def test_predict_marco_exception_does_not_break_winner_prediction(monkeypatch):
@@ -254,4 +264,7 @@ def test_predict_marco_exception_does_not_break_winner_prediction(monkeypatch):
 
     assert result["bet"] is False
     assert result["resurrected_bet"] is False
-    assert result["marco"]["error_code"] == "marco_unavailable"
+    assert result["marco"] == {
+        "available": False,
+        "error": "marco_unavailable",
+    }
