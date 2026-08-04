@@ -10,8 +10,8 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi_app.services.marco_service import run_marco_prediction
-from fastapi_app.services.runtime_status import (
+from .marco_service import run_marco_prediction
+from .runtime_status import (
     configure_job,
     get_job_status,
     mark_check,
@@ -62,11 +62,25 @@ def warm_future_cards(*, today: date | None = None) -> dict[str, Any]:
     configure_job(JOB_NAME, enabled=scheduler_enabled())
     mark_check(JOB_NAME)
     if not scheduler_enabled():
-        return {"cards": 0, "fights": 0, "warmed": 0, "cached": 0, "errors": 0}
+        return {
+            "cards": 0,
+            "fights": 0,
+            "warmed": 0,
+            "cached": 0,
+            "unavailable": 0,
+            "errors": 0,
+        }
 
     mark_run_started(JOB_NAME, trigger="hourly")
     cutoff = today or datetime.now(timezone.utc).date()
-    summary = {"cards": 0, "fights": 0, "warmed": 0, "cached": 0, "errors": 0}
+    summary = {
+        "cards": 0,
+        "fights": 0,
+        "warmed": 0,
+        "cached": 0,
+        "unavailable": 0,
+        "errors": 0,
+    }
     try:
         events = list(get_events_data())
         allowlist = load_allowlist() or {}
@@ -103,7 +117,10 @@ def warm_future_cards(*, today: date | None = None) -> dict[str, Any]:
                     fight_date=fight_date,
                 )
                 if result.get("status") != "complete":
-                    summary["errors"] += 1
+                    if result.get("error_code") == "fighter_not_found":
+                        summary["unavailable"] += 1
+                    else:
+                        summary["errors"] += 1
                 elif result.get("cache_hit"):
                     summary["cached"] += 1
                 else:

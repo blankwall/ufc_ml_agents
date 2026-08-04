@@ -158,4 +158,11 @@ def test_warmer_only_processes_cards_after_today(monkeypatch):
     summary = warmer.warm_future_cards(today=date(2026, 8, 4))
 
     assert calls == [("Future A", "Future B"), ("Future C", "Future D")]
-    assert summary == {"cards": 1, "fights": 2, "warmed": 1, "cached": 1, "errors": 0}
+    assert summary == {
+        "cards": 1,
+        "fights": 2,
+        "warmed": 1,
+        "cached": 1,
+        "unavailable": 0,
+        "errors": 0,
+    }

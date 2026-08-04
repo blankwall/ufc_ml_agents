@@ -18,8 +18,8 @@ from typing import Any, Iterator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from fastapi_app.services.fighter_identity import resolve_fighter
-from fastapi_app.services.ufc_schedule_service import find_upcoming_bout
+from .fighter_identity import resolve_fighter
+from .ufc_schedule_service import find_upcoming_bout
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 CACHE_PATH = ROOT_DIR / "data" / "future_fight_odds" / "marco_cache.json"
