@@ -361,6 +361,7 @@ def _run_uncached(
 def evaluate_resurrection(
     *,
     marco: dict[str, Any],
+    enabled: bool = True,
     model_pick: str,
     original_bet: bool,
     skip_code: str | None,
@@ -396,6 +397,12 @@ def evaluate_resurrection(
     ) >= 2
     base.update(agreement=agreement, history_eligible=history_eligible)
 
+    if not enabled:
+        return {
+            **base,
+            "reason_code": "disabled",
+            "reason": "Marco resurrection is disabled by betting configuration.",
+        }
     if original_bet:
         return {
             **base,

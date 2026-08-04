@@ -41,6 +41,7 @@ def _patch_predict_dependencies(monkeypatch, *, model_prob: float, bet_eval: dic
     )
     monkeypatch.setattr(predict_router, "_matchup_wmma_flag", lambda *_args, **_kwargs: False)
     monkeypatch.setattr(predict_router, "_evaluate_bet", lambda **_kwargs: bet_eval)
+    monkeypatch.setattr(predict_router, "_marco_resurrection_enabled", lambda: True)
     monkeypatch.setattr(
         predict_router,
         "run_marco_prediction",
@@ -268,3 +269,34 @@ def test_predict_marco_exception_does_not_break_winner_prediction(monkeypatch):
         "available": False,
         "error": "marco_unavailable",
     }
+
+
+def test_predict_resurrection_can_be_disabled(monkeypatch):
+    _patch_predict_dependencies(
+        monkeypatch,
+        model_prob=0.58,
+        bet_eval={
+            "bet": False,
+            "skip_code": "F1",
+            "skip_reason": "Favorite low confidence",
+            "decision_source": "static_skip",
+        },
+    )
+    monkeypatch.setattr(predict_router, "_marco_resurrection_enabled", lambda: False)
+
+    result = asyncio.run(
+        predict_router.predict_fight(
+            predict_router.PredictRequest(
+                fighter1="Alex Perez",
+                fighter2="Charles Johnson",
+                fighter1_odds=-110,
+                fighter2_odds=-110,
+                fight_date="2026-08-08",
+            )
+        )
+    )
+
+    assert result["bet"] is False
+    assert result["resurrected_bet"] is False
+    assert result["stake_multiplier"] is None
+    assert result["marco"]["agrees"] is True

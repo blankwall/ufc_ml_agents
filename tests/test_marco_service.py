@@ -76,6 +76,15 @@ def test_resurrection_never_flips_or_reopens_disallowed_bets():
     assert _resurrect(pick_odds=None)["reason_code"] == "missing_odds"
 
 
+def test_resurrection_can_be_disabled_without_hiding_agreement():
+    result = _resurrect(enabled=False)
+
+    assert result["resurrected"] is False
+    assert result["final_bet"] is False
+    assert result["agreement"] is True
+    assert result["reason_code"] == "disabled"
+
+
 def test_marco_prediction_uses_persistent_cache(monkeypatch, tmp_path):
     cache_path = tmp_path / "marco_cache.json"
     script = tmp_path / "marco" / "predict.py"

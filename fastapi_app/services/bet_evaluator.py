@@ -35,7 +35,7 @@ def evaluate_bet_decision(
     _ = (fighter1_name, fighter2_name, pick_slot, as_of_date)
 
     min_fights = filters.get("min_fights", 2)
-    fav_conf = filters.get("favorite_confidence_min", 0.65)
+    fav_conf = filters.get("favorite_confidence_min", 0.60)
     ud_conf = filters.get("underdog_confidence_min", 0.53)
     fav_cap = filters.get("favorite_odds_cap", -300)
     ud_cap = filters.get("underdog_odds_cap", 300)

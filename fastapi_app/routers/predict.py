@@ -70,6 +70,7 @@ def _load_betting_filters() -> dict:
         return {
             "filters": cfg.get("filters", {}),
             "wmma":    cfg.get("wmma_rules", {}),
+            "marco":   cfg.get("marco_resurrection", {}),
         }
     except Exception:
         return {}
@@ -113,6 +114,10 @@ def _matchup_wmma_flag(session, fighter1_id: int, fighter2_id: int) -> Optional[
     if w1 is None and w2 is None:
         return None
     return False
+
+
+def _marco_resurrection_enabled() -> bool:
+    return _load_betting_filters().get("marco", {}).get("enabled") is True
 
 
 def _predict_decision_label(bet_eval: dict) -> str:
@@ -290,6 +295,7 @@ async def predict_fight(req: PredictRequest):
             }
         resurrection = evaluate_resurrection(
             marco=marco,
+            enabled=_marco_resurrection_enabled(),
             model_pick=canonical_model_pick,
             original_bet=bool(bet_eval["bet"]),
             skip_code=bet_eval.get("skip_code"),
